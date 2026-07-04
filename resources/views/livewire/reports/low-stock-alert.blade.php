@@ -1,0 +1,109 @@
+<div class="p-6">
+
+    {{-- Header --}}
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <flux:heading size="xl">Low Stock Alerts</flux:heading>
+            <flux:text class="mt-1">Products that need restocking</flux:text>
+        </div>
+        <flux:button icon="printer" variant="outline" onclick="window.print()">Print</flux:button>
+    </div>
+
+    {{-- Summary --}}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" class="mb-6">
+        <flux:card class="p-4 border-l-4 border-red-500">
+            <flux:text class="text-xs text-zinc-500">Out of Stock</flux:text>
+            <flux:heading size="xl" class="mt-1 text-red-600">{{ $outOfStock }}</flux:heading>
+            <flux:text class="text-sm text-zinc-400">Requires immediate action</flux:text>
+        </flux:card>
+        <flux:card class="p-4 border-l-4 border-yellow-500">
+            <flux:text class="text-xs text-zinc-500">Low Stock</flux:text>
+            <flux:heading size="xl" class="mt-1 text-yellow-600">{{ $lowStock }}</flux:heading>
+            <flux:text class="text-sm text-zinc-400">Below minimum level</flux:text>
+        </flux:card>
+    </div>
+
+    {{-- Filters --}}
+    <flux:card class="mb-6 p-4">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.75rem">
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" />
+            <flux:select wire:model.live="categoryFilter" placeholder="All Categories">
+                <flux:select.option value="">All Categories</flux:select.option>
+                @foreach($categories as $cat)
+                    <flux:select.option value="{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <flux:select wire:model.live="alertType">
+                <flux:select.option value="all">All Alerts</flux:select.option>
+                <flux:select.option value="out">Out of Stock</flux:select.option>
+                <flux:select.option value="low">Low Stock</flux:select.option>
+            </flux:select>
+        </div>
+    </flux:card>
+
+    {{-- Table --}}
+    <flux:card>
+        <flux:table :paginate="$products">
+            <flux:table.columns>
+                <flux:table.column>Product</flux:table.column>
+                <flux:table.column>Category</flux:table.column>
+                <flux:table.column>Supplier</flux:table.column>
+                <flux:table.column>Current Stock</flux:table.column>
+                <flux:table.column>Min Level</flux:table.column>
+                <flux:table.column>Shortage</flux:table.column>
+                <flux:table.column>Alert</flux:table.column>
+                <flux:table.column class="text-right">Action</flux:table.column>
+            </flux:table.columns>
+
+            <flux:table.rows>
+                @forelse($products as $product)
+                    <flux:table.row wire:key="{{ $product->id }}">
+                        <flux:table.cell>
+                            <flux:text class="font-medium">{{ $product->name }}</flux:text>
+                            <flux:text class="text-xs text-zinc-400">{{ $product->sku }}</flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:text class="text-sm">{{ $product->category?->name ?? '-' }}</flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:text class="text-sm">{{ $product->supplier?->name ?? '-' }}</flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:text class="{{ $product->quantity === 0 ? 'text-red-500 font-bold' : 'text-yellow-500 font-medium' }}">
+                                {{ $product->quantity }} {{ $product->unit }}
+                            </flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:text class="text-sm">{{ $product->min_stock_level }} {{ $product->unit }}</flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:text class="text-sm text-red-500">
+                                {{ max(0, $product->min_stock_level - $product->quantity) }} {{ $product->unit }}
+                            </flux:text>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" :color="$product->quantity === 0 ? 'red' : 'yellow'">
+                                {{ $product->quantity === 0 ? 'Out of Stock' : 'Low Stock' }}
+                            </flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell class="text-right">
+                            <flux:button size="sm" variant="outline" icon="plus" href="{{ route('purchases.create') }}" wire:navigate>
+                                Reorder
+                            </flux:button>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="8" class="py-12 text-center">
+                            <div class="flex flex-col items-center gap-2">
+                                <flux:icon name="check-circle" class="size-10 text-green-400" />
+                                <flux:text class="text-zinc-400">All products are well stocked!</flux:text>
+                            </div>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
+            </flux:table.rows>
+        </flux:table>
+    </flux:card>
+
+</div>

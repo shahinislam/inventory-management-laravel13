@@ -1,0 +1,32 @@
+@media print {
+    /* Hide everything except invoice */
+    nav, aside, header, footer,
+    .print\:hidden,
+    flux-sidebar,
+    [data-flux-sidebar] {
+        display: none !important;
+    }
+
+    /* Remove backgrounds */
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Full width print */
+    main, flux-main, [data-flux-main] {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Remove card shadows */
+    .flux-card, [data-flux-card] {
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* Page break control */
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+}

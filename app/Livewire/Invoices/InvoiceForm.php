@@ -1,0 +1,347 @@
+<?php
+
+namespace App\Livewire\Invoices;
+
+use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\Payment;
+use App\Models\Product;
+use App\Models\Promotion;
+use App\Models\StockMovement;
+use App\Models\Warehouse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Livewire\Component;
+
+class InvoiceForm extends Component
+{
+    public ?Invoice $invoice = null;
+
+    public ?int $customer_id       = null;
+    public string $customerSearch  = '';
+    public string $customer_name   = '';
+    public string $customer_email  = '';
+    public string $customer_phone  = '';
+    public string $customer_address = '';
+    public ?int $warehouse_id      = null;
+    public string $invoice_date    = '';
+    public string $due_date        = '';
+    public string $payment_method  = 'cash';
+    public string $tax             = '0';
+    public string $discount        = '0';
+    public string $notes           = '';
+    public array $items            = [];
+    public string $productSearch   = '';
+
+    public function mount(?Invoice $invoice = null): void
+    {
+        $this->invoice_date = now()->format('Y-m-d');
+        $this->warehouse_id = Warehouse::getDefault()?->id;
+
+        if ($invoice?->exists) {
+            $this->invoice          = $invoice->load('items.product');
+            $this->customer_id      = $invoice->customer_id;
+            $this->customer_name    = $invoice->customer_name;
+            $this->customer_email   = $invoice->customer_email ?? '';
+            $this->customer_phone   = $invoice->customer_phone ?? '';
+            $this->customer_address = $invoice->customer_address ?? '';
+            $this->warehouse_id     = $invoice->warehouse_id;
+            $this->invoice_date     = $invoice->invoice_date->format('Y-m-d');
+            $this->due_date         = $invoice->due_date?->format('Y-m-d') ?? '';
+            $this->payment_method   = $invoice->payment_method ?? 'cash';
+            $this->tax              = $invoice->tax;
+            $this->discount         = $invoice->discount;
+            $this->notes            = $invoice->notes ?? '';
+
+            $this->items = $invoice->items->map(fn($item) => [
+                'product_id' => $item->product_id,
+                'name'       => $item->product_name,
+                'sku'        => $item->product_sku,
+                'quantity'   => (string) $item->quantity,
+                'unit_price' => (string) $item->unit_price,
+                'tax_rate'   => (string) $item->tax_rate,
+                'discount'   => (string) $item->discount,
+            ])->toArray();
+        }
+    }
+
+    public function getCustomerResultsProperty()
+    {
+        if (empty($this->customerSearch) || $this->customer_id) return collect();
+        return Customer::active()
+            ->where(fn($q) => $q
+                ->where('name', 'like', "%{$this->customerSearch}%")
+                ->orWhere('phone', 'like', "%{$this->customerSearch}%")
+            )->limit(6)->get();
+    }
+
+    public function selectCustomer(int $id): void
+    {
+        $customer = Customer::find($id);
+        $this->customer_id      = $customer->id;
+        $this->customer_name    = $customer->name;
+        $this->customer_email   = $customer->email ?? '';
+        $this->customer_phone   = $customer->phone ?? '';
+        $this->customer_address = $customer->full_address ?? '';
+        $this->customerSearch   = $customer->name;
+    }
+
+    public function clearCustomer(): void
+    {
+        $this->customer_id    = null;
+        $this->customerSearch = '';
+        $this->customer_name  = '';
+        $this->customer_email = '';
+        $this->customer_phone = '';
+        $this->customer_address = '';
+    }
+
+    public function getProductResultsProperty()
+    {
+        if (empty($this->productSearch)) return collect();
+        return Product::active()
+            ->where(fn($q) => $q
+                ->where('name', 'like', "%{$this->productSearch}%")
+                ->orWhere('sku', 'like', "%{$this->productSearch}%")
+            )->limit(8)->get();
+    }
+
+    public function selectHighlighted(int $index): void
+    {
+        $product = $this->productResults->values()->get($index);
+        if ($product) {
+            $this->addProduct($product->id);
+            $this->productSearch = '';
+        }
+    }
+
+    public function addProduct(int $id): void
+    {
+        $product = Product::find($id);
+        if (!$product) return;
+
+        foreach ($this->items as $i => $item) {
+            if ($item['product_id'] === $id) {
+                $this->items[$i]['quantity'] = (string)((int)$item['quantity'] + 1);
+                $this->productSearch = '';
+                return;
+            }
+        }
+
+        [$discount, $promotionId, $promotionLabel] = $this->resolveDiscount($product);
+
+        $this->items[] = [
+            'product_id'      => $product->id,
+            'name'            => $product->name,
+            'sku'             => $product->sku,
+            'quantity'        => '1',
+            'unit_price'      => (string) $product->selling_price,
+            'tax_rate'        => (string) $product->tax_rate,
+            'discount'        => (string) $discount,
+            'promotion_id'    => $promotionId,
+            'promotion_label' => $promotionLabel,
+        ];
+
+        $this->productSearch = '';
+    }
+
+    /**
+     * @return array{0: float, 1: ?int, 2: ?string}
+     */
+    private function resolveDiscount(Product $product): array
+    {
+        $promotion = Promotion::active()
+            ->where(fn($q) => $q
+                ->where('product_id', $product->id)
+                ->orWhere('category_id', $product->category_id))
+            ->where(fn($q) => $q
+                ->whereNull('usage_limit')
+                ->orWhereColumn('used_count', '<', 'usage_limit'))
+            ->orderByRaw('CASE WHEN product_id = ? THEN 0 ELSE 1 END', [$product->id])
+            ->first();
+
+        if ($promotion) {
+            $perUnit = $promotion->type === 'fixed'
+                ? (float) $promotion->value
+                : (float) $product->selling_price * ((float) $promotion->value / 100);
+
+            if ($promotion->max_discount) {
+                $perUnit = min($perUnit, (float) $promotion->max_discount);
+            }
+
+            return [$perUnit, $promotion->id, $promotion->name];
+        }
+
+        $fallback = $product->discount_type === 'fixed'
+            ? (float) $product->discount
+            : (float) $product->selling_price * ((float) $product->discount / 100);
+
+        return [$fallback, null, null];
+    }
+
+    public function removeItem(int $index): void
+    {
+        unset($this->items[$index]);
+        $this->items = array_values($this->items);
+    }
+
+    public function getSubtotalProperty(): float
+    {
+        return array_reduce($this->items, function ($sum, $item) {
+            $line = (float)($item['quantity'] ?: 0) * (float)($item['unit_price'] ?: 0);
+            $disc = (float)($item['discount'] ?: 0) * (float)($item['quantity'] ?: 0);
+            $tax  = ($line - $disc) * ((float)($item['tax_rate'] ?: 0) / 100);
+            return $sum + $line - $disc + $tax;
+        }, 0);
+    }
+
+    public function getTotalProperty(): float
+    {
+        return max(0, $this->subtotal - (float)($this->discount ?: 0) + (float)($this->tax ?: 0));
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'customer_name'   => 'required|string|max:200',
+            'customer_email'  => 'nullable|email',
+            'customer_phone'  => 'nullable|string|max:20',
+            'warehouse_id'    => 'nullable|exists:warehouses,id',
+            'invoice_date'    => 'required|date',
+            'due_date'        => 'nullable|date',
+            'payment_method'  => 'nullable|string',
+            'tax'             => 'nullable|numeric|min:0',
+            'discount'        => 'nullable|numeric|min:0',
+            'notes'           => 'nullable|string',
+            'items'           => 'required|array|min:1',
+            'items.*.quantity'   => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ];
+    }
+
+    public function saveDraft(): void
+    {
+        $this->validate();
+        $this->persist('draft');
+        session()->flash('success', 'Invoice saved as draft!');
+        $this->redirect(route('invoices.index'), navigate: true);
+    }
+
+    public function saveAndSend(): void
+    {
+        $this->validate();
+        $invoice = $this->persist('sent');
+        session()->flash('success', 'Invoice saved and marked as sent!');
+        $this->redirect(route('invoices.show', $invoice), navigate: true);
+    }
+
+    public function saveAsPaid(): void
+    {
+        $this->validate();
+        $invoice = $this->persist('paid');
+
+        Payment::create([
+            'invoice_id'   => $invoice->id,
+            'created_by'   => auth()->id(),
+            'amount'       => $this->total,
+            'method'       => $this->payment_method,
+            'status'       => 'completed',
+            'payment_date' => now(),
+        ]);
+
+        Cache::forget('dashboard_stats_today');
+        session()->flash('success', 'Invoice saved and marked as paid!');
+        $this->redirect(route('invoices.show', $invoice), navigate: true);
+    }
+
+    private function persist(string $status): Invoice
+    {
+        return DB::transaction(function () use ($status) {
+            $data = [
+                'customer_id'      => $this->customer_id,
+                'warehouse_id'     => $this->warehouse_id,
+                'created_by'       => $this->invoice?->created_by ?? auth()->id(),
+                'customer_name'    => $this->customer_name,
+                'customer_email'   => $this->customer_email ?: null,
+                'customer_phone'   => $this->customer_phone ?: null,
+                'customer_address' => $this->customer_address ?: null,
+                'status'           => $status,
+                'payment_method'   => $this->payment_method ?: null,
+                'subtotal'         => $this->subtotal,
+                'tax'              => (float)($this->tax ?: 0),
+                'discount'         => (float)($this->discount ?: 0),
+                'total'            => $this->total,
+                'paid_amount'      => $status === 'paid' ? $this->total : 0,
+                'due_amount'       => $status === 'paid' ? 0 : $this->total,
+                'invoice_date'     => $this->invoice_date,
+                'due_date'         => $this->due_date ?: null,
+                'paid_date'        => $status === 'paid' ? now() : null,
+                'notes'            => $this->notes ?: null,
+            ];
+
+            if ($this->invoice?->exists) {
+                $this->invoice->update($data);
+                $this->invoice->items()->delete();
+                $invoice = $this->invoice;
+            } else {
+                $invoice = Invoice::create($data);
+            }
+
+            foreach ($this->items as $item) {
+                $line = (float)$item['quantity'] * (float)$item['unit_price'];
+                $disc = (float)$item['discount'] * (float)$item['quantity'];
+                $tax  = ($line - $disc) * ((float)$item['tax_rate'] / 100);
+
+                InvoiceItem::create([
+                    'invoice_id'   => $invoice->id,
+                    'product_id'   => $item['product_id'],
+                    'product_name' => $item['name'],
+                    'product_sku'  => $item['sku'],
+                    'quantity'     => $item['quantity'],
+                    'unit_price'   => $item['unit_price'],
+                    'tax_rate'     => $item['tax_rate'],
+                    'discount'     => $item['discount'],
+                    'subtotal'     => $line - $disc + $tax,
+                ]);
+
+                if (!empty($item['promotion_id']) && $status !== 'draft') {
+                    Promotion::where('id', $item['promotion_id'])->increment('used_count');
+                }
+
+                // Deduct stock if paid
+                if ($status === 'paid') {
+                    $product = Product::find($item['product_id']);
+                    if ($product) {
+                        $before = $product->quantity;
+                        $after  = max(0, $before - (int)$item['quantity']);
+                        $product->update(['quantity' => $after]);
+
+                        StockMovement::create([
+                            'product_id'      => $product->id,
+                            'warehouse_id'    => $this->warehouse_id,
+                            'created_by'      => auth()->id(),
+                            'type'            => 'sale',
+                            'quantity'        => (int)$item['quantity'],
+                            'before_quantity' => $before,
+                            'after_quantity'  => $after,
+                            'unit_cost'       => $product->cost_price,
+                            'reference_type'  => Invoice::class,
+                            'reference_id'    => $invoice->id,
+                        ]);
+                    }
+                }
+            }
+
+            return $invoice;
+        });
+    }
+
+    public function render()
+    {
+        $warehouses = Warehouse::active()->get();
+
+        return view('livewire.invoices.invoice-form', compact('warehouses'))
+            ->layout('layouts.app', ['title' => $this->invoice?->exists ? 'Edit Invoice' : 'New Invoice']);
+    }
+}
