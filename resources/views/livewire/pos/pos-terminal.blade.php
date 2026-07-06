@@ -22,10 +22,20 @@
                     highlight: 0,
                     get items() { return this.$refs.resultsList ? [...this.$refs.resultsList.querySelectorAll('[data-search-result]')] : [] },
                     get count() { return this.items.length },
-                    moveDown() { if (this.count > 0) this.highlight = (this.highlight + 1) % this.count },
-                    moveUp() { if (this.count > 0) this.highlight = (this.highlight - 1 + this.count) % this.count },
+                    moveDown() {
+                        if (this.count > 0) {
+                            this.highlight = (this.highlight + 1) % this.count;
+                            this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
+                        }
+                    },
+                    moveUp() {
+                        if (this.count > 0) {
+                            this.highlight = (this.highlight - 1 + this.count) % this.count;
+                            this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
+                        }
+                    },
                     selectCurrent() { const el = this.items[this.highlight]; if (el) el.click(); }
-                }" x-on:click.outside="open = false">
+                }">
                     <flux:input x-ref="searchInput" wire:model.live.debounce.150ms="search"
                         placeholder="Scan barcode or search product... (F2)" icon="magnifying-glass" autofocus
                         autocomplete="off" name="pos-product-search-nofill" x-on:focus="open = true"
