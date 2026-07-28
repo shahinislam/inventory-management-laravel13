@@ -22,12 +22,12 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'cost_price'      => 'decimal:2',
-            'selling_price'   => 'decimal:2',
-            'tax_rate'        => 'decimal:2',
-            'discount'        => 'decimal:2',
-            'weight'          => 'decimal:2',
-            'quantity'        => 'integer',
+            'cost_price' => 'decimal:2',
+            'selling_price' => 'decimal:2',
+            'tax_rate' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'weight' => 'decimal:2',
+            'quantity' => 'integer',
             'min_stock_level' => 'integer',
         ];
     }
@@ -37,24 +37,96 @@ class Product extends Model
         parent::boot();
         static::creating(function ($m) {
             $m->slug ??= Str::slug($m->name);
-            $m->sku  ??= strtoupper(Str::random(8));
+            $m->sku ??= strtoupper(Str::random(8));
         });
     }
 
-    public function category()          { return $this->belongsTo(Category::class); }
-    public function supplier()          { return $this->belongsTo(Supplier::class); }
-    public function media()             { return $this->belongsTo(Media::class); }
-    public function stockMovements()    { return $this->hasMany(StockMovement::class); }
-    public function purchaseOrderItems(){ return $this->hasMany(PurchaseOrderItem::class); }
-    public function invoiceItems()      { return $this->hasMany(InvoiceItem::class); }
-    public function promotions()        { return $this->belongsToMany(Promotion::class, 'product_promotions'); }
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
 
-    public function scopeActive($q)   { return $q->where('status', 'active'); }
-    public function scopeLowStock($q) { return $q->whereColumn('quantity', '<=', 'min_stock_level'); }
-    public function scopeInStock($q)  { return $q->where('quantity', '>', 0); }
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
 
-    public function isLowStock(): bool   { return $this->quantity <= $this->min_stock_level; }
-    public function isOutOfStock(): bool { return $this->quantity === 0; }
+    public function media()
+    {
+        return $this->belongsTo(Media::class);
+    }
+
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    public function purchaseOrderItems()
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    public function invoiceItems()
+    {
+        return $this->hasMany(InvoiceItem::class);
+    }
+
+    public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class, 'product_promotions');
+    }
+
+    /**
+     * Per-warehouse stock levels.
+     *
+     * $product->warehouses->first()->pivot->quantity is how much sits in that
+     * warehouse. The total across all of them is cached on products.quantity.
+     */
+    public function warehouses()
+    {
+        return $this->belongsToMany(Warehouse::class, 'product_warehouse')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
+    /**
+     * How much of this product is in one specific warehouse.
+     */
+    public function stockIn(?int $warehouseId): int
+    {
+        if (! $warehouseId) {
+            return 0;
+        }
+
+        return (int) $this->warehouses()
+            ->where('warehouses.id', $warehouseId)
+            ->first()?->pivot->quantity;
+    }
+
+    public function scopeActive($q)
+    {
+        return $q->where('status', 'active');
+    }
+
+    public function scopeLowStock($q)
+    {
+        return $q->whereColumn('quantity', '<=', 'min_stock_level');
+    }
+
+    public function scopeInStock($q)
+    {
+        return $q->where('quantity', '>', 0);
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->quantity <= $this->min_stock_level;
+    }
+
+    public function isOutOfStock(): bool
+    {
+        return $this->quantity === 0;
+    }
 
     public function getPriceAfterDiscountAttribute(): float
     {

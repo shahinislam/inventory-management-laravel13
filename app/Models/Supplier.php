@@ -20,17 +20,31 @@ class Supplier extends Model
     protected function casts(): array
     {
         return [
-            'is_active'       => 'boolean',
-            'credit_limit'    => 'decimal:2',
+            'is_active' => 'boolean',
+            'credit_limit' => 'decimal:2',
             'current_balance' => 'decimal:2',
         ];
     }
 
-    public function media()          { return $this->belongsTo(Media::class); }
-    public function products()       { return $this->hasMany(Product::class); }
-    public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class); }
+    public function media()
+    {
+        return $this->belongsTo(Media::class);
+    }
 
-    public function scopeActive($q) { return $q->where('is_active', true); }
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function scopeActive($q)
+    {
+        return $q->where('is_active', true);
+    }
 
     public function getFullAddressAttribute(): string
     {

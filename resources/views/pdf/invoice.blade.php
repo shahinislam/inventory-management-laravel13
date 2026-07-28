@@ -103,10 +103,10 @@
                     <td>{{ $item->product_name }}</td>
                     <td>{{ $item->product_sku }}</td>
                     <td class="right">{{ $item->quantity }}</td>
-                    <td class="right">${{ number_format($item->unit_price, 2) }}</td>
-                    <td class="right">{{ $item->discount > 0 ? '$'.number_format($item->discount, 2) : '-' }}</td>
+                    <td class="right">{{ money($item->unit_price) }}</td>
+                    <td class="right">{{ $item->discount > 0 ? money($item->discount) : '-' }}</td>
                     <td class="right">{{ $item->tax_rate > 0 ? $item->tax_rate.'%' : '-' }}</td>
-                    <td class="right">${{ number_format($item->subtotal, 2) }}</td>
+                    <td class="right">{{ money($item->subtotal) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -115,17 +115,17 @@
     {{-- Totals --}}
     <div class="totals">
         <div class="totals-box">
-            <div class="totals-row"><span>Subtotal</span><span>${{ number_format($invoice->subtotal, 2) }}</span></div>
+            <div class="totals-row"><span>Subtotal</span><span>{{ money($invoice->subtotal) }}</span></div>
             @if($invoice->discount > 0)
-                <div class="totals-row"><span>Discount</span><span>-${{ number_format($invoice->discount, 2) }}</span></div>
+                <div class="totals-row"><span>Discount</span><span>-{{ money($invoice->discount) }}</span></div>
             @endif
             @if($invoice->tax > 0)
-                <div class="totals-row"><span>Tax</span><span>${{ number_format($invoice->tax, 2) }}</span></div>
+                <div class="totals-row"><span>Tax</span><span>{{ money($invoice->tax) }}</span></div>
             @endif
-            <div class="totals-row totals-total"><span>Total</span><span>${{ number_format($invoice->total, 2) }}</span></div>
-            <div class="totals-row" style="color:#059669"><span>Paid</span><span>${{ number_format($invoice->paid_amount, 2) }}</span></div>
+            <div class="totals-row totals-total"><span>Total</span><span>{{ money($invoice->total) }}</span></div>
+            <div class="totals-row" style="color:#059669"><span>Paid</span><span>{{ money($invoice->paid_amount) }}</span></div>
             @if($invoice->due_amount > 0)
-                <div class="totals-row" style="color:#dc2626;font-weight:bold"><span>Due</span><span>${{ number_format($invoice->due_amount, 2) }}</span></div>
+                <div class="totals-row" style="color:#dc2626;font-weight:bold"><span>Due</span><span>{{ money($invoice->due_amount) }}</span></div>
             @endif
         </div>
     </div>

@@ -96,13 +96,13 @@
 
                         {{-- Total Spent --}}
                         <flux:table.cell>
-                            <flux:text class="font-medium">${{ number_format($customer->total_purchases, 2) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($customer->total_purchases) }}</flux:text>
                         </flux:table.cell>
 
                         {{-- Balance --}}
                         <flux:table.cell>
                             <flux:text class="text-sm {{ $customer->current_balance > 0 ? 'text-red-500' : '' }}">
-                                ${{ number_format($customer->current_balance, 2) }}
+                                {{ money($customer->current_balance) }}
                             </flux:text>
                         </flux:table.cell>
 

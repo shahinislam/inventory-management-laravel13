@@ -35,7 +35,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <flux:text class="text-sm text-zinc-500">Total Sales</flux:text>
-                    <flux:heading size="lg" class="mt-1">${{ number_format($stats['totalSales'], 2) }}</flux:heading>
+                    <flux:heading size="lg" class="mt-1">{{ money($stats['totalSales']) }}</flux:heading>
                     <flux:text class="text-xs text-zinc-400 mt-1">{{ $stats['totalInvoices'] }} invoices</flux:text>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
@@ -117,7 +117,7 @@
                             <flux:text class="text-xs text-zinc-500">{{ $invoice->customer_name }}</flux:text>
                         </div>
                         <div class="text-right">
-                            <flux:text class="text-sm font-medium">${{ number_format($invoice->total, 2) }}</flux:text>
+                            <flux:text class="text-sm font-medium">{{ money($invoice->total) }}</flux:text>
                             <flux:badge
                                 size="sm"
                                 :color="match($invoice->status) {
@@ -206,7 +206,7 @@
                     @php $maxSales = max(array_column($salesChart, 'sales')) ?: 1; @endphp
                     @foreach($salesChart as $day)
                         <div class="flex flex-1 flex-col items-center gap-1">
-                            <flux:text class="text-xs text-zinc-500">${{ number_format($day['sales']) }}</flux:text>
+                            <flux:text class="text-xs text-zinc-500">{{ money($day['sales']) }}</flux:text>
                             <div
                                 class="w-full rounded-t bg-blue-500 dark:bg-blue-400 min-h-1"
                                 style="height: {{ max(4, ($day['sales'] / $maxSales) * 80) }}px"

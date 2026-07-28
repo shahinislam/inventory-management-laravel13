@@ -119,8 +119,8 @@
 
                         <flux:table.cell>
                             <div>
-                                <flux:text class="font-medium">${{ number_format($product->selling_price, 2) }}</flux:text>
-                                <flux:text class="text-xs text-zinc-400">Cost: ${{ number_format($product->cost_price, 2) }}</flux:text>
+                                <flux:text class="font-medium">{{ money($product->selling_price) }}</flux:text>
+                                <flux:text class="text-xs text-zinc-400">Cost: {{ money($product->cost_price) }}</flux:text>
                             </div>
                         </flux:table.cell>
 

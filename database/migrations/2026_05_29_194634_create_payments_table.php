@@ -22,13 +22,13 @@ return new class extends Migration
                 'card',
                 'bank_transfer',
                 'cheque',
-                'other'
+                'other',
             ])->index();
             $table->enum('status', [
                 'pending',
                 'completed',
                 'failed',
-                'refunded'
+                'refunded',
             ])->default('completed')->index();
             $table->string('reference', 100)->nullable();
             $table->string('bank_name', 100)->nullable();

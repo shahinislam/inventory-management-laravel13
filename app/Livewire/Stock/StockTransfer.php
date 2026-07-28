@@ -2,21 +2,26 @@
 
 namespace App\Livewire\Stock;
 
+use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Product;
-use App\Models\StockMovement;
 use App\Models\Warehouse;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use App\Services\InventoryService;
 use Livewire\Component;
 
 class StockTransfer extends Component
 {
-    public string $search            = '';
-    public ?int $product_id          = null;
-    public ?int $from_warehouse_id   = null;
-    public ?int $to_warehouse_id     = null;
-    public string $quantity          = '';
-    public string $notes             = '';
+    public string $search = '';
+
+    public ?int $product_id = null;
+
+    public ?int $from_warehouse_id = null;
+
+    public ?int $to_warehouse_id = null;
+
+    public string $quantity = '';
+
+    public string $notes = '';
+
     public ?Product $selectedProduct = null;
 
     public function mount(): void
@@ -27,11 +32,11 @@ class StockTransfer extends Component
     protected function rules(): array
     {
         return [
-            'product_id'        => 'required|exists:products,id',
+            'product_id' => 'required|exists:products,id',
             'from_warehouse_id' => 'required|exists:warehouses,id|different:to_warehouse_id',
-            'to_warehouse_id'   => 'required|exists:warehouses,id',
-            'quantity'          => 'required|integer|min:1',
-            'notes'             => 'nullable|string',
+            'to_warehouse_id' => 'required|exists:warehouses,id',
+            'quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string',
         ];
     }
 
@@ -46,17 +51,20 @@ class StockTransfer extends Component
     {
         if (empty($this->search)) {
             $this->selectedProduct = null;
-            $this->product_id      = null;
+            $this->product_id = null;
         }
     }
 
     public function getSearchResultsProperty()
     {
-        if (!$this->search || $this->selectedProduct) return collect();
+        if (! $this->search || $this->selectedProduct) {
+            return collect();
+        }
 
-        return Product::where('name', 'like', "%{$this->search}%")
+        return Product::where(fn ($s) => $s
+            ->where('name', 'like', "%{$this->search}%")
             ->orWhere('sku', 'like', "%{$this->search}%")
-            ->orWhere('barcode', 'like', "%{$this->search}%")
+            ->orWhere('barcode', 'like', "%{$this->search}%"))
             ->limit(10)
             ->get();
     }
@@ -64,8 +72,8 @@ class StockTransfer extends Component
     public function selectProduct(int $id): void
     {
         $this->selectedProduct = Product::find($id);
-        $this->product_id      = $id;
-        $this->search          = $this->selectedProduct->name . ' (' . $this->selectedProduct->sku . ')';
+        $this->product_id = $id;
+        $this->search = $this->selectedProduct->name.' ('.$this->selectedProduct->sku.')';
     }
 
     public function selectHighlighted(int $index): void
@@ -79,8 +87,8 @@ class StockTransfer extends Component
     public function clearProduct(): void
     {
         $this->selectedProduct = null;
-        $this->product_id      = null;
-        $this->search          = '';
+        $this->product_id = null;
+        $this->search = '';
     }
 
     public function save(): void
@@ -88,47 +96,31 @@ class StockTransfer extends Component
         $this->validate();
 
         $product = Product::findOrFail($this->product_id);
-        $qty     = (int) $this->quantity;
+        $qty = (int) $this->quantity;
+        $inventory = app(InventoryService::class);
 
-        if ($qty > $product->quantity) {
-            $this->addError('quantity', "Only {$product->quantity} {$product->unit} available in stock.");
+        $available = $inventory->stockIn($this->product_id, $this->from_warehouse_id);
+
+        if ($qty > $available) {
+            $this->addError('quantity', "Only {$available} {$product->unit} available in the source warehouse.");
+
             return;
         }
 
-        DB::transaction(function () use ($product, $qty) {
-            $before = $product->quantity;
-            $after  = $before - $qty;
-            $product->update(['quantity' => $after]);
+        // Takes the stock out of one warehouse and puts it into the other. The
+        // total on hand is unchanged; only its location moves.
+        $inventory->transfer(
+            productId: $this->product_id,
+            fromWarehouseId: $this->from_warehouse_id,
+            toWarehouseId: $this->to_warehouse_id,
+            quantity: $qty,
+            notes: $this->notes ?: null,
+        );
 
-            // Transfer Out
-            StockMovement::create([
-                'product_id'      => $product->id,
-                'warehouse_id'    => $this->from_warehouse_id,
-                'created_by'      => auth()->id(),
-                'type'            => 'transfer_out',
-                'quantity'        => $qty,
-                'before_quantity' => $before,
-                'after_quantity'  => $after,
-                'notes'           => $this->notes,
-            ]);
-
-            // Transfer In
-            StockMovement::create([
-                'product_id'      => $product->id,
-                'warehouse_id'    => $this->to_warehouse_id,
-                'created_by'      => auth()->id(),
-                'type'            => 'transfer_in',
-                'quantity'        => $qty,
-                'before_quantity' => $before,
-                'after_quantity'  => $after,
-                'notes'           => $this->notes,
-            ]);
-        });
-
-        Cache::forget('dashboard_stats_today');
+        DashboardIndex::flushCache();
 
         $fromName = Warehouse::find($this->from_warehouse_id)->name;
-        $toName   = Warehouse::find($this->to_warehouse_id)->name;
+        $toName = Warehouse::find($this->to_warehouse_id)->name;
 
         session()->flash('success', "Transferred {$qty} {$product->unit} of {$product->name} from {$fromName} to {$toName}");
         $this->reset(['product_id', 'quantity', 'notes', 'search', 'selectedProduct', 'to_warehouse_id']);
@@ -136,7 +128,7 @@ class StockTransfer extends Component
 
     public function render()
     {
-        $products   = $this->searchResults;
+        $products = $this->searchResults;
         $warehouses = Warehouse::active()->get();
 
         return view('livewire.stock.stock-transfer', compact('products', 'warehouses'))

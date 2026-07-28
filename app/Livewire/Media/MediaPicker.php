@@ -12,10 +12,13 @@ class MediaPicker extends Component
 {
     use WithFileUploads, WithPagination;
 
-    public array $files       = [];
-    public string $search     = '';
+    public array $files = [];
+
+    public string $search = '';
+
     public string $typeFilter = 'image';
-    public ?int $selectedId   = null;
+
+    public ?int $selectedId = null;
 
     public function updatedFiles(): void
     {
@@ -43,8 +46,8 @@ class MediaPicker extends Component
     public function render()
     {
         $media = Media::query()
-            ->when($this->search, fn($q) => $q->where('file_name', 'like', "%{$this->search}%"))
-            ->when($this->typeFilter, fn($q) => $q->where('file_type', $this->typeFilter))
+            ->when($this->search, fn ($q) => $q->where('file_name', 'like', "%{$this->search}%"))
+            ->when($this->typeFilter, fn ($q) => $q->where('file_type', $this->typeFilter))
             ->latest()
             ->paginate(18);
 

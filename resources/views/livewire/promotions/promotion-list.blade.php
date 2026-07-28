@@ -59,7 +59,7 @@
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="font-medium">
-                                {{ $promo->type === 'percentage' ? $promo->value.'%' : '$'.number_format($promo->value, 2) }}
+                                {{ $promo->type === 'percentage' ? $promo->value.'%' : money($promo->value) }}
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>

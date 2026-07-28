@@ -74,7 +74,7 @@
                                     </div>
                                     <flux:text
                                         x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''"
-                                        class="font-medium">${{ number_format($product->selling_price, 2) }}
+                                        class="font-medium">{{ money($product->selling_price) }}
                                     </flux:text>
                                 </button>
                             @endforeach
@@ -132,10 +132,10 @@
                                             wire:click="incrementQty({{ $index }})" type="button" />
                                     </div>
                                 </td>
-                                <td style="padding:0.75rem;text-align:right">${{ number_format($item['price'], 2) }}
+                                <td style="padding:0.75rem;text-align:right">{{ money($item['price']) }}
                                 </td>
                                 <td style="padding:0.75rem;text-align:right">
-                                    <flux:text class="font-medium">${{ number_format($lineTotal + $lineTax, 2) }}
+                                    <flux:text class="font-medium">{{ money($lineTotal + $lineTax) }}
                                     </flux:text>
                                 </td>
                                 <td style="padding:0.5rem;text-align:right">
@@ -200,14 +200,14 @@
 
                     <div class="flex justify-between">
                         <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">${{ number_format($this->cartSubtotal, 2) }}</flux:text>
+                        <flux:text class="font-medium">{{ money($this->cartSubtotal) }}</flux:text>
                     </div>
 
                     @if ($this->cartItemDiscountTotal > 0)
                         <div class="flex justify-between">
                             <flux:text class="text-sm text-zinc-500">Item Discounts</flux:text>
                             <flux:text class="text-sm text-green-500">
-                                -${{ number_format($this->cartItemDiscountTotal, 2) }}</flux:text>
+                                -{{ money($this->cartItemDiscountTotal) }}</flux:text>
                         </div>
                     @endif
 
@@ -223,10 +223,17 @@
                             prefix="৳" />
                     </flux:field>
 
+                    @if ($this->cartTaxTotal > 0)
+                        <div class="flex justify-between">
+                            <flux:text class="text-sm text-zinc-500">Tax</flux:text>
+                            <flux:text class="font-medium">{{ money($this->cartTaxTotal) }}</flux:text>
+                        </div>
+                    @endif
+
                     <div class="border-t border-zinc-200 pt-3 dark:border-zinc-700">
                         <div class="flex items-center justify-between">
                             <flux:heading size="lg">Total</flux:heading>
-                            <flux:heading size="lg">${{ number_format($this->cartTotal, 2) }}</flux:heading>
+                            <flux:heading size="lg">{{ money($this->cartTotal) }}</flux:heading>
                         </div>
                     </div>
                 </div>
@@ -263,7 +270,7 @@
 
             <div class="mb-4 rounded-lg bg-blue-50 p-4 text-center dark:bg-blue-900/20">
                 <flux:text class="text-sm text-zinc-500">Total Amount</flux:text>
-                <flux:heading size="xl">${{ number_format($this->cartTotal, 2) }}</flux:heading>
+                <flux:heading size="xl">{{ money($this->cartTotal) }}</flux:heading>
             </div>
 
             {{-- Payment Method --}}
@@ -291,7 +298,7 @@
                     <div class="mb-4 rounded-lg bg-green-50 p-3 text-center dark:bg-green-900/20">
                         <flux:text class="text-sm text-zinc-500">Change Due</flux:text>
                         <flux:heading size="lg" class="text-green-600 dark:text-green-400">
-                            ${{ number_format($this->changeDue, 2) }}</flux:heading>
+                            {{ money($this->changeDue) }}</flux:heading>
                     </div>
                 @endif
             @endif
@@ -314,7 +321,7 @@
             <flux:heading size="lg">Sale Completed!</flux:heading>
             @if ($lastInvoice)
                 <flux:text class="mt-2 text-zinc-500">Invoice #{{ $lastInvoice->invoice_number }}</flux:text>
-                <flux:heading size="xl" class="mt-2">${{ number_format($lastInvoice->total, 2) }}
+                <flux:heading size="xl" class="mt-2">{{ money($lastInvoice->total) }}
                 </flux:heading>
             @endif
 

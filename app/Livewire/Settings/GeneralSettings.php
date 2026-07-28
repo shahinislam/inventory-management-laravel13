@@ -10,32 +10,45 @@ use Livewire\Component;
 class GeneralSettings extends Component
 {
     // Company
-    public string $company_name    = '';
-    public ?int $company_logo_id   = null;
-    public string $company_email   = '';
-    public string $company_phone   = '';
+    public string $company_name = '';
+
+    public ?int $company_logo_id = null;
+
+    public string $company_email = '';
+
+    public string $company_phone = '';
+
     public string $company_address = '';
+
     public string $company_tax_number = '';
 
     // Currency
-    public string $currency_symbol   = '';
-    public string $currency_code     = '';
+    public string $currency_symbol = '';
+
+    public string $currency_code = '';
+
     public string $currency_position = 'before';
+
     public string $currency_decimals = '2';
 
     // Tax
-    public string $tax_rate      = '0';
-    public bool $tax_inclusive   = false;
+    public string $tax_rate = '0';
+
+    public bool $tax_inclusive = false;
 
     // Invoice
     public string $invoice_prefix = '';
+
     public string $invoice_footer = '';
-    public string $invoice_terms  = '';
+
+    public string $invoice_terms = '';
 
     // Notification
     public bool $notification_low_stock = true;
-    public bool $notification_expiry    = true;
-    public string $notification_days    = '30';
+
+    public bool $notification_expiry = true;
+
+    public string $notification_days = '30';
 
     public bool $showMediaPicker = false;
 
@@ -43,28 +56,28 @@ class GeneralSettings extends Component
 
     public function mount(): void
     {
-        $this->company_name       = Setting::get('company.name', '') ?? '';
-        $this->company_logo_id    = null;
-        $this->company_email      = Setting::get('company.email', '') ?? '';
-        $this->company_phone      = Setting::get('company.phone', '') ?? '';
-        $this->company_address    = Setting::get('company.address', '') ?? '';
+        $this->company_name = Setting::get('company.name', '') ?? '';
+        $this->company_logo_id = null;
+        $this->company_email = Setting::get('company.email', '') ?? '';
+        $this->company_phone = Setting::get('company.phone', '') ?? '';
+        $this->company_address = Setting::get('company.address', '') ?? '';
         $this->company_tax_number = Setting::get('company.tax_number', '') ?? '';
 
-        $this->currency_symbol   = Setting::get('currency.symbol', '$');
-        $this->currency_code     = Setting::get('currency.code', 'USD');
+        $this->currency_symbol = Setting::get('currency.symbol', '$');
+        $this->currency_code = Setting::get('currency.code', 'USD');
         $this->currency_position = Setting::get('currency.position', 'before');
         $this->currency_decimals = (string) Setting::get('currency.decimals', 2);
 
-        $this->tax_rate      = (string) Setting::get('tax.rate', 0);
+        $this->tax_rate = (string) Setting::get('tax.rate', 0);
         $this->tax_inclusive = Setting::get('tax.inclusive', false);
 
         $this->invoice_prefix = Setting::get('invoice.prefix', 'INV') ?? 'INV';
         $this->invoice_footer = Setting::get('invoice.footer', '') ?? '';
-        $this->invoice_terms  = Setting::get('invoice.terms', '') ?? '';
+        $this->invoice_terms = Setting::get('invoice.terms', '') ?? '';
 
         $this->notification_low_stock = Setting::get('notification.low_stock', true);
-        $this->notification_expiry    = Setting::get('notification.expiry', true);
-        $this->notification_days      = (string) Setting::get('notification.days', 30);
+        $this->notification_expiry = Setting::get('notification.expiry', true);
+        $this->notification_days = (string) Setting::get('notification.days', 30);
     }
 
     public function selectLogo(int $mediaId): void
@@ -78,7 +91,7 @@ class GeneralSettings extends Component
     public function save(): void
     {
         $this->validate([
-            'company_name'  => 'required|string|max:200',
+            'company_name' => 'required|string|max:200',
             'company_email' => 'nullable|email',
             'invoice_prefix' => 'required|string|max:10',
         ]);

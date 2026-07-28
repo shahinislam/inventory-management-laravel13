@@ -17,11 +17,11 @@
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Stock Cost Value</flux:text>
-            <flux:heading size="lg" class="mt-1">${{ number_format($summary['total_value'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1">{{ money($summary['total_value']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Retail Value</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600">${{ number_format($summary['retail_value'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-green-600">{{ money($summary['retail_value']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Low Stock</flux:text>
@@ -35,8 +35,14 @@
 
     {{-- Filters --}}
     <flux:card class="mb-6 p-4">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.75rem">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0.75rem">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" />
+            <flux:select wire:model.live="warehouseFilter" placeholder="All Warehouses">
+                <flux:select.option value="">All Warehouses</flux:select.option>
+                @foreach($warehouses as $warehouse)
+                    <flux:select.option value="{{ $warehouse->id }}">{{ $warehouse->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
             <flux:select wire:model.live="categoryFilter" placeholder="All Categories">
                 <flux:select.option value="">All Categories</flux:select.option>
                 @foreach($categories as $cat)
@@ -76,20 +82,30 @@
                         <flux:table.cell>
                             <flux:text class="text-sm">{{ $product->category?->name ?? '-' }}</flux:text>
                         </flux:table.cell>
+                        @php
+                            // With a warehouse selected, show what is held there;
+                            // otherwise the total across all warehouses.
+                            $qty = $warehouseFilter
+                                ? (int) $product->warehouses->first()?->pivot->quantity
+                                : $product->quantity;
+                        @endphp
                         <flux:table.cell>
-                            <flux:text class="font-medium">{{ $product->quantity }} {{ $product->unit }}</flux:text>
+                            <flux:text class="font-medium">{{ $qty }} {{ $product->unit }}</flux:text>
+                            @if($warehouseFilter && $product->quantity !== $qty)
+                                <flux:text class="text-xs text-zinc-400">{{ $product->quantity }} total</flux:text>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="text-sm">{{ $product->min_stock_level }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text>${{ number_format($product->cost_price, 2) }}</flux:text>
+                            <flux:text>{{ money($product->cost_price) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text>${{ number_format($product->selling_price, 2) }}</flux:text>
+                            <flux:text>{{ money($product->selling_price) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="font-medium">${{ number_format($product->quantity * $product->cost_price, 2) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($qty * $product->cost_price) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm" :color="$product->isOutOfStock() ? 'red' : ($product->isLowStock() ? 'yellow' : 'green')">

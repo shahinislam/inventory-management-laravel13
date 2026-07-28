@@ -117,7 +117,7 @@
                                     </div>
                                     <flux:text
                                         x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''"
-                                        class="text-sm font-medium">${{ number_format($product->selling_price, 2) }}
+                                        class="text-sm font-medium">{{ money($product->selling_price) }}
                                     </flux:text>
                                 </button>
                             @endforeach
@@ -173,7 +173,7 @@
                                         step="0.01" size="sm" />
                                 </td>
                                 <td style="padding:0.5rem;text-align:right">
-                                    <flux:text class="font-medium">${{ number_format($total, 2) }}</flux:text>
+                                    <flux:text class="font-medium">{{ money($total) }}</flux:text>
                                 </td>
                                 <td style="padding:0.5rem">
                                     <flux:button icon="trash" variant="ghost" size="sm" square
@@ -248,7 +248,7 @@
                 <div class="space-y-3">
                     <div class="flex justify-between">
                         <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">${{ number_format($this->subtotal, 2) }}</flux:text>
+                        <flux:text class="font-medium">{{ money($this->subtotal) }}</flux:text>
                     </div>
                     <flux:field>
                         <flux:label class="text-sm">Discount</flux:label>
@@ -256,13 +256,19 @@
                             prefix="৳" />
                     </flux:field>
                     <flux:field>
-                        <flux:label class="text-sm">Tax</flux:label>
+                        <flux:label class="text-sm">Additional Tax</flux:label>
                         <flux:input wire:model.live="tax" type="number" step="0.01" min="0"
                             prefix="৳" />
                     </flux:field>
+                    @if ($this->taxTotal > 0)
+                        <div class="flex justify-between">
+                            <flux:text class="text-sm text-zinc-500">Tax</flux:text>
+                            <flux:text class="font-medium">{{ money($this->taxTotal) }}</flux:text>
+                        </div>
+                    @endif
                     <div class="flex justify-between border-t border-zinc-200 pt-2 dark:border-zinc-700">
                         <flux:heading>Total</flux:heading>
-                        <flux:heading>${{ number_format($this->total, 2) }}</flux:heading>
+                        <flux:heading>{{ money($this->total) }}</flux:heading>
                     </div>
                 </div>
             </flux:card>

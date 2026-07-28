@@ -22,25 +22,36 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
-            'date_of_birth'   => 'date',
-            'is_active'       => 'boolean',
-            'credit_limit'    => 'decimal:2',
+            'date_of_birth' => 'date',
+            'is_active' => 'boolean',
+            'credit_limit' => 'decimal:2',
             'current_balance' => 'decimal:2',
             'total_purchases' => 'decimal:2',
-            'total_orders'    => 'integer',
+            'total_orders' => 'integer',
         ];
     }
 
-    public function media()      { return $this->belongsTo(Media::class); }
-    public function invoices()   { return $this->hasMany(Invoice::class); }
+    public function media()
+    {
+        return $this->belongsTo(Media::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     public function promotions()
     {
         return $this->belongsToMany(Promotion::class, 'customer_promotions')
-                    ->withPivot('used_count', 'last_used_at')
-                    ->withTimestamps();
+            ->withPivot('used_count', 'last_used_at')
+            ->withTimestamps();
     }
 
-    public function scopeActive($q) { return $q->where('is_active', true); }
+    public function scopeActive($q)
+    {
+        return $q->where('is_active', true);
+    }
 
     public function getFullAddressAttribute(): string
     {

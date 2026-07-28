@@ -19,8 +19,8 @@ class Media extends Model
     {
         return [
             'file_size' => 'integer',
-            'width'     => 'integer',
-            'height'    => 'integer',
+            'width' => 'integer',
+            'height' => 'integer',
         ];
     }
 
@@ -29,15 +29,28 @@ class Media extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    public function scopeImages($q)    { return $q->where('file_type', 'image'); }
-    public function scopeDocuments($q) { return $q->where('file_type', 'document'); }
+    public function scopeImages($q)
+    {
+        return $q->where('file_type', 'image');
+    }
 
-    public function isImage(): bool { return $this->file_type === 'image'; }
+    public function scopeDocuments($q)
+    {
+        return $q->where('file_type', 'document');
+    }
+
+    public function isImage(): bool
+    {
+        return $this->file_type === 'image';
+    }
 
     public function formattedSize(): string
     {
         $kb = $this->file_size / 1024;
-        if ($kb < 1024) return round($kb, 2) . ' KB';
-        return round($kb / 1024, 2) . ' MB';
+        if ($kb < 1024) {
+            return round($kb, 2).' KB';
+        }
+
+        return round($kb / 1024, 2).' MB';
     }
 }

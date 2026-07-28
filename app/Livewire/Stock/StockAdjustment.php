@@ -2,22 +2,28 @@
 
 namespace App\Livewire\Stock;
 
+use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Product;
-use App\Models\StockMovement;
 use App\Models\Warehouse;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use App\Services\InventoryService;
 use Livewire\Component;
 
 class StockAdjustment extends Component
 {
-    public string $search       = '';
-    public ?int $product_id     = null;
-    public ?int $warehouse_id   = null;
+    public string $search = '';
+
+    public ?int $product_id = null;
+
+    public ?int $warehouse_id = null;
+
     public string $adjustment_type = 'add'; // add, remove, set
-    public string $quantity     = '';
-    public string $reason       = '';
-    public string $notes        = '';
+
+    public string $quantity = '';
+
+    public string $reason = '';
+
+    public string $notes = '';
+
     public ?Product $selectedProduct = null;
 
     public function mount(): void
@@ -28,12 +34,12 @@ class StockAdjustment extends Component
     protected function rules(): array
     {
         return [
-            'product_id'      => 'required|exists:products,id',
-            'warehouse_id'    => 'nullable|exists:warehouses,id',
+            'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'nullable|exists:warehouses,id',
             'adjustment_type' => 'required|in:add,remove,set',
-            'quantity'        => 'required|integer|min:0',
-            'reason'          => 'required|string|max:200',
-            'notes'           => 'nullable|string',
+            'quantity' => 'required|integer|min:0',
+            'reason' => 'required|string|max:200',
+            'notes' => 'nullable|string',
         ];
     }
 
@@ -41,13 +47,15 @@ class StockAdjustment extends Component
     {
         if (empty($this->search)) {
             $this->selectedProduct = null;
-            $this->product_id      = null;
+            $this->product_id = null;
         }
     }
 
     public function getSearchResultsProperty()
     {
-        if (!$this->search || $this->selectedProduct) return collect();
+        if (! $this->search || $this->selectedProduct) {
+            return collect();
+        }
 
         return Product::where('name', 'like', "%{$this->search}%")
             ->orWhere('sku', 'like', "%{$this->search}%")
@@ -59,8 +67,8 @@ class StockAdjustment extends Component
     public function selectProduct(int $id): void
     {
         $this->selectedProduct = Product::find($id);
-        $this->product_id      = $id;
-        $this->search          = $this->selectedProduct->name . ' (' . $this->selectedProduct->sku . ')';
+        $this->product_id = $id;
+        $this->search = $this->selectedProduct->name.' ('.$this->selectedProduct->sku.')';
     }
 
     public function selectHighlighted(int $index): void
@@ -74,47 +82,32 @@ class StockAdjustment extends Component
     public function clearProduct(): void
     {
         $this->selectedProduct = null;
-        $this->product_id      = null;
-        $this->search          = '';
+        $this->product_id = null;
+        $this->search = '';
     }
 
     public function save(): void
     {
         $this->validate();
 
-        $product = Product::findOrFail($this->product_id);
-        $before  = $product->quantity;
-        $qty     = (int) $this->quantity;
+        $qty = (int) $this->quantity;
+        $inventory = app(InventoryService::class);
 
-        $after = match($this->adjustment_type) {
-            'add'    => $before + $qty,
-            'remove' => max(0, $before - $qty),
-            'set'    => $qty,
+        $product = Product::findOrFail($this->product_id);
+        $before = $inventory->stockIn($this->product_id, $this->warehouse_id);
+
+        $notes = $this->reason.($this->notes ? " - {$this->notes}" : '');
+
+        // Adjustments always target one warehouse — "how much is in this room".
+        match ($this->adjustment_type) {
+            'add' => $inventory->add($this->product_id, $this->warehouse_id, $qty, 'adjustment', ['notes' => $notes]),
+            'remove' => $inventory->remove($this->product_id, $this->warehouse_id, min($qty, $before), 'adjustment', ['notes' => $notes]),
+            'set' => $inventory->setTo($this->product_id, $this->warehouse_id, $qty, ['notes' => $notes]),
         };
 
-        $changeQty = abs($after - $before);
+        $after = $inventory->stockIn($this->product_id, $this->warehouse_id);
 
-        if ($changeQty === 0) {
-            session()->flash('error', 'No change in quantity.');
-            return;
-        }
-
-        DB::transaction(function () use ($product, $before, $after, $changeQty) {
-            $product->update(['quantity' => $after]);
-
-            StockMovement::create([
-                'product_id'      => $product->id,
-                'warehouse_id'    => $this->warehouse_id,
-                'created_by'      => auth()->id(),
-                'type'            => 'adjustment',
-                'quantity'        => $changeQty,
-                'before_quantity' => $before,
-                'after_quantity'  => $after,
-                'notes'           => $this->reason . ($this->notes ? " - {$this->notes}" : ''),
-            ]);
-        });
-
-        Cache::forget('dashboard_stats_today');
+        DashboardIndex::flushCache();
 
         session()->flash('success', "Stock adjusted: {$product->name} from {$before} to {$after}");
         $this->reset(['product_id', 'quantity', 'reason', 'notes', 'search', 'selectedProduct']);
@@ -123,7 +116,7 @@ class StockAdjustment extends Component
 
     public function render()
     {
-        $products   = $this->searchResults;
+        $products = $this->searchResults;
         $warehouses = Warehouse::active()->get();
 
         return view('livewire.stock.stock-adjustment', compact('products', 'warehouses'))

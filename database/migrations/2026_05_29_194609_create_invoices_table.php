@@ -27,13 +27,13 @@ return new class extends Migration
                 'paid',
                 'partial',
                 'overdue',
-                'cancelled'
+                'cancelled',
             ])->default('draft')->index();
             $table->enum('payment_method', [
                 'cash',
                 'card',
                 'bank_transfer',
-                'split'
+                'split',
             ])->nullable();
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('tax', 12, 2)->default(0);

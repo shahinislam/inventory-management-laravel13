@@ -16,11 +16,11 @@
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem" class="mb-6">
         <flux:card class="p-4">
             <flux:text class="text-sm text-zinc-500">Today's Sales</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600 dark:text-green-400">${{ number_format($summary['total_today'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-green-600 dark:text-green-400">{{ money($summary['total_today']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-sm text-zinc-500">Pending Amount</flux:text>
-            <flux:heading size="lg" class="mt-1 text-yellow-600 dark:text-yellow-400">${{ number_format($summary['total_pending'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-yellow-600 dark:text-yellow-400">{{ money($summary['total_pending']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-sm text-zinc-500">Overdue Invoices</flux:text>
@@ -86,12 +86,12 @@
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <flux:text class="font-medium">${{ number_format($invoice->total, 2) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($invoice->total) }}</flux:text>
                         </flux:table.cell>
 
                         <flux:table.cell>
                             @if($invoice->due_amount > 0)
-                                <flux:text class="text-sm text-red-500">${{ number_format($invoice->due_amount, 2) }}</flux:text>
+                                <flux:text class="text-sm text-red-500">{{ money($invoice->due_amount) }}</flux:text>
                             @else
                                 <flux:text class="text-sm text-green-500">Paid</flux:text>
                             @endif

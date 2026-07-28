@@ -19,7 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'role'   => CheckRole::class,
+            'role' => CheckRole::class,
             'active' => CheckActive::class,
         ]);
     })

@@ -34,7 +34,7 @@
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem" class="mb-6">
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Total Revenue</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600">${{ number_format($summary['total_sales'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-green-600">{{ money($summary['total_sales']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Total Invoices</flux:text>
@@ -42,15 +42,15 @@
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Total Paid</flux:text>
-            <flux:heading size="lg" class="mt-1 text-blue-600">${{ number_format($summary['total_paid'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-blue-600">{{ money($summary['total_paid']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Total Due</flux:text>
-            <flux:heading size="lg" class="mt-1 text-red-600">${{ number_format($summary['total_due'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1 text-red-600">{{ money($summary['total_due']) }}</flux:heading>
         </flux:card>
         <flux:card class="p-4">
             <flux:text class="text-xs text-zinc-500">Avg Invoice</flux:text>
-            <flux:heading size="lg" class="mt-1">${{ number_format($summary['avg_invoice'], 2) }}</flux:heading>
+            <flux:heading size="lg" class="mt-1">{{ money($summary['avg_invoice']) }}</flux:heading>
         </flux:card>
     </div>
 
@@ -73,8 +73,8 @@
                         <flux:table.row wire:key="{{ $day->date }}">
                             <flux:table.cell>{{ \Carbon\Carbon::parse($day->date)->format('d M Y') }}</flux:table.cell>
                             <flux:table.cell><flux:badge size="sm" color="zinc">{{ $day->count }}</flux:badge></flux:table.cell>
-                            <flux:table.cell><flux:text class="font-medium">${{ number_format($day->total, 2) }}</flux:text></flux:table.cell>
-                            <flux:table.cell><flux:text class="text-green-500">${{ number_format($day->paid, 2) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="font-medium">{{ money($day->total) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="text-green-500">{{ money($day->paid) }}</flux:text></flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>
@@ -106,7 +106,7 @@
                                 <flux:text class="text-xs text-zinc-400">{{ $product->product_sku }}</flux:text>
                             </flux:table.cell>
                             <flux:table.cell><flux:badge size="sm" color="zinc">{{ $product->total_qty }}</flux:badge></flux:table.cell>
-                            <flux:table.cell><flux:text class="font-medium">${{ number_format($product->total_revenue, 2) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="font-medium">{{ money($product->total_revenue) }}</flux:text></flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>

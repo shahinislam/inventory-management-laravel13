@@ -90,7 +90,7 @@
                         <flux:text class="text-sm">
                             Final Price:
                             <strong>
-                                ${{ number_format($selling_price - ($selling_price * $discount / 100) + (($selling_price - ($selling_price * $discount / 100)) * $tax_rate / 100), 2) }}
+                                {{ money($selling_price - ($selling_price * $discount / 100) + (($selling_price - ($selling_price * $discount / 100)) * $tax_rate / 100)) }}
                             </strong>
                             (after {{ $discount }}% discount + {{ $tax_rate }}% tax)
                         </flux:text>

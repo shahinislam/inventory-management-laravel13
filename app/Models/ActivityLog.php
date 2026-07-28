@@ -41,15 +41,15 @@ class ActivityLog extends Model
         ?string $description = null
     ): self {
         return static::create([
-            'user_id'     => auth()->id(),
-            'action'      => $action,
-            'model_type'  => get_class($model),
-            'model_id'    => $model->getKey(),
+            'user_id' => auth()->id(),
+            'action' => $action,
+            'model_type' => get_class($model),
+            'model_id' => $model->getKey(),
             'description' => $description,
-            'old_values'  => $oldValues,
-            'new_values'  => $newValues,
-            'ip_address'  => request()->ip(),
-            'user_agent'  => request()->userAgent(),
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
         ]);
     }
 }

@@ -159,7 +159,7 @@
                                 >
                                     <div>
                                         <flux:text x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''" class="text-sm font-medium">{{ $product->name }}</flux:text>
-                                        <flux:text class="text-xs text-zinc-400">{{ $product->sku }} · Cost: ${{ number_format($product->cost_price, 2) }}</flux:text>
+                                        <flux:text class="text-xs text-zinc-400">{{ $product->sku }} · Cost: {{ money($product->cost_price) }}</flux:text>
                                     </div>
                                     <flux:icon name="plus" class="size-4 text-zinc-400" />
                                 </button>
@@ -204,11 +204,11 @@
                                         @if($isEditable)
                                             <flux:input wire:model.live="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" />
                                         @else
-                                            ${{ number_format($item['unit_cost'], 2) }}
+                                            {{ money($item['unit_cost']) }}
                                         @endif
                                     </td>
                                     <td style="padding:0.5rem;text-align:right">
-                                        <flux:text class="font-medium">${{ number_format((float)$item['quantity'] * (float)$item['unit_cost'], 2) }}</flux:text>
+                                        <flux:text class="font-medium">{{ money((float)$item['quantity'] * (float)$item['unit_cost']) }}</flux:text>
                                     </td>
                                     @if($order?->exists)
                                         <td style="padding:0.5rem;text-align:right">
@@ -258,7 +258,7 @@
                 <div class="space-y-3">
                     <div class="flex justify-between">
                         <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">${{ number_format($this->subtotal, 2) }}</flux:text>
+                        <flux:text class="font-medium">{{ money($this->subtotal) }}</flux:text>
                     </div>
 
                     <flux:field>
@@ -266,7 +266,7 @@
                         @if($isEditable)
                             <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳" />
                         @else
-                            <flux:text>${{ number_format($order->tax, 2) }}</flux:text>
+                            <flux:text>{{ money($order->tax) }}</flux:text>
                         @endif
                     </flux:field>
 
@@ -275,25 +275,25 @@
                         @if($isEditable)
                             <flux:input wire:model.live="discount" type="number" step="0.01" min="0" prefix="৳" />
                         @else
-                            <flux:text>${{ number_format($order->discount, 2) }}</flux:text>
+                            <flux:text>{{ money($order->discount) }}</flux:text>
                         @endif
                     </flux:field>
 
                     <div class="border-t border-zinc-200 pt-3 dark:border-zinc-700">
                         <div class="flex justify-between">
                             <flux:heading>Total</flux:heading>
-                            <flux:heading>${{ number_format($this->total, 2) }}</flux:heading>
+                            <flux:heading>{{ money($this->total) }}</flux:heading>
                         </div>
                     </div>
 
                     @if($order?->exists && $order->paid_amount > 0)
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Paid</flux:text>
-                            <flux:text class="text-green-500">${{ number_format($order->paid_amount, 2) }}</flux:text>
+                            <flux:text class="text-green-500">{{ money($order->paid_amount) }}</flux:text>
                         </div>
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Due</flux:text>
-                            <flux:text class="text-red-500">${{ number_format($order->due_amount, 2) }}</flux:text>
+                            <flux:text class="text-red-500">{{ money($order->due_amount) }}</flux:text>
                         </div>
                     @endif
                 </div>

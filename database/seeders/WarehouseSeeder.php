@@ -15,28 +15,28 @@ class WarehouseSeeder extends Seeder
         Warehouse::updateOrCreate(
             ['code' => 'WH-001'],
             [
-                'name'       => 'Main Warehouse',
-                'address'    => '123 Main Street',
-                'city'       => 'Dhaka',
-                'country'    => 'Bangladesh',
-                'phone'      => '+880 1234-567890',
+                'name' => 'Main Warehouse',
+                'address' => '123 Main Street',
+                'city' => 'Dhaka',
+                'country' => 'Bangladesh',
+                'phone' => '+880 1234-567890',
                 'manager_id' => $admin?->id,
                 'is_default' => true,
-                'is_active'  => true,
+                'is_active' => true,
             ]
         );
 
         Warehouse::updateOrCreate(
             ['code' => 'WH-002'],
             [
-                'name'       => 'Secondary Warehouse',
-                'address'    => '456 Secondary Street',
-                'city'       => 'Chittagong',
-                'country'    => 'Bangladesh',
-                'phone'      => '+880 1234-567891',
+                'name' => 'Secondary Warehouse',
+                'address' => '456 Secondary Street',
+                'city' => 'Chittagong',
+                'country' => 'Bangladesh',
+                'phone' => '+880 1234-567891',
                 'manager_id' => $admin?->id,
                 'is_default' => false,
-                'is_active'  => true,
+                'is_active' => true,
             ]
         );
     }

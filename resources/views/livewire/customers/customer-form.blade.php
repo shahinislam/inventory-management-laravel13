@@ -175,12 +175,12 @@
                         </div>
                         <div class="flex justify-between">
                             <flux:text class="text-sm text-zinc-500">Total Purchases</flux:text>
-                            <flux:text class="font-medium">${{ number_format($this->customer->total_purchases, 2) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($this->customer->total_purchases) }}</flux:text>
                         </div>
                         <div class="flex justify-between">
                             <flux:text class="text-sm text-zinc-500">Current Balance</flux:text>
                             <flux:text class="font-medium {{ $this->customer->current_balance > 0 ? 'text-red-500' : '' }}">
-                                ${{ number_format($this->customer->current_balance, 2) }}
+                                {{ money($this->customer->current_balance) }}
                             </flux:text>
                         </div>
                     </div>

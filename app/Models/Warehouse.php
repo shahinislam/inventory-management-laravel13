@@ -20,18 +20,50 @@ class Warehouse extends Model
     {
         return [
             'is_default' => 'boolean',
-            'is_active'  => 'boolean',
-            'capacity'   => 'integer',
+            'is_active' => 'boolean',
+            'capacity' => 'integer',
         ];
     }
 
-    public function manager()        { return $this->belongsTo(User::class, 'manager_id'); }
-    public function stockMovements() { return $this->hasMany(StockMovement::class); }
-    public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class); }
-    public function invoices()       { return $this->hasMany(Invoice::class); }
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
+    }
 
-    public function scopeActive($q)  { return $q->where('is_active', true); }
-    public function scopeDefault($q) { return $q->where('is_default', true); }
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    /**
+     * Products held in this warehouse, with the quantity on the pivot.
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'product_warehouse')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function scopeActive($q)
+    {
+        return $q->where('is_active', true);
+    }
+
+    public function scopeDefault($q)
+    {
+        return $q->where('is_default', true);
+    }
 
     public static function getDefault(): ?self
     {

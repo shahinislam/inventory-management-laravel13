@@ -85,9 +85,9 @@
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <flux:text class="font-medium">${{ number_format($order->total, 2) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($order->total) }}</flux:text>
                             @if($order->paid_amount > 0)
-                                <flux:text class="text-xs text-green-500">Paid: ${{ number_format($order->paid_amount, 2) }}</flux:text>
+                                <flux:text class="text-xs text-green-500">Paid: {{ money($order->paid_amount) }}</flux:text>
                             @endif
                         </flux:table.cell>
 

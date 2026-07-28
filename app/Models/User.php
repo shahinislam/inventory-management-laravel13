@@ -21,8 +21,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'is_active'         => 'boolean',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -31,7 +31,7 @@ class User extends Authenticatable
         return Str::of($this->name)
             ->explode(' ')
             ->take(2)
-            ->map(fn($word) => Str::substr($word, 0, 1))
+            ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
     }
 
@@ -57,14 +57,36 @@ class User extends Authenticatable
     }
 
     // Scopes
-    public function scopeActive($q)          { return $q->where('is_active', true); }
-    public function scopeRole($q, string $r) { return $q->where('role', $r); }
+    public function scopeActive($q)
+    {
+        return $q->where('is_active', true);
+    }
+
+    public function scopeRole($q, string $r)
+    {
+        return $q->where('role', $r);
+    }
 
     // Helpers
-    public function isAdmin(): bool   { return $this->role === 'admin'; }
-    public function isManager(): bool { return $this->role === 'manager'; }
-    public function isStaff(): bool   { return $this->role === 'staff'; }
-    public function isViewer(): bool  { return $this->role === 'viewer'; }
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    public function isViewer(): bool
+    {
+        return $this->role === 'viewer';
+    }
 
     public function hasRole(string|array $roles): bool
     {

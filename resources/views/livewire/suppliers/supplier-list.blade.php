@@ -104,7 +104,7 @@
                         {{-- Balance --}}
                         <flux:table.cell>
                             <flux:text class="text-sm {{ $supplier->current_balance > 0 ? 'text-red-500' : '' }}">
-                                ${{ number_format($supplier->current_balance, 2) }}
+                                {{ money($supplier->current_balance) }}
                             </flux:text>
                         </flux:table.cell>
 

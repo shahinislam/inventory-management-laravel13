@@ -14,10 +14,10 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@inventory.com'],
             [
-                'name'              => 'Admin User',
-                'password'          => Hash::make('password'),
-                'role'              => 'admin',
-                'is_active'         => true,
+                'name' => 'Admin User',
+                'password' => Hash::make('password'),
+                'role' => 'admin',
+                'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
@@ -26,10 +26,10 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'manager@inventory.com'],
             [
-                'name'              => 'Manager User',
-                'password'          => Hash::make('password'),
-                'role'              => 'manager',
-                'is_active'         => true,
+                'name' => 'Manager User',
+                'password' => Hash::make('password'),
+                'role' => 'manager',
+                'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
@@ -38,10 +38,10 @@ class AdminUserSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'staff@inventory.com'],
             [
-                'name'              => 'Staff User',
-                'password'          => Hash::make('password'),
-                'role'              => 'staff',
-                'is_active'         => true,
+                'name' => 'Staff User',
+                'password' => Hash::make('password'),
+                'role' => 'staff',
+                'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );

@@ -19,18 +19,25 @@ class PurchaseOrderItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity'          => 'integer',
+            'quantity' => 'integer',
             'received_quantity' => 'integer',
-            'unit_cost'         => 'decimal:2',
-            'tax_rate'          => 'decimal:2',
-            'discount'          => 'decimal:2',
-            'subtotal'          => 'decimal:2',
-            'expiry_date'       => 'date',
+            'unit_cost' => 'decimal:2',
+            'tax_rate' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'subtotal' => 'decimal:2',
+            'expiry_date' => 'date',
         ];
     }
 
-    public function purchaseOrder() { return $this->belongsTo(PurchaseOrder::class); }
-    public function product()       { return $this->belongsTo(Product::class); }
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function getRemainingQuantityAttribute(): int
     {
@@ -47,6 +54,7 @@ class PurchaseOrderItem extends Model
         $sub = $this->quantity * $this->unit_cost;
         $sub -= $sub * ($this->discount / 100);
         $sub += $sub * ($this->tax_rate / 100);
+
         return round($sub, 2);
     }
 }

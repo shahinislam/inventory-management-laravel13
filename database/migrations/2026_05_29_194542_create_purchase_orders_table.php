@@ -21,7 +21,7 @@ return new class extends Migration
                 'approved',
                 'ordered',
                 'received',
-                'cancelled'
+                'cancelled',
             ])->default('draft')->index();
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('tax', 12, 2)->default(0);

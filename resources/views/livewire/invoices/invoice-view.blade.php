@@ -112,11 +112,11 @@
                                 <flux:text class="text-xs text-zinc-400">{{ $item->product_sku }}</flux:text>
                             </td>
                             <td style="padding:0.5rem;text-align:right">{{ $item->quantity }}</td>
-                            <td style="padding:0.5rem;text-align:right">${{ number_format($item->unit_price, 2) }}</td>
-                            <td style="padding:0.5rem;text-align:right">{{ $item->discount > 0 ? '$'.number_format($item->discount, 2) : '-' }}</td>
+                            <td style="padding:0.5rem;text-align:right">{{ money($item->unit_price) }}</td>
+                            <td style="padding:0.5rem;text-align:right">{{ $item->discount > 0 ? money($item->discount) : '-' }}</td>
                             <td style="padding:0.5rem;text-align:right">{{ $item->tax_rate > 0 ? $item->tax_rate.'%' : '-' }}</td>
                             <td style="padding:0.5rem;text-align:right">
-                                <flux:text class="font-medium">${{ number_format($item->subtotal, 2) }}</flux:text>
+                                <flux:text class="font-medium">{{ money($item->subtotal) }}</flux:text>
                             </td>
                         </tr>
                     @endforeach
@@ -129,32 +129,32 @@
             <div style="width:280px" class="space-y-2">
                 <div class="flex justify-between">
                     <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                    <flux:text>${{ number_format($invoice->subtotal, 2) }}</flux:text>
+                    <flux:text>{{ money($invoice->subtotal) }}</flux:text>
                 </div>
                 @if($invoice->discount > 0)
                     <div class="flex justify-between">
                         <flux:text class="text-sm text-zinc-500">Discount</flux:text>
-                        <flux:text class="text-green-500">-${{ number_format($invoice->discount, 2) }}</flux:text>
+                        <flux:text class="text-green-500">-{{ money($invoice->discount) }}</flux:text>
                     </div>
                 @endif
                 @if($invoice->tax > 0)
                     <div class="flex justify-between">
                         <flux:text class="text-sm text-zinc-500">Tax</flux:text>
-                        <flux:text>${{ number_format($invoice->tax, 2) }}</flux:text>
+                        <flux:text>{{ money($invoice->tax) }}</flux:text>
                     </div>
                 @endif
                 <div class="flex justify-between border-t border-zinc-200 pt-2 dark:border-zinc-700">
                     <flux:heading>Total</flux:heading>
-                    <flux:heading>${{ number_format($invoice->total, 2) }}</flux:heading>
+                    <flux:heading>{{ money($invoice->total) }}</flux:heading>
                 </div>
                 <div class="flex justify-between">
                     <flux:text class="text-sm text-zinc-500">Paid</flux:text>
-                    <flux:text class="text-green-500">${{ number_format($invoice->paid_amount, 2) }}</flux:text>
+                    <flux:text class="text-green-500">{{ money($invoice->paid_amount) }}</flux:text>
                 </div>
                 @if($invoice->due_amount > 0)
                     <div class="flex justify-between">
                         <flux:heading class="text-red-500">Due</flux:heading>
-                        <flux:heading class="text-red-500">${{ number_format($invoice->due_amount, 2) }}</flux:heading>
+                        <flux:heading class="text-red-500">{{ money($invoice->due_amount) }}</flux:heading>
                     </div>
                 @endif
             </div>
@@ -167,7 +167,7 @@
                 @foreach($invoice->payments as $payment)
                     <div class="flex justify-between text-sm py-1">
                         <span>{{ $payment->payment_number }} · {{ ucfirst(str_replace('_',' ',$payment->method)) }} · {{ $payment->payment_date->format('d M Y') }}</span>
-                        <span class="font-medium">${{ number_format($payment->amount, 2) }}</span>
+                        <span class="font-medium">{{ money($payment->amount) }}</span>
                     </div>
                 @endforeach
             </div>
@@ -197,7 +197,7 @@
             <div class="mb-4 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
                 <div class="flex justify-between text-sm">
                     <span>Total Due</span>
-                    <span class="font-medium text-red-500">${{ number_format($invoice->due_amount, 2) }}</span>
+                    <span class="font-medium text-red-500">{{ money($invoice->due_amount) }}</span>
                 </div>
             </div>
 

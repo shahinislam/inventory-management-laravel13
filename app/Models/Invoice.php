@@ -22,38 +22,83 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-            'subtotal'     => 'decimal:2',
-            'tax'          => 'decimal:2',
-            'discount'     => 'decimal:2',
-            'total'        => 'decimal:2',
-            'paid_amount'  => 'decimal:2',
-            'due_amount'   => 'decimal:2',
+            'subtotal' => 'decimal:2',
+            'tax' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'total' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'due_amount' => 'decimal:2',
             'invoice_date' => 'date',
-            'due_date'     => 'date',
-            'paid_date'    => 'date',
+            'due_date' => 'date',
+            'paid_date' => 'date',
         ];
     }
 
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn($m) => $m->invoice_number ??= NumberGeneratorService::generate('invoice'));
+        static::creating(fn ($m) => $m->invoice_number ??= NumberGeneratorService::generate('invoice'));
     }
 
-    public function warehouse()  { return $this->belongsTo(Warehouse::class); }
-    public function customer()   { return $this->belongsTo(Customer::class); }
-    public function createdBy()  { return $this->belongsTo(User::class, 'created_by'); }
-    public function items()      { return $this->hasMany(InvoiceItem::class); }
-    public function payments()   { return $this->hasMany(Payment::class); }
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
 
-    public function scopePaid($q)    { return $q->where('status', 'paid'); }
-    public function scopeOverdue($q) { return $q->where('status', 'overdue'); }
-    public function scopeUnpaid($q)  { return $q->whereIn('status', ['draft', 'sent', 'partial', 'overdue']); }
-    public function scopeToday($q)   { return $q->whereDate('invoice_date', today()); }
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
-    public function isPaid(): bool    { return $this->status === 'paid'; }
-    public function isOverdue(): bool { return $this->status === 'overdue'; }
-    public function isPartial(): bool { return $this->status === 'partial'; }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(InvoiceItem::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function scopePaid($q)
+    {
+        return $q->where('status', 'paid');
+    }
+
+    public function scopeOverdue($q)
+    {
+        return $q->where('status', 'overdue');
+    }
+
+    public function scopeUnpaid($q)
+    {
+        return $q->whereIn('status', ['draft', 'sent', 'partial', 'overdue']);
+    }
+
+    public function scopeToday($q)
+    {
+        return $q->whereDate('invoice_date', today());
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->status === 'paid';
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->status === 'overdue';
+    }
+
+    public function isPartial(): bool
+    {
+        return $this->status === 'partial';
+    }
 
     public function calculateDue(): float
     {

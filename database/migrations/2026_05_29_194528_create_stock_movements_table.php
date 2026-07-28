@@ -21,7 +21,7 @@ return new class extends Migration
                 'transfer_in',
                 'transfer_out',
                 'damaged',
-                'expired'
+                'expired',
             ])->index();
             $table->unsignedInteger('quantity');
             $table->unsignedInteger('before_quantity');

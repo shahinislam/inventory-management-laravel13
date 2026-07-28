@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Suppliers;
 
+use App\Concerns\AuthorizesDestructiveActions;
 use App\Models\Supplier;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -9,18 +10,23 @@ use Livewire\WithPagination;
 
 class SupplierList extends Component
 {
-    use WithPagination;
+    use AuthorizesDestructiveActions, WithPagination;
 
-    public string $search       = '';
+    public string $search = '';
+
     public string $statusFilter = '';
-    public ?int $deleteId       = null;
+
+    public ?int $deleteId = null;
 
     protected $queryString = [
-        'search'       => ['except' => ''],
+        'search' => ['except' => ''],
         'statusFilter' => ['except' => ''],
     ];
 
-    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
 
     public function confirmDelete(int $id): void
     {
@@ -29,6 +35,10 @@ class SupplierList extends Component
 
     public function delete(): void
     {
+        if (! $this->canDelete()) {
+            return;
+        }
+
         Supplier::findOrFail($this->deleteId)->delete();
         Cache::forget('suppliers_list');
 
@@ -39,7 +49,7 @@ class SupplierList extends Component
     public function toggleStatus(int $id): void
     {
         $supplier = Supplier::findOrFail($id);
-        $supplier->update(['is_active' => !$supplier->is_active]);
+        $supplier->update(['is_active' => ! $supplier->is_active]);
         Cache::forget('suppliers_list');
     }
 
@@ -48,12 +58,12 @@ class SupplierList extends Component
         $suppliers = Supplier::query()
             ->with('media')
             ->withCount('products')
-            ->when($this->search, fn($q) => $q
+            ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
                 ->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%")
                 ->orWhere('phone', 'like', "%{$this->search}%")
-            )
-            ->when($this->statusFilter !== '', fn($q) => $q->where('is_active', $this->statusFilter === 'active'))
+            ))
+            ->when($this->statusFilter !== '', fn ($q) => $q->where('is_active', $this->statusFilter === 'active'))
             ->latest()
             ->paginate(15);
 

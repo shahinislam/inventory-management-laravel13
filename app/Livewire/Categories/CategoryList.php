@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Categories;
 
+use App\Concerns\AuthorizesDestructiveActions;
 use App\Models\Category;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -9,18 +10,23 @@ use Livewire\WithPagination;
 
 class CategoryList extends Component
 {
-    use WithPagination;
+    use AuthorizesDestructiveActions, WithPagination;
 
-    public string $search     = '';
+    public string $search = '';
+
     public string $statusFilter = '';
-    public ?int $deleteId     = null;
+
+    public ?int $deleteId = null;
 
     protected $queryString = [
-        'search'       => ['except' => ''],
+        'search' => ['except' => ''],
         'statusFilter' => ['except' => ''],
     ];
 
-    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
 
     public function confirmDelete(int $id): void
     {
@@ -29,6 +35,10 @@ class CategoryList extends Component
 
     public function delete(): void
     {
+        if (! $this->canDelete()) {
+            return;
+        }
+
         $category = Category::findOrFail($this->deleteId);
 
         // Move children to parent
@@ -44,7 +54,7 @@ class CategoryList extends Component
     public function toggleStatus(int $id): void
     {
         $category = Category::findOrFail($id);
-        $category->update(['is_active' => !$category->is_active]);
+        $category->update(['is_active' => ! $category->is_active]);
         Cache::forget('categories_list');
     }
 
@@ -53,8 +63,8 @@ class CategoryList extends Component
         $categories = Category::query()
             ->with(['parent', 'media', 'children'])
             ->withCount('products')
-            ->when($this->search, fn($q) => $q->where('name', 'like', "%{$this->search}%"))
-            ->when($this->statusFilter !== '', fn($q) => $q->where('is_active', $this->statusFilter === 'active'))
+            ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
+            ->when($this->statusFilter !== '', fn ($q) => $q->where('is_active', $this->statusFilter === 'active'))
             ->orderBy('order')
             ->paginate(15);
 

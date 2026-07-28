@@ -1,103 +1,157 @@
 <?php
 
+use App\Livewire\Categories\CategoryForm;
+use App\Livewire\Categories\CategoryList;
+use App\Livewire\Customers\CustomerForm;
+use App\Livewire\Customers\CustomerList;
+use App\Livewire\Dashboard\Index;
+use App\Livewire\Invoices\InvoiceForm;
+use App\Livewire\Invoices\InvoiceList;
+use App\Livewire\Invoices\InvoiceView;
+use App\Livewire\Media\MediaLibrary;
+use App\Livewire\Pos\PosTerminal;
+use App\Livewire\Products\ProductForm;
+use App\Livewire\Products\ProductList;
+use App\Livewire\Promotions\PromotionForm;
+use App\Livewire\Promotions\PromotionList;
+use App\Livewire\Purchases\PurchaseForm;
+use App\Livewire\Purchases\PurchaseList;
+use App\Livewire\Reports\LowStockAlert;
+use App\Livewire\Reports\SalesReport;
+use App\Livewire\Reports\StockReport;
+use App\Livewire\Settings\GeneralSettings;
+use App\Livewire\Settings\RoleManagement;
+use App\Livewire\Settings\UserManagement;
+use App\Livewire\Stock\MovementList;
+use App\Livewire\Stock\StockAdjustment;
+use App\Livewire\Stock\StockTransfer;
+use App\Livewire\Suppliers\SupplierForm;
+use App\Livewire\Suppliers\SupplierList;
+use App\Livewire\Warehouses\WarehouseForm;
+use App\Livewire\Warehouses\WarehouseList;
 use Illuminate\Support\Facades\Route;
-use Livewire\Volt\Volt;
 
 // Public routes
-Route::get('/', fn() => redirect()->route('dashboard'));
+Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
 
 // Authenticated routes
 Route::middleware(['auth', 'verified'])->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', \App\Livewire\Dashboard\Index::class)->name('dashboard');
+    Route::get('/dashboard', Index::class)->name('dashboard');
 
-    // Products
-    Route::prefix('products')->name('products.')->middleware('role:admin,manager,staff')->group(function () {
-        Route::get('/', \App\Livewire\Products\ProductList::class)->name('index');
-        Route::get('/create', \App\Livewire\Products\ProductForm::class)->name('create');
-        Route::get('/{product}/edit', \App\Livewire\Products\ProductForm::class)->name('edit');
+    // Products — viewers may browse the catalogue but not change it.
+    Route::prefix('products')->name('products.')->group(function () {
+        Route::get('/', ProductList::class)
+            ->middleware('role:admin,manager,staff,viewer')->name('index');
+
+        Route::middleware('role:admin,manager,staff')->group(function () {
+            Route::get('/create', ProductForm::class)->name('create');
+            Route::get('/{product}/edit', ProductForm::class)->name('edit');
+        });
     });
 
     // Categories
-    Route::prefix('categories')->name('categories.')->middleware('role:admin,manager')->group(function () {
-        Route::get('/', \App\Livewire\Categories\CategoryList::class)->name('index');
-        Route::get('/create', \App\Livewire\Categories\CategoryForm::class)->name('create');
-        Route::get('/{category}/edit', \App\Livewire\Categories\CategoryForm::class)->name('edit');
+    Route::prefix('categories')->name('categories.')->group(function () {
+        Route::get('/', CategoryList::class)
+            ->middleware('role:admin,manager,viewer')->name('index');
+
+        Route::middleware('role:admin,manager')->group(function () {
+            Route::get('/create', CategoryForm::class)->name('create');
+            Route::get('/{category}/edit', CategoryForm::class)->name('edit');
+        });
     });
 
     // Suppliers
-    Route::prefix('suppliers')->name('suppliers.')->middleware('role:admin,manager')->group(function () {
-        Route::get('/', \App\Livewire\Suppliers\SupplierList::class)->name('index');
-        Route::get('/create', \App\Livewire\Suppliers\SupplierForm::class)->name('create');
-        Route::get('/{supplier}/edit', \App\Livewire\Suppliers\SupplierForm::class)->name('edit');
+    Route::prefix('suppliers')->name('suppliers.')->group(function () {
+        Route::get('/', SupplierList::class)
+            ->middleware('role:admin,manager,viewer')->name('index');
+
+        Route::middleware('role:admin,manager')->group(function () {
+            Route::get('/create', SupplierForm::class)->name('create');
+            Route::get('/{supplier}/edit', SupplierForm::class)->name('edit');
+        });
     });
 
     // Warehouses
     Route::prefix('warehouses')->name('warehouses.')->middleware('role:admin')->group(function () {
-        Route::get('/', \App\Livewire\Warehouses\WarehouseList::class)->name('index');
-        Route::get('/create', \App\Livewire\Warehouses\WarehouseForm::class)->name('create');
-        Route::get('/{warehouse}/edit', \App\Livewire\Warehouses\WarehouseForm::class)->name('edit');
+        Route::get('/', WarehouseList::class)->name('index');
+        Route::get('/create', WarehouseForm::class)->name('create');
+        Route::get('/{warehouse}/edit', WarehouseForm::class)->name('edit');
     });
 
     // Customers
-    Route::prefix('customers')->name('customers.')->middleware('role:admin,manager,staff')->group(function () {
-        Route::get('/', \App\Livewire\Customers\CustomerList::class)->name('index');
-        Route::get('/create', \App\Livewire\Customers\CustomerForm::class)->name('create');
-        Route::get('/{customer}/edit', \App\Livewire\Customers\CustomerForm::class)->name('edit');
+    Route::prefix('customers')->name('customers.')->group(function () {
+        Route::get('/', CustomerList::class)
+            ->middleware('role:admin,manager,staff,viewer')->name('index');
+
+        Route::middleware('role:admin,manager,staff')->group(function () {
+            Route::get('/create', CustomerForm::class)->name('create');
+            Route::get('/{customer}/edit', CustomerForm::class)->name('edit');
+        });
     });
 
-    // Stock Management
-    Route::prefix('stock')->name('stock.')->middleware('role:admin,manager,staff')->group(function () {
-        Route::get('/', \App\Livewire\Stock\MovementList::class)->name('index');
-        Route::get('/adjust', \App\Livewire\Stock\StockAdjustment::class)->name('adjust');
-        Route::get('/transfer', \App\Livewire\Stock\StockTransfer::class)->name('transfer');
+    // Stock Management — the movement log is read-only, adjustments are not.
+    Route::prefix('stock')->name('stock.')->group(function () {
+        Route::get('/', MovementList::class)
+            ->middleware('role:admin,manager,staff,viewer')->name('index');
+
+        Route::middleware('role:admin,manager,staff')->group(function () {
+            Route::get('/adjust', StockAdjustment::class)->name('adjust');
+            Route::get('/transfer', StockTransfer::class)->name('transfer');
+        });
     });
 
     // Purchase Orders
     Route::prefix('purchases')->name('purchases.')->middleware('role:admin,manager')->group(function () {
-        Route::get('/', \App\Livewire\Purchases\PurchaseList::class)->name('index');
-        Route::get('/create', \App\Livewire\Purchases\PurchaseForm::class)->name('create');
-        Route::get('/{purchaseOrder}/edit', \App\Livewire\Purchases\PurchaseForm::class)->name('edit');
+        Route::get('/', PurchaseList::class)->name('index');
+        Route::get('/create', PurchaseForm::class)->name('create');
+        Route::get('/{purchaseOrder}/edit', PurchaseForm::class)->name('edit');
     });
 
-    // Invoices
-    Route::prefix('invoices')->name('invoices.')->middleware('role:admin,manager,staff')->group(function () {
-        Route::get('/', \App\Livewire\Invoices\InvoiceList::class)->name('index');
-        Route::get('/create', \App\Livewire\Invoices\InvoiceForm::class)->name('create');
-        Route::get('/{invoice}', \App\Livewire\Invoices\InvoiceView::class)->name('show');
-        Route::get('/{invoice}/edit', \App\Livewire\Invoices\InvoiceForm::class)->name('edit');
+    // Invoices — viewers may read invoices but not create or edit them.
+    Route::prefix('invoices')->name('invoices.')->group(function () {
+        Route::middleware('role:admin,manager,staff')->group(function () {
+            Route::get('/create', InvoiceForm::class)->name('create');
+            Route::get('/{invoice}/edit', InvoiceForm::class)->name('edit');
+        });
+
+        // Declared after /create so the literal segment wins the match.
+        Route::middleware('role:admin,manager,staff,viewer')->group(function () {
+            Route::get('/', InvoiceList::class)->name('index');
+            Route::get('/{invoice}', InvoiceView::class)->name('show');
+        });
     });
 
     // POS Terminal
-    Route::get('/pos', \App\Livewire\Pos\PosTerminal::class)
+    Route::get('/pos', PosTerminal::class)
         ->name('pos')
         ->middleware('role:admin,manager,staff');
 
     // Promotions
     Route::prefix('promotions')->name('promotions.')->middleware('role:admin,manager')->group(function () {
-        Route::get('/', \App\Livewire\Promotions\PromotionList::class)->name('index');
-        Route::get('/create', \App\Livewire\Promotions\PromotionForm::class)->name('create');
-        Route::get('/{promotion}/edit', \App\Livewire\Promotions\PromotionForm::class)->name('edit');
+        Route::get('/', PromotionList::class)->name('index');
+        Route::get('/create', PromotionForm::class)->name('create');
+        Route::get('/{promotion}/edit', PromotionForm::class)->name('edit');
     });
 
     // Media Library
     Route::prefix('media')->name('media.')->middleware('role:admin,manager,staff')->group(function () {
-        Route::get('/', \App\Livewire\Media\MediaLibrary::class)->name('index');
+        Route::get('/', MediaLibrary::class)->name('index');
     });
 
-    // Reports
-    Route::prefix('reports')->name('reports.')->middleware('role:admin,manager')->group(function () {
-        Route::get('/stock', \App\Livewire\Reports\StockReport::class)->name('stock');
-        Route::get('/sales', \App\Livewire\Reports\SalesReport::class)->name('sales');
-        Route::get('/low-stock', \App\Livewire\Reports\LowStockAlert::class)->name('low-stock');
+    // Reports — read-only by nature, so viewers are included.
+    Route::prefix('reports')->name('reports.')->middleware('role:admin,manager,viewer')->group(function () {
+        Route::get('/stock', StockReport::class)->name('stock');
+        Route::get('/sales', SalesReport::class)->name('sales');
+        Route::get('/low-stock', LowStockAlert::class)->name('low-stock');
     });
 
     // Settings (Admin only)
     Route::prefix('settings')->name('settings.')->middleware('role:admin')->group(function () {
-        Route::get('/general', \App\Livewire\Settings\GeneralSettings::class)->name('general');
-        Route::get('/users', \App\Livewire\Settings\UserManagement::class)->name('users');
-        Route::get('/roles', \App\Livewire\Settings\RoleManagement::class)->name('roles');
+        Route::get('/general', GeneralSettings::class)->name('general');
+        Route::get('/users', UserManagement::class)->name('users');
+        Route::get('/roles', RoleManagement::class)->name('roles');
     });
 });
 

@@ -19,27 +19,58 @@ class StockMovement extends Model
     protected function casts(): array
     {
         return [
-            'quantity'        => 'integer',
+            'quantity' => 'integer',
             'before_quantity' => 'integer',
-            'after_quantity'  => 'integer',
-            'unit_cost'       => 'decimal:2',
-            'expiry_date'     => 'date',
+            'after_quantity' => 'integer',
+            'unit_cost' => 'decimal:2',
+            'expiry_date' => 'date',
         ];
     }
 
-    public function product()   { return $this->belongsTo(Product::class); }
-    public function warehouse() { return $this->belongsTo(Warehouse::class); }
-    public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
-    public function reference() { return $this->morphTo(); }
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
-    public function scopeType($q, string $t) { return $q->where('type', $t); }
-    public function scopePurchases($q)   { return $q->where('type', 'purchase'); }
-    public function scopeSales($q)       { return $q->where('type', 'sale'); }
-    public function scopeAdjustments($q) { return $q->where('type', 'adjustment'); }
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function reference()
+    {
+        return $this->morphTo();
+    }
+
+    public function scopeType($q, string $t)
+    {
+        return $q->where('type', $t);
+    }
+
+    public function scopePurchases($q)
+    {
+        return $q->where('type', 'purchase');
+    }
+
+    public function scopeSales($q)
+    {
+        return $q->where('type', 'sale');
+    }
+
+    public function scopeAdjustments($q)
+    {
+        return $q->where('type', 'adjustment');
+    }
+
     public function scopeExpiring($q, int $days = 30)
     {
         return $q->whereNotNull('expiry_date')
-                 ->whereDate('expiry_date', '<=', now()->addDays($days));
+            ->whereDate('expiry_date', '<=', now()->addDays($days));
     }
 
     public function isInbound(): bool

@@ -30,8 +30,15 @@ class SystemNotification extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function scopeUnread($q) { return $q->where('is_read', false); }
-    public function scopeRead($q)   { return $q->where('is_read', true); }
+    public function scopeUnread($q)
+    {
+        return $q->where('is_read', false);
+    }
+
+    public function scopeRead($q)
+    {
+        return $q->where('is_read', true);
+    }
 
     public function markAsRead(): void
     {
@@ -47,8 +54,8 @@ class SystemNotification extends Model
     ): self {
         return static::create(array_merge([
             'user_id' => $userId,
-            'type'    => $type,
-            'title'   => $title,
+            'type' => $type,
+            'title' => $title,
             'message' => $message,
         ], $extra));
     }

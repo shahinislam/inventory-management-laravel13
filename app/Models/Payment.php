@@ -20,7 +20,7 @@ class Payment extends Model
     protected function casts(): array
     {
         return [
-            'amount'       => 'decimal:2',
+            'amount' => 'decimal:2',
             'payment_date' => 'date',
         ];
     }
@@ -28,15 +28,36 @@ class Payment extends Model
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn($m) => $m->payment_number ??= NumberGeneratorService::generate('payment'));
+        static::creating(fn ($m) => $m->payment_number ??= NumberGeneratorService::generate('payment'));
     }
 
-    public function invoice()   { return $this->belongsTo(Invoice::class); }
-    public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
 
-    public function scopeCompleted($q) { return $q->where('status', 'completed'); }
-    public function scopeRefunded($q)  { return $q->where('status', 'refunded'); }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
-    public function isCompleted(): bool { return $this->status === 'completed'; }
-    public function isRefunded(): bool  { return $this->status === 'refunded'; }
+    public function scopeCompleted($q)
+    {
+        return $q->where('status', 'completed');
+    }
+
+    public function scopeRefunded($q)
+    {
+        return $q->where('status', 'refunded');
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    public function isRefunded(): bool
+    {
+        return $this->status === 'refunded';
+    }
 }

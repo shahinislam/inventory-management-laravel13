@@ -28,12 +28,14 @@
                     wire:navigate
                 >{{ __('Dashboard') }}</flux:sidebar.item>
 
+                @if(auth()->user()->hasRole(['admin', 'manager', 'staff']))
                 <flux:sidebar.item
                     icon="shopping-cart"
                     :href="route('pos')"
                     :current="request()->routeIs('pos')"
                     wire:navigate
                 >{{ __('POS Terminal') }}</flux:sidebar.item>
+                @endif
 
 
 
@@ -47,12 +49,14 @@
                         wire:navigate
                     >{{ __('Products') }}</flux:sidebar.item>
 
+                    @if(auth()->user()->hasRole(['admin', 'manager', 'viewer']))
                     <flux:sidebar.item
                         icon="tag"
                         :href="route('categories.index')"
                         :current="request()->routeIs('categories.*')"
                         wire:navigate
                     >{{ __('Categories') }}</flux:sidebar.item>
+                    @endif
 
                     <flux:sidebar.item
                         icon="arrows-up-down"
@@ -61,12 +65,14 @@
                         wire:navigate
                     >{{ __('Stock Movements') }}</flux:sidebar.item>
 
+                    @if(auth()->user()->isAdmin())
                     <flux:sidebar.item
                         icon="building-storefront"
                         :href="route('warehouses.index')"
                         :current="request()->routeIs('warehouses.*')"
                         wire:navigate
                     >{{ __('Warehouses') }}</flux:sidebar.item>
+                    @endif
                 </flux:sidebar.group>
 
                 {{-- Sales --}}
@@ -86,23 +92,28 @@
                         wire:navigate
                     >{{ __('Customers') }}</flux:sidebar.item>
 
+                    @if(auth()->user()->hasRole(['admin', 'manager']))
                     <flux:sidebar.item
                         icon="gift"
                         :href="route('promotions.index')"
                         :current="request()->routeIs('promotions.*')"
                         wire:navigate
                     >{{ __('Promotions') }}</flux:sidebar.item>
+                    @endif
                 </flux:sidebar.group>
 
                 {{-- Purchasing --}}
+                @if(auth()->user()->hasRole(['admin', 'manager', 'viewer']))
                 <flux:sidebar.group :heading="__('Purchasing')" expandable icon="truck"
                     :expanded="request()->routeIs('purchases.*', 'suppliers.*')">
+                    @if(auth()->user()->hasRole(['admin', 'manager']))
                     <flux:sidebar.item
                         icon="clipboard-document-list"
                         :href="route('purchases.index')"
                         :current="request()->routeIs('purchases.*')"
                         wire:navigate
                     >{{ __('Purchase Orders') }}</flux:sidebar.item>
+                    @endif
 
                     <flux:sidebar.item
                         icon="truck"
@@ -111,8 +122,10 @@
                         wire:navigate
                     >{{ __('Suppliers') }}</flux:sidebar.item>
                 </flux:sidebar.group>
+                @endif
 
                 {{-- Reports --}}
+                @if(auth()->user()->hasRole(['admin', 'manager', 'viewer']))
                 <flux:sidebar.group :heading="__('Reports')" expandable icon="chart-bar"
                     :expanded="request()->routeIs('reports.*')">
                     <flux:sidebar.item
@@ -136,9 +149,10 @@
                         wire:navigate
                     >{{ __('Low Stock Alerts') }}</flux:sidebar.item>
                 </flux:sidebar.group>
+                @endif
 
                 {{-- Media --}}
-                @if(auth()->user()->hasRole(['admin', 'manager']))
+                @if(auth()->user()->hasRole(['admin', 'manager', 'staff']))
                 <flux:sidebar.group :heading="__('Media')">
                     <flux:sidebar.item
                         icon="photo"

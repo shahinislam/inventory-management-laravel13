@@ -20,7 +20,7 @@ return new class extends Migration
                 'percentage',
                 'fixed',
                 'buy_x_get_y',
-                'bundle'
+                'bundle',
             ])->index();
             $table->decimal('value', 10, 2)->default(0);
             $table->decimal('max_discount', 12, 2)->nullable();
