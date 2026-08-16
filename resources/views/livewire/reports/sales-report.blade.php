@@ -1,7 +1,7 @@
 <div class="p-6">
 
     {{-- Header --}}
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div>
             <flux:heading size="xl">Sales Report</flux:heading>
             <flux:text class="mt-1">Revenue & sales analytics</flux:text>
@@ -10,9 +10,9 @@
     </div>
 
     {{-- Period Filter --}}
-    <flux:card class="mb-6 p-4">
+    <flux:card class="mb-6 p-4 print:hidden">
         <div class="flex flex-wrap items-center gap-3">
-            <flux:select wire:model.live="period" style="width:160px">
+            <flux:select wire:model.live="period" class="w-40">
                 <flux:select.option value="today">Today</flux:select.option>
                 <flux:select.option value="yesterday">Yesterday</flux:select.option>
                 <flux:select.option value="this_week">This Week</flux:select.option>
@@ -31,30 +31,15 @@
     </flux:card>
 
     {{-- Summary Cards --}}
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem" class="mb-6">
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Total Revenue</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600">{{ money($summary['total_sales']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Total Invoices</flux:text>
-            <flux:heading size="lg" class="mt-1">{{ $summary['total_invoices'] }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Total Paid</flux:text>
-            <flux:heading size="lg" class="mt-1 text-blue-600">{{ money($summary['total_paid']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Total Due</flux:text>
-            <flux:heading size="lg" class="mt-1 text-red-600">{{ money($summary['total_due']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Avg Invoice</flux:text>
-            <flux:heading size="lg" class="mt-1">{{ money($summary['avg_invoice']) }}</flux:heading>
-        </flux:card>
+    <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <x-stat-tile label="Total Revenue" :value="money($summary['total_sales'])" tone="green" icon="banknotes" />
+        <x-stat-tile label="Total Invoices" :value="$summary['total_invoices']" icon="document-text" />
+        <x-stat-tile label="Total Paid" :value="money($summary['total_paid'])" tone="blue" icon="check-circle" />
+        <x-stat-tile label="Total Due" :value="money($summary['total_due'])" tone="red" icon="clock" />
+        <x-stat-tile label="Avg Invoice" :value="money($summary['avg_invoice'])" icon="calculator" />
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
         {{-- Daily Breakdown --}}
         <flux:card>
@@ -73,8 +58,8 @@
                         <flux:table.row wire:key="{{ $day->date }}">
                             <flux:table.cell>{{ \Carbon\Carbon::parse($day->date)->format('d M Y') }}</flux:table.cell>
                             <flux:table.cell><flux:badge size="sm" color="zinc">{{ $day->count }}</flux:badge></flux:table.cell>
-                            <flux:table.cell><flux:text class="font-medium">{{ money($day->total) }}</flux:text></flux:table.cell>
-                            <flux:table.cell><flux:text class="text-green-500">{{ money($day->paid) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="font-medium tabular-nums">{{ money($day->total) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="tabular-nums text-green-600 dark:text-green-400">{{ money($day->paid) }}</flux:text></flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>
@@ -103,10 +88,10 @@
                         <flux:table.row wire:key="{{ $product->product_sku }}">
                             <flux:table.cell>
                                 <flux:text class="font-medium">{{ $product->product_name }}</flux:text>
-                                <flux:text class="text-xs text-zinc-400">{{ $product->product_sku }}</flux:text>
+                                <flux:text class="font-mono text-xs text-zinc-400">{{ $product->product_sku }}</flux:text>
                             </flux:table.cell>
                             <flux:table.cell><flux:badge size="sm" color="zinc">{{ $product->total_qty }}</flux:badge></flux:table.cell>
-                            <flux:table.cell><flux:text class="font-medium">{{ money($product->total_revenue) }}</flux:text></flux:table.cell>
+                            <flux:table.cell><flux:text class="font-medium tabular-nums">{{ money($product->total_revenue) }}</flux:text></flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>

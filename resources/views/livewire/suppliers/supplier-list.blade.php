@@ -27,7 +27,7 @@
                 icon="magnifying-glass"
                 class="flex-1"
             />
-            <flux:select wire:model.live="statusFilter" style="width:140px">
+            <flux:select wire:model.live="statusFilter" class="w-36">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="active">Active</flux:select.option>
                 <flux:select.option value="inactive">Inactive</flux:select.option>

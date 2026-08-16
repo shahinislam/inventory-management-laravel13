@@ -1,7 +1,7 @@
 <div class="p-6">
 
     {{-- Header --}}
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div>
             <flux:heading size="xl">Low Stock Alerts</flux:heading>
             <flux:text class="mt-1">Products that need restocking</flux:text>
@@ -10,22 +10,16 @@
     </div>
 
     {{-- Summary --}}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" class="mb-6">
-        <flux:card class="p-4 border-l-4 border-red-500">
-            <flux:text class="text-xs text-zinc-500">Out of Stock</flux:text>
-            <flux:heading size="xl" class="mt-1 text-red-600">{{ $outOfStock }}</flux:heading>
-            <flux:text class="text-sm text-zinc-400">Requires immediate action</flux:text>
-        </flux:card>
-        <flux:card class="p-4 border-l-4 border-yellow-500">
-            <flux:text class="text-xs text-zinc-500">Low Stock</flux:text>
-            <flux:heading size="xl" class="mt-1 text-yellow-600">{{ $lowStock }}</flux:heading>
-            <flux:text class="text-sm text-zinc-400">Below minimum level</flux:text>
-        </flux:card>
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <x-stat-tile label="Out of Stock" :value="$outOfStock" tone="red" icon="exclamation-triangle"
+            hint="Requires immediate action" class="border-l-4 border-l-red-500" />
+        <x-stat-tile label="Low Stock" :value="$lowStock" tone="yellow" icon="arrow-trending-down"
+            hint="Below minimum level" class="border-l-4 border-l-yellow-500" />
     </div>
 
     {{-- Filters --}}
-    <flux:card class="mb-6 p-4">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.75rem">
+    <flux:card class="mb-6 p-4 print:hidden">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" />
             <flux:select wire:model.live="categoryFilter" placeholder="All Categories">
                 <flux:select.option value="">All Categories</flux:select.option>
@@ -60,7 +54,7 @@
                     <flux:table.row wire:key="{{ $product->id }}">
                         <flux:table.cell>
                             <flux:text class="font-medium">{{ $product->name }}</flux:text>
-                            <flux:text class="text-xs text-zinc-400">{{ $product->sku }}</flux:text>
+                            <flux:text class="font-mono text-xs text-zinc-400">{{ $product->sku }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="text-sm">{{ $product->category?->name ?? '-' }}</flux:text>
@@ -69,15 +63,15 @@
                             <flux:text class="text-sm">{{ $product->supplier?->name ?? '-' }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="{{ $product->quantity === 0 ? 'text-red-500 font-bold' : 'text-yellow-500 font-medium' }}">
+                            <flux:text class="tabular-nums {{ $product->quantity === 0 ? 'font-bold text-red-600 dark:text-red-400' : 'font-medium text-yellow-600 dark:text-yellow-400' }}">
                                 {{ $product->quantity }} {{ $product->unit }}
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="text-sm">{{ $product->min_stock_level }} {{ $product->unit }}</flux:text>
+                            <flux:text class="text-sm tabular-nums">{{ $product->min_stock_level }} {{ $product->unit }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="text-sm text-red-500">
+                            <flux:text class="text-sm tabular-nums text-red-600 dark:text-red-400">
                                 {{ max(0, $product->min_stock_level - $product->quantity) }} {{ $product->unit }}
                             </flux:text>
                         </flux:table.cell>

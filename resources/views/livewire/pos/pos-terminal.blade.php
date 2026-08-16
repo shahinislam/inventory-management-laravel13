@@ -5,19 +5,20 @@
     x-on:keydown.f9.window.prevent="$wire.openPaymentModal()" x-on:keydown.escape.window="$wire.clearCart()">
     {{-- Flash Messages --}}
     @if (session('error'))
-        <div class="mb-3 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-400">
+        <div class="mb-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            <flux:icon name="exclamation-triangle" class="size-4 shrink-0" />
             {{ session('error') }}
         </div>
     @endif
 
-    <div style="display:grid;grid-template-columns:1fr 420px;gap:1rem;height:calc(100vh - 7rem)">
+    <div class="grid h-[calc(100vh-7rem)] grid-cols-1 gap-4 xl:grid-cols-[1fr_26rem]">
 
-        {{-- ============ LEFT: PRODUCT SEARCH & GRID ============ --}}
-        <div class="flex flex-col gap-3" style="min-height:0">
+        {{-- ============ LEFT: PRODUCT SEARCH & CART ============ --}}
+        <div class="flex min-h-0 flex-col gap-4">
 
             {{-- Search Bar --}}
-            <flux:card class="p-3">
-                <div style="position:relative" x-data="{
+            <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                <div class="relative" x-data="{
                     open: true,
                     highlight: 0,
                     get items() { return this.$refs.resultsList ? [...this.$refs.resultsList.querySelectorAll('[data-search-result]')] : [] },
@@ -36,304 +37,428 @@
                     },
                     selectCurrent() { const el = this.items[this.highlight]; if (el) el.click(); }
                 }">
-                    <flux:input x-ref="searchInput" wire:model.live.debounce.150ms="search"
-                        placeholder="Scan barcode or search product... (F2)" icon="magnifying-glass" autofocus
+                    <flux:input x-ref="searchInput" wire:model.live.debounce.150ms="search" class="h-12 text-base"
+                        placeholder="Scan barcode or search product…" icon="magnifying-glass" autofocus
                         autocomplete="off" name="pos-product-search-nofill" x-on:focus="open = true"
                         x-on:input="open = true; highlight = 0" x-on:keydown.arrow-down.prevent="moveDown()"
                         x-on:keydown.arrow-up.prevent="moveUp()"
-                        x-on:keydown.enter.prevent="selectCurrent(); open = false" />
+                        x-on:keydown.enter.prevent="selectCurrent(); open = false">
+                        <x-slot name="iconTrailing">
+                            <kbd
+                                class="mr-1 rounded border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">F2</kbd>
+                        </x-slot>
+                    </flux:input>
 
                     @if ($this->searchResults->count() > 0)
-                        <div x-ref="resultsList" x-show="open"
-                            class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
-                            style="max-height:320px;overflow-y:auto">
+                        <div x-ref="resultsList" x-show="open" x-on:click.outside="open = false"
+                            class="absolute z-20 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                             @foreach ($this->searchResults as $i => $product)
                                 <button type="button" data-search-result wire:click="quickAdd({{ $product->id }})"
                                     x-on:click="open = false" x-on:mouseenter="highlight = {{ $i }}"
                                     wire:key="search-{{ $product->id }}"
-                                    class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors"
-                                    x-bind:style="highlight === {{ $i }} ? 'background-color: rgb(37 99 235 / 0.15)' : ''">
-                                    <div class="flex items-center gap-2">
-                                        @if ($product->media)
-                                            <img src="{{ $product->media->file_url }}"
-                                                class="size-8 rounded object-cover" />
-                                        @else
-                                            <div
-                                                class="flex size-8 items-center justify-center rounded bg-zinc-100 dark:bg-zinc-800">
-                                                <flux:icon name="cube" class="size-4 text-zinc-400" />
-                                            </div>
-                                        @endif
-                                        <div>
-                                            <flux:text
-                                                x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' :
-                                                    ''"
-                                                class="text-sm font-medium">{{ $product->name }}</flux:text>
-                                            <flux:text class="text-xs text-zinc-400">{{ $product->sku }} · Stock:
-                                                {{ $product->quantity }}</flux:text>
+                                    x-bind:data-active="highlight === {{ $i }}"
+                                    class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800">
+                                    @if ($product->media)
+                                        <img src="{{ $product->media->file_url }}"
+                                            class="size-9 shrink-0 rounded-md object-cover ring-1 ring-zinc-200 dark:ring-zinc-700" />
+                                    @else
+                                        <div
+                                            class="flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800">
+                                            <flux:icon name="cube" class="size-4 text-zinc-400" />
+                                        </div>
+                                    @endif
+
+                                    <div class="min-w-0 flex-1">
+                                        <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                                            {{ $product->name }}</div>
+                                        <div class="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                                            <span class="font-mono">{{ $product->sku }}</span>
+                                            <span class="text-zinc-300 dark:text-zinc-600">·</span>
+                                            <span
+                                                class="{{ $product->quantity > 0 ? '' : 'font-medium text-red-500' }}">{{ $product->quantity > 0 ? $product->quantity . ' in stock' : 'Out of stock' }}</span>
                                         </div>
                                     </div>
-                                    <flux:text
-                                        x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''"
-                                        class="font-medium">{{ money($product->selling_price) }}
-                                    </flux:text>
+
+                                    <span
+                                        class="shrink-0 text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">{{ money($product->selling_price) }}</span>
                                 </button>
                             @endforeach
                         </div>
                     @endif
                 </div>
-            </flux:card>
+            </div>
 
-            {{-- Cart Items --}}
-            <flux:card class="flex-1 p-0" style="overflow-y:auto;min-height:0">
-                <table style="width:100%;font-size:0.875rem">
-                    <thead style="position:sticky;top:0;background:var(--color-zinc-100, #f4f4f5);z-index:1">
-                        <tr style="border-bottom:1px solid var(--color-zinc-200, #e4e4e7)">
-                            <th
-                                style="text-align:left;padding:0.75rem;font-weight:600;color:var(--color-zinc-700, #3f3f46)">
-                                Product</th>
-                            <th
-                                style="text-align:center;padding:0.75rem;font-weight:600;width:140px;color:var(--color-zinc-700, #3f3f46)">
-                                Qty</th>
-                            <th
-                                style="text-align:right;padding:0.75rem;font-weight:600;width:100px;color:var(--color-zinc-700, #3f3f46)">
-                                Price</th>
-                            <th
-                                style="text-align:right;padding:0.75rem;font-weight:600;width:100px;color:var(--color-zinc-700, #3f3f46)">
-                                Total</th>
-                            <th style="width:50px"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($cart as $index => $item)
-                            @php
-                                $lineTotal = $item['price'] * $item['quantity'] - $item['discount'] * $item['quantity'];
-                                $lineTax = $lineTotal * ($item['tax_rate'] / 100);
-                            @endphp
-                            <tr wire:key="cart-{{ $index }}"
-                                style="border-bottom:1px solid var(--color-zinc-100, #f4f4f5)">
-                                <td style="padding:0.75rem">
-                                    <flux:text class="font-medium">{{ $item['name'] }}</flux:text>
-                                    <flux:text class="text-xs text-zinc-400">{{ $item['sku'] }}</flux:text>
-                                    @if (!empty($item['promotion_label']))
-                                        <flux:badge size="sm" color="green" class="mt-1">
-                                            {{ $item['promotion_label'] }}</flux:badge>
-                                    @endif
-                                </td>
-                                <td style="padding:0.5rem;text-align:center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <flux:button icon="minus" size="sm" square variant="ghost"
-                                            wire:click="decrementQty({{ $index }})" type="button" />
-                                        <input type="number"
-                                            wire:change="updateQty({{ $index }}, $event.target.value)"
-                                            value="{{ $item['quantity'] }}"
-                                            class="w-12 rounded border border-zinc-200 bg-transparent text-center dark:border-zinc-700"
-                                            min="1" max="{{ $item['max_quantity'] }}" />
-                                        <flux:button icon="plus" size="sm" square variant="ghost"
-                                            wire:click="incrementQty({{ $index }})" type="button" />
-                                    </div>
-                                </td>
-                                <td style="padding:0.75rem;text-align:right">{{ money($item['price']) }}
-                                </td>
-                                <td style="padding:0.75rem;text-align:right">
-                                    <flux:text class="font-medium">{{ money($lineTotal + $lineTax) }}
-                                    </flux:text>
-                                </td>
-                                <td style="padding:0.5rem;text-align:right">
-                                    <flux:button icon="trash" size="sm" square variant="ghost"
-                                        wire:click="removeFromCart({{ $index }})" type="button" />
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5"
-                                    style="padding:3rem;text-align:center;color:var(--color-zinc-400, #a1a1aa)">
-                                    <flux:icon name="shopping-cart" class="mx-auto mb-2 size-10" />
-                                    Cart is empty. Scan or search to add products.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </flux:card>
+            {{-- Cart --}}
+            <div
+                class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+
+                {{-- Cart header. Fixed h-13 so the Order Summary header on the
+                     right column can match it exactly. --}}
+                <div
+                    class="flex h-13 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <flux:heading size="sm">Current Order</flux:heading>
+                        @if (count($cart) > 0)
+                            <flux:badge size="sm" color="zinc">{{ count($cart) }}</flux:badge>
+                        @endif
+                    </div>
+                    @if (count($cart) > 0)
+                        <flux:button size="xs" variant="subtle" icon="trash" wire:click="clearCart" type="button">
+                            Clear
+                        </flux:button>
+                    @endif
+                </div>
+
+                {{-- Cart items --}}
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                    @if (count($cart) > 0)
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr
+                                    class="border-b border-zinc-200 text-[0.6875rem] uppercase tracking-wider text-zinc-500 dark:border-zinc-800">
+                                    <th class="sticky top-0 bg-zinc-50 px-4 py-2 text-left font-semibold dark:bg-zinc-900">
+                                        Product</th>
+                                    <th
+                                        class="sticky top-0 w-36 bg-zinc-50 px-2 py-2 text-center font-semibold dark:bg-zinc-900">
+                                        Qty</th>
+                                    <th
+                                        class="sticky top-0 w-24 bg-zinc-50 px-2 py-2 text-right font-semibold dark:bg-zinc-900">
+                                        Price</th>
+                                    <th
+                                        class="sticky top-0 w-28 bg-zinc-50 px-2 py-2 text-right font-semibold dark:bg-zinc-900">
+                                        Total</th>
+                                    <th class="sticky top-0 w-12 bg-zinc-50 dark:bg-zinc-900"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($cart as $index => $item)
+                                    @php
+                                        $lineTotal =
+                                            $item['price'] * $item['quantity'] - $item['discount'] * $item['quantity'];
+                                        $lineTax = $lineTotal * ($item['tax_rate'] / 100);
+                                    @endphp
+                                    <tr wire:key="cart-{{ $index }}"
+                                        class="border-b border-zinc-100 transition-colors last:border-0 hover:bg-zinc-50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/30">
+                                        <td class="px-4 py-3">
+                                            <div class="font-medium text-zinc-900 dark:text-white">{{ $item['name'] }}
+                                            </div>
+                                            <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $item['sku'] }}</div>
+                                            @if (!empty($item['promotion_label']))
+                                                <flux:badge size="sm" color="green" icon="tag" class="mt-1.5">
+                                                    {{ $item['promotion_label'] }}</flux:badge>
+                                            @endif
+                                        </td>
+                                        <td class="px-2 py-3">
+                                            <div
+                                                class="mx-auto flex w-fit items-center gap-0.5 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700">
+                                                <flux:button icon="minus" size="xs" square variant="subtle"
+                                                    wire:click="decrementQty({{ $index }})" type="button" />
+                                                <input type="number"
+                                                    wire:change="updateQty({{ $index }}, $event.target.value)"
+                                                    value="{{ $item['quantity'] }}"
+                                                    class="w-11 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums text-zinc-900 focus:outline-none focus:ring-0 dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                    min="1" max="{{ $item['max_quantity'] }}" />
+                                                <flux:button icon="plus" size="xs" square variant="subtle"
+                                                    wire:click="incrementQty({{ $index }})" type="button" />
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-3 text-right tabular-nums text-zinc-500">
+                                            {{ money($item['price']) }}</td>
+                                        <td
+                                            class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                            {{ money($lineTotal + $lineTax) }}</td>
+                                        <td class="px-2 py-3 text-right">
+                                            <flux:button icon="x-mark" size="xs" square variant="subtle"
+                                                wire:click="removeFromCart({{ $index }})" type="button" />
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @else
+                        {{-- Empty state --}}
+                        <div class="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
+                            <div
+                                class="flex size-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800/50">
+                                <flux:icon name="shopping-cart" class="size-6 text-zinc-400" />
+                            </div>
+                            <flux:heading size="sm" class="mt-4">No items yet</flux:heading>
+                            <flux:text class="mt-1 max-w-xs text-sm text-zinc-500">
+                                Scan a barcode or search for a product to start this order.
+                            </flux:text>
+                            <flux:button size="sm" variant="subtle" icon="magnifying-glass" class="mt-4" type="button"
+                                x-on:click="focusSearch()">
+                                Search products
+                            </flux:button>
+                        </div>
+                    @endif
+                </div>
+            </div>
 
         </div>
 
         {{-- ============ RIGHT: CUSTOMER & TOTALS ============ --}}
-        <div class="flex flex-col gap-3">
+        <div class="flex min-h-0 flex-col gap-4">
 
             {{-- Customer --}}
-            <flux:card class="p-3">
-                <div style="position:relative" x-data="{ open: true }" x-on:click.outside="open = false">
-                    <flux:input wire:model.live.debounce.200ms="customerSearch"
-                        placeholder="Customer name or phone (optional)" icon="user" x-on:focus="open = true" />
+            <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                <div class="relative" x-data="{ open: true }" x-on:click.outside="open = false">
                     @if ($customer_id)
-                        <flux:button icon="x-mark" variant="ghost" size="sm" square
-                            class="absolute right-2 top-1/2 -translate-y-1/2" wire:click="clearCustomer"
-                            type="button" />
-                    @endif
-
-                    @if ($this->customerResults->count() > 0 && !$customer_id)
-                        <div x-show="open"
-                            class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                            @foreach ($this->customerResults as $cust)
-                                <button type="button" wire:click="selectCustomer({{ $cust->id }})"
-                                    x-on:click="open = false" wire:key="cust-{{ $cust->id }}"
-                                    class="flex w-full items-center justify-between px-3 py-2 text-left">
-                                    <flux:text class="text-sm">{{ $cust->name }}</flux:text>
-                                    <flux:text class="text-xs text-zinc-400">{{ $cust->phone }}</flux:text>
-                                </button>
-                            @endforeach
+                        {{-- Selected customer chip. Fixed to h-12 so swapping
+                             between the input and this chip never shifts the
+                             panel height. --}}
+                        <div
+                            class="flex h-12 items-center gap-3 rounded-lg border border-zinc-200 px-3 dark:border-zinc-700">
+                            <div
+                                class="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold uppercase text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                {{ Str::substr($customerSearch, 0, 2) }}
+                            </div>
+                            <div class="min-w-0 flex-1 leading-tight">
+                                <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                                    {{ $customerSearch }}</div>
+                                <div class="text-xs text-zinc-500">Customer</div>
+                            </div>
+                            <flux:button icon="x-mark" variant="subtle" size="xs" square wire:click="clearCustomer"
+                                type="button" />
                         </div>
+                    @else
+                        {{-- Matches the product search input's height so both
+                             column headers align across the terminal. --}}
+                        <flux:input wire:model.live.debounce.200ms="customerSearch" class="h-12 text-base"
+                            placeholder="Walk-in customer — search name or phone" icon="user"
+                            x-on:focus="open = true" />
+
+                        @if ($this->customerResults->count() > 0)
+                            <div x-show="open"
+                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                                @foreach ($this->customerResults as $cust)
+                                    <button type="button" wire:click="selectCustomer({{ $cust->id }})"
+                                        x-on:click="open = false" wire:key="cust-{{ $cust->id }}"
+                                        class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                        <span
+                                            class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $cust->name }}</span>
+                                        <span class="shrink-0 text-xs tabular-nums text-zinc-500">{{ $cust->phone }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
                     @endif
                 </div>
-            </flux:card>
+            </div>
 
             {{-- Totals --}}
-            <flux:card class="flex-1 p-4">
-                <flux:heading class="mb-4">Order Summary</flux:heading>
+            <div
+                class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
 
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <flux:text class="text-sm text-zinc-500">Items</flux:text>
-                        <flux:text class="font-medium">{{ count($cart) }}</flux:text>
+                {{-- Header row mirroring the cart's, so both columns' content
+                     starts on the same baseline. --}}
+                <div
+                    class="flex h-13 shrink-0 items-center border-b border-zinc-200 px-4 dark:border-zinc-800">
+                    <flux:heading size="sm">Order Summary</flux:heading>
+                </div>
+
+                <div class="min-h-0 flex-1 overflow-y-auto p-4">
+
+                    {{-- Adjustments --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <flux:field>
+                            <flux:label class="text-xs">Extra Discount</flux:label>
+                            <flux:input wire:model.live="discount" type="number" step="0.01" min="0"
+                                prefix="৳" class="tabular-nums" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label class="text-xs">Additional Tax</flux:label>
+                            <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳"
+                                class="tabular-nums" />
+                        </flux:field>
                     </div>
 
-                    <div class="flex justify-between">
-                        <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">{{ money($this->cartSubtotal) }}</flux:text>
-                    </div>
-
-                    @if ($this->cartItemDiscountTotal > 0)
-                        <div class="flex justify-between">
-                            <flux:text class="text-sm text-zinc-500">Item Discounts</flux:text>
-                            <flux:text class="text-sm text-green-500">
-                                -{{ money($this->cartItemDiscountTotal) }}</flux:text>
+                    {{-- Summary lines --}}
+                    <div class="mt-4 space-y-2.5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Items</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ count($cart) }}</span>
                         </div>
-                    @endif
 
-                    <flux:field>
-                        <flux:label class="text-sm">Extra Discount</flux:label>
-                        <flux:input wire:model.live="discount" type="number" step="0.01" min="0"
-                            prefix="৳" />
-                    </flux:field>
-
-                    <flux:field>
-                        <flux:label class="text-sm">Additional Tax</flux:label>
-                        <flux:input wire:model.live="tax" type="number" step="0.01" min="0"
-                            prefix="৳" />
-                    </flux:field>
-
-                    @if ($this->cartTaxTotal > 0)
-                        <div class="flex justify-between">
-                            <flux:text class="text-sm text-zinc-500">Tax</flux:text>
-                            <flux:text class="font-medium">{{ money($this->cartTaxTotal) }}</flux:text>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Subtotal</span>
+                            <span
+                                class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->cartSubtotal) }}</span>
                         </div>
-                    @endif
 
-                    <div class="border-t border-zinc-200 pt-3 dark:border-zinc-700">
-                        <div class="flex items-center justify-between">
-                            <flux:heading size="lg">Total</flux:heading>
-                            <flux:heading size="lg">{{ money($this->cartTotal) }}</flux:heading>
-                        </div>
+                        @if ($this->cartItemDiscountTotal > 0)
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-zinc-500">Item discounts</span>
+                                <span
+                                    class="font-medium tabular-nums text-green-600 dark:text-green-400">−{{ money($this->cartItemDiscountTotal) }}</span>
+                            </div>
+                        @endif
+
+                        @if ($this->cartTaxTotal > 0)
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-zinc-500">Tax</span>
+                                <span
+                                    class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->cartTaxTotal) }}</span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
-                {{-- Action Buttons --}}
-                <div class="mt-6 space-y-2">
-                    <flux:button wire:click="openPaymentModal" class="w-full" icon="check-circle">
-                        Checkout (F9)
-                    </flux:button>
-                    <flux:button wire:click="clearCart" variant="ghost" class="w-full" icon="x-mark">
-                        Clear Cart (ESC)
-                    </flux:button>
-                </div>
+                {{-- Total + actions pinned to the bottom --}}
+                <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800">
+                    <div class="flex items-baseline justify-between px-4 py-4">
+                        <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
+                        <span
+                            class="text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ money($this->cartTotal) }}</span>
+                    </div>
 
-                {{-- Shortcuts Help --}}
-                <div class="mt-4 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-400 dark:bg-zinc-800">
-                    <div class="flex justify-between"><span>Focus Search</span><span>F2</span></div>
-                    <div class="flex justify-between"><span>Navigate Results</span><span>↑ ↓</span></div>
-                    <div class="flex justify-between"><span>Add to Cart</span><span>Enter</span></div>
-                    <div class="flex justify-between"><span>Checkout</span><span>F9</span></div>
-                    <div class="flex justify-between"><span>Clear Cart</span><span>ESC</span></div>
+                    <div class="px-4 pb-4">
+                        <flux:button wire:click="openPaymentModal" variant="primary" icon="check-circle"
+                            class="h-12 w-full text-base" :disabled="count($cart) === 0">
+                            <span class="flex w-full items-center justify-center gap-2">
+                                Checkout
+                                <kbd
+                                    class="rounded border border-white/25 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none dark:border-black/20">F9</kbd>
+                            </span>
+                        </flux:button>
+                    </div>
+
+                    {{-- Shortcuts --}}
+                    <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500">
+                            @foreach (['F2' => 'Search', '↑↓' => 'Navigate', '↵' => 'Add', 'F9' => 'Checkout', 'Esc' => 'Clear'] as $key => $label)
+                                <span class="flex items-center gap-1.5">
+                                    <kbd
+                                        class="inline-flex min-w-6 justify-center rounded border border-zinc-200 bg-zinc-50 px-1 py-0.5 text-[0.6875rem] font-medium leading-none dark:border-zinc-700 dark:bg-zinc-800">{{ $key }}</kbd>
+                                    {{ $label }}
+                                </span>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
-            </flux:card>
+            </div>
 
         </div>
     </div>
 
     {{-- ============ PAYMENT MODAL ============ --}}
-    <flux:modal wire:model="showPaymentModal" class="max-w-md">
-        <div class="p-6" x-data x-on:keydown.f6.window.prevent="$wire.setPaymentMethod('cash')"
+    <flux:modal wire:model="showPaymentModal" class="w-full max-w-md">
+        <div x-data x-on:keydown.f6.window.prevent="$wire.setPaymentMethod('cash')"
             x-on:keydown.f7.window.prevent="$wire.setPaymentMethod('card')"
             x-on:keydown.f8.window.prevent="$wire.setPaymentMethod('bank_transfer')">
-            <flux:heading class="mb-4">Payment</flux:heading>
 
-            <div class="mb-4 rounded-lg bg-blue-50 p-4 text-center dark:bg-blue-900/20">
-                <flux:text class="text-sm text-zinc-500">Total Amount</flux:text>
-                <flux:heading size="xl">{{ money($this->cartTotal) }}</flux:heading>
+            {{-- Amount due --}}
+            <div class="border-b border-zinc-200 px-6 pb-5 pt-6 text-center dark:border-zinc-800">
+                <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Due</flux:text>
+                <div class="mt-1.5 text-4xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
+                    {{ money($this->cartTotal) }}
+                </div>
+                @if (count($cart) > 0)
+                    <flux:text class="mt-1 text-xs text-zinc-500">{{ count($cart) }}
+                        {{ Str::plural('item', count($cart)) }}</flux:text>
+                @endif
             </div>
 
-            {{-- Payment Method --}}
-            <flux:field class="mb-4">
-                <flux:label>Payment Method</flux:label>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem">
-                    <flux:button type="button" :variant="$paymentMethod === 'cash' ? 'primary' : 'outline'"
-                        wire:click="setPaymentMethod('cash')">Cash (F6)</flux:button>
-                    <flux:button type="button" :variant="$paymentMethod === 'card' ? 'primary' : 'outline'"
-                        wire:click="setPaymentMethod('card')">Card (F7)</flux:button>
-                    <flux:button type="button" :variant="$paymentMethod === 'bank_transfer' ? 'primary' : 'outline'"
-                        wire:click="setPaymentMethod('bank_transfer')">Bank (F8)</flux:button>
-                </div>
-            </flux:field>
-
-            {{-- Amount Received (Cash only) --}}
-            @if ($paymentMethod === 'cash')
-                <flux:field class="mb-4">
-                    <flux:label>Amount Received</flux:label>
-                    <flux:input x-ref="amountInput" wire:model.live="amountReceived" type="number" step="0.01"
-                        prefix="৳" autofocus x-on:keydown.enter.prevent="$wire.completeSale()" />
+            <div class="space-y-5 p-6">
+                {{-- Payment Method --}}
+                <flux:field>
+                    <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Payment Method
+                    </flux:label>
+                    <div class="grid grid-cols-3 gap-2">
+                        @foreach ([['cash', 'Cash', 'banknotes', 'F6'], ['card', 'Card', 'credit-card', 'F7'], ['bank_transfer', 'Bank', 'building-library', 'F8']] as [$value, $label, $icon, $key])
+                            <button type="button" wire:click="setPaymentMethod('{{ $value }}')"
+                                @class([
+                                    'flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors',
+                                    'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900' =>
+                                        $paymentMethod === $value,
+                                    'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800' =>
+                                        $paymentMethod !== $value,
+                                ])>
+                                <flux:icon :name="$icon" class="size-5" />
+                                <span class="text-xs font-medium">{{ $label }}</span>
+                                <span class="text-[0.625rem] opacity-60">{{ $key }}</span>
+                            </button>
+                        @endforeach
+                    </div>
                 </flux:field>
 
-                @if ($this->changeDue > 0)
-                    <div class="mb-4 rounded-lg bg-green-50 p-3 text-center dark:bg-green-900/20">
-                        <flux:text class="text-sm text-zinc-500">Change Due</flux:text>
-                        <flux:heading size="lg" class="text-green-600 dark:text-green-400">
-                            {{ money($this->changeDue) }}</flux:heading>
-                    </div>
-                @endif
-            @endif
+                {{-- Amount Received (Cash only) --}}
+                @if ($paymentMethod === 'cash')
+                    <flux:field>
+                        <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Received
+                        </flux:label>
+                        <flux:input x-ref="amountInput" wire:model.live="amountReceived" type="number" step="0.01"
+                            prefix="৳" autofocus class="h-12 text-lg font-semibold tabular-nums"
+                            x-on:keydown.enter.prevent="$wire.completeSale()" />
+                    </flux:field>
 
-            <div class="flex justify-end gap-3">
+                    @if ($this->changeDue > 0)
+                        <div
+                            class="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/50 dark:bg-green-950/30">
+                            <span class="text-sm font-medium text-green-800 dark:text-green-300">Change Due</span>
+                            <span
+                                class="text-xl font-semibold tabular-nums text-green-700 dark:text-green-400">{{ money($this->changeDue) }}</span>
+                        </div>
+                    @endif
+                @endif
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
                 <flux:button variant="ghost" wire:click="$set('showPaymentModal', false)" type="button">Cancel
                 </flux:button>
-                <flux:button wire:click="completeSale" icon="check">Complete Sale</flux:button>
+                <flux:button wire:click="completeSale" variant="primary" icon="check">Complete Sale</flux:button>
             </div>
         </div>
     </flux:modal>
 
     {{-- ============ SUCCESS MODAL ============ --}}
-    <flux:modal wire:model="showSuccessModal" class="max-w-md">
-        <div class="p-6 text-center" x-data x-on:keydown.enter.window="$wire.newSale()">
+    <flux:modal wire:model="showSuccessModal" class="w-full max-w-md">
+        <div class="px-6 py-8 text-center" x-data x-on:keydown.enter.window="$wire.newSale()">
             <div
-                class="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <flux:icon name="check" class="size-8 text-green-600 dark:text-green-400" />
+                class="mx-auto flex size-14 items-center justify-center rounded-full border border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/40">
+                <flux:icon name="check" class="size-7 text-green-600 dark:text-green-400" />
             </div>
-            <flux:heading size="lg">Sale Completed!</flux:heading>
+
+            <flux:heading size="lg" class="mt-4">Sale Completed</flux:heading>
+
             @if ($lastInvoice)
-                <flux:text class="mt-2 text-zinc-500">Invoice #{{ $lastInvoice->invoice_number }}</flux:text>
-                <flux:heading size="xl" class="mt-2">{{ money($lastInvoice->total) }}
-                </flux:heading>
+                <flux:text class="mt-1 font-mono text-sm text-zinc-500">{{ $lastInvoice->invoice_number }}</flux:text>
+
+                <div class="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <span class="text-sm text-zinc-500">Total paid</span>
+                        <span
+                            class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ money($lastInvoice->total) }}</span>
+                    </div>
+                    @if ($lastInvoice->payment_method)
+                        <div
+                            class="flex items-center justify-between border-t border-zinc-200 px-4 py-2.5 dark:border-zinc-800">
+                            <span class="text-sm text-zinc-500">Method</span>
+                            <span
+                                class="text-sm font-medium text-zinc-900 dark:text-white">{{ ucfirst(str_replace('_', ' ', $lastInvoice->payment_method)) }}</span>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="mt-5 grid grid-cols-2 gap-2">
+                    <flux:button icon="receipt-percent" variant="outline"
+                        :href="route('invoices.receipt', $lastInvoice)" target="_blank">
+                        Receipt
+                    </flux:button>
+                    <flux:button icon="document-text" variant="outline" :href="route('invoices.show', $lastInvoice)"
+                        target="_blank">
+                        Invoice
+                    </flux:button>
+                </div>
             @endif
 
-            <div class="mt-6 flex justify-center gap-3">
-                @if ($lastInvoice)
-                    <flux:button icon="printer" variant="outline" :href="route('invoices.show', $lastInvoice)"
-                        target="_blank">
-                        Print Receipt
-                    </flux:button>
-                @endif
-                <flux:button wire:click="newSale" icon="plus">New Sale (Enter)</flux:button>
-            </div>
+            <flux:button wire:click="newSale" variant="primary" icon="plus" class="mt-2 w-full">
+                <span class="flex w-full items-center justify-center gap-2">
+                    New Sale
+                    <kbd
+                        class="rounded border border-white/25 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none dark:border-black/20">↵</kbd>
+                </span>
+            </flux:button>
         </div>
     </flux:modal>
 

@@ -71,7 +71,7 @@
         />
 
         {{-- Type Filter --}}
-        <flux:select wire:model.live="typeFilter" style="width:140px">
+        <flux:select wire:model.live="typeFilter" class="w-36">
             <flux:select.option value="">All Types</flux:select.option>
             <flux:select.option value="image">Images</flux:select.option>
             <flux:select.option value="document">Documents</flux:select.option>
@@ -96,7 +96,7 @@
 
     {{-- Grid View --}}
     @if($view === 'grid')
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem">
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
             @forelse($media as $item)
                 <div
                     wire:key="{{ $item->id }}"

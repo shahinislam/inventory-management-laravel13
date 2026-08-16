@@ -10,7 +10,7 @@
     </div>
 
     <form wire:submit="save">
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
             {{-- Left Column --}}
             <div class="space-y-6">

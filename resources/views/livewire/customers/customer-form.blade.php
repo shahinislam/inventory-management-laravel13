@@ -10,7 +10,7 @@
     </div>
 
     <form wire:submit="save">
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
             {{-- Left Column --}}
             <div class="space-y-6">
@@ -26,7 +26,7 @@
                             <flux:error name="name" />
                         </flux:field>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Email</flux:label>
                                 <flux:input wire:model="email" type="email" placeholder="email@example.com" />
@@ -40,7 +40,7 @@
                             </flux:field>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Alternative Phone</flux:label>
                                 <flux:input wire:model="alternative_phone" placeholder="Secondary number" />
@@ -78,7 +78,7 @@
                             <flux:error name="address" />
                         </flux:field>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>City</flux:label>
                                 <flux:input wire:model="city" placeholder="City" />
@@ -92,7 +92,7 @@
                             </flux:field>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Country</flux:label>
                                 <flux:input wire:model="country" placeholder="Country" />
@@ -112,7 +112,7 @@
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Financial Information</flux:heading>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Tax Number</flux:label>
                             <flux:input wire:model="tax_number" placeholder="Tax ID (for business)" />

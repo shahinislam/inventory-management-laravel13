@@ -29,6 +29,8 @@ use App\Livewire\Suppliers\SupplierForm;
 use App\Livewire\Suppliers\SupplierList;
 use App\Livewire\Warehouses\WarehouseForm;
 use App\Livewire\Warehouses\WarehouseList;
+use App\Models\Invoice;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -119,6 +121,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Declared after /create so the literal segment wins the match.
         Route::middleware('role:admin,manager,staff,viewer')->group(function () {
             Route::get('/', InvoiceList::class)->name('index');
+
+            // 80mm thermal receipt — a bare page that auto-opens the print
+            // dialog, so it must be declared before the catch-all /{invoice}.
+            Route::get('/{invoice}/receipt', function (Invoice $invoice) {
+                return view('pdf.receipt', [
+                    'invoice' => $invoice->load(['items', 'warehouse', 'createdBy', 'payments']),
+                    'company' => Setting::getGroup('company'),
+                ]);
+            })->name('receipt');
+
             Route::get('/{invoice}', InvoiceView::class)->name('show');
         });
     });

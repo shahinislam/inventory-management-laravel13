@@ -21,7 +21,7 @@
         </div>
     @endif
 
-    <div style="display:grid;grid-template-columns:1fr 350px;gap:1.5rem">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_22rem]">
 
         {{-- Left: Form --}}
         <div>
@@ -33,9 +33,9 @@
 
                         {{-- Product Search --}}
                         <flux:field>
-                            <flux:label>Product <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
+                            <flux:label badge="Required">Product</flux:label>
                             <div
-                                style="position:relative"
+                                class="relative"
                                 x-data="{
                                     open: true,
                                     highlight: 0,
@@ -66,7 +66,7 @@
 
                                 {{-- Search Results Dropdown --}}
                                 @if($products->count() > 0 && !$selectedProduct)
-                                    <div x-show="open" class="absolute z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                                    <div x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                                         @foreach($products as $i => $product)
                                             <button
                                                 type="button"
@@ -74,12 +74,12 @@
                                                 x-on:click="open = false"
                                                 x-on:mouseenter="highlight = {{ $i }}"
                                                 wire:key="prod-{{ $product->id }}"
-                                                class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors"
-                                                x-bind:style="highlight === {{ $i }} ? 'background-color: rgb(37 99 235 / 0.15)' : ''"
+                                                x-bind:data-active="highlight === {{ $i }}"
+                                                class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800"
                                             >
-                                                <div>
-                                                    <flux:text x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''" class="text-sm font-medium">{{ $product->name }}</flux:text>
-                                                    <flux:text class="text-xs text-zinc-400">{{ $product->sku }}</flux:text>
+                                                <div class="min-w-0">
+                                                    <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
+                                                    <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $product->sku }}</div>
                                                 </div>
                                                 <flux:badge size="sm" color="zinc">{{ $product->quantity }} {{ $product->unit }}</flux:badge>
                                             </button>

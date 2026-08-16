@@ -26,7 +26,7 @@
                             <flux:error name="name" />
                         </flux:field>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+                        <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>SKU</flux:label>
                                 <flux:input wire:model="sku" placeholder="Auto-generated if empty" />
@@ -52,7 +52,7 @@
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Pricing</flux:heading>
 
-                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Cost Price <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
                             <flux:input wire:model="cost_price" type="number" step="0.01" min="0" placeholder="0.00" prefix="৳" />
@@ -73,9 +73,9 @@
 
                         <flux:field>
                             <flux:label>Discount</flux:label>
-                            <div style="display:flex;gap:0.5rem">
-                                <flux:input wire:model="discount" type="number" step="0.01" min="0" placeholder="0" style="flex:1" />
-                                <flux:select wire:model="discount_type" style="width:110px">
+                            <div class="flex gap-2">
+                                <flux:input wire:model="discount" type="number" step="0.01" min="0" placeholder="0" class="flex-1 tabular-nums" />
+                                <flux:select wire:model="discount_type" class="w-28 shrink-0">
                                     <flux:select.option value="percentage">% Off</flux:select.option>
                                     <flux:select.option value="fixed">৳ Flat</flux:select.option>
                                 </flux:select>
@@ -115,7 +115,7 @@
                             <flux:error name="min_stock_level" />
                         </flux:field>
 
-                        <flux:field style="grid-column:1/-1">
+                        <flux:field class="col-span-full">
                             <flux:label>Unit</flux:label>
                             <flux:select wire:model="unit">
                                 <flux:select.option value="pcs">Pieces (pcs)</flux:select.option>

@@ -6,7 +6,7 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
 
         {{-- ========== SIDEBAR ========== --}}
-        <flux:sidebar sticky collapsible persist class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible persist class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 print:hidden">
 
             {{-- Logo --}}
             <flux:sidebar.header class="flex items-center justify-between">
@@ -200,7 +200,7 @@
         </flux:sidebar>
 
         {{-- ========== MOBILE HEADER ========== --}}
-        <flux:header class="lg:hidden">
+        <flux:header class="lg:hidden print:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             {{-- App name --}}

@@ -9,14 +9,14 @@
     </div>
 
     <form wire:submit="save">
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
             <div class="space-y-6">
 
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Promotion Details</flux:heading>
                     <div class="space-y-4">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Name <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
                                 <flux:input wire:model="name" placeholder="e.g. Summer Sale" />
@@ -48,7 +48,7 @@
                         </flux:field>
 
                         @if($type === 'buy_x_get_y')
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <flux:field>
                                     <flux:label>Buy Quantity</flux:label>
                                     <flux:input wire:model="buy_quantity" type="number" min="1" placeholder="e.g. 3" />
@@ -59,7 +59,7 @@
                                 </flux:field>
                             </div>
                         @else
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <flux:field>
                                     <flux:label>Value <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
                                     <flux:input wire:model="value" type="number" step="0.01" min="0" :suffix="$type === 'percentage' ? '%' : null" :prefix="$type === 'fixed' ? '৳' : null" />
@@ -74,7 +74,7 @@
                             </div>
                         @endif
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Minimum Order Amount</flux:label>
                                 <flux:input wire:model="min_order_amount" type="number" step="0.01" min="0" prefix="৳" placeholder="No minimum" />

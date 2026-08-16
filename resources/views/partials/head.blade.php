@@ -12,4 +12,9 @@
 @fonts
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+{{-- Brand palette from Settings → Theme. Emitted after the bundle so it
+     overrides the compile-time fallbacks in app.css. --}}
+<style>{!! App\Support\ThemeColors::css() !!}</style>
+
 @fluxAppearance

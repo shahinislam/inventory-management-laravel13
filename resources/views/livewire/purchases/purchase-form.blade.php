@@ -39,7 +39,8 @@
                     <flux:button icon="truck" wire:click="markAsOrdered">Mark as Ordered</flux:button>
                 @endif
                 @if(in_array($order->status, ['approved', 'ordered']))
-                    <flux:button icon="inbox-arrow-down" wire:click="openReceiveModal">Receive Stock</flux:button>
+                    <flux:button variant="primary" icon="inbox-arrow-down" wire:click="openReceiveModal">Receive Stock
+                    </flux:button>
                 @endif
                 @if(!in_array($order->status, ['received', 'cancelled']))
                     <flux:button icon="x-circle" variant="ghost" wire:click="cancel" wire:confirm="Cancel this purchase order?">Cancel Order</flux:button>
@@ -56,18 +57,18 @@
         <div class="mb-4 rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-400">{{ session('error') }}</div>
     @endif
 
-    <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
         {{-- Left Column --}}
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
 
             {{-- Order Info --}}
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Order Information</flux:heading>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <flux:field>
-                        <flux:label>Supplier <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
+                        <flux:label badge="Required">Supplier</flux:label>
                         @if($isEditable)
                             <flux:select wire:model="supplier_id" placeholder="Select supplier">
                                 <flux:select.option value="">Select supplier</flux:select.option>
@@ -96,7 +97,7 @@
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Order Date <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
+                        <flux:label badge="Required">Order Date</flux:label>
                         @if($isEditable)
                             <flux:input wire:model="order_date" type="date" />
                             <flux:error name="order_date" />
@@ -124,8 +125,7 @@
                 {{-- Product Search (editable only) --}}
                 @if($isEditable)
                 <div
-                    style="position:relative"
-                    class="mb-4"
+                    class="relative mb-4"
                     x-data="{
                         open: true,
                         highlight: 0,
@@ -146,7 +146,7 @@
                         x-on:keydown.enter.prevent="open = false; $wire.selectHighlighted(highlight)"
                     />
                     @if($searchResults->count() > 0)
-                        <div x-show="open" class="absolute z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                        <div x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                             @foreach($searchResults as $i => $product)
                                 <button
                                     type="button"
@@ -154,14 +154,14 @@
                                     x-on:click="open = false"
                                     x-on:mouseenter="highlight = {{ $i }}"
                                     wire:key="search-{{ $product->id }}"
-                                    class="flex w-full items-center justify-between px-3 py-2 text-left transition-colors"
-                                    x-bind:style="highlight === {{ $i }} ? 'background-color: rgb(37 99 235 / 0.15)' : ''"
+                                    x-bind:data-active="highlight === {{ $i }}"
+                                    class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800"
                                 >
-                                    <div>
-                                        <flux:text x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''" class="text-sm font-medium">{{ $product->name }}</flux:text>
-                                        <flux:text class="text-xs text-zinc-400">{{ $product->sku }} · Cost: {{ money($product->cost_price) }}</flux:text>
+                                    <div class="min-w-0">
+                                        <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
+                                        <div class="mt-0.5 text-xs text-zinc-500"><span class="font-mono">{{ $product->sku }}</span> · Cost: <span class="tabular-nums">{{ money($product->cost_price) }}</span></div>
                                     </div>
-                                    <flux:icon name="plus" class="size-4 text-zinc-400" />
+                                    <flux:icon name="plus" class="size-4 shrink-0 text-zinc-400" />
                                 </button>
                             @endforeach
                         </div>
@@ -170,63 +170,69 @@
                 @endif
 
                 {{-- Items Table --}}
-                <div style="overflow-x:auto">
-                    <table style="width:100%;font-size:0.875rem">
+                @php
+                    // Column count varies with state, so the empty row's colspan
+                    // has to be derived rather than hardcoded.
+                    $itemCols = 4 + ($order?->exists ? 1 : 0) + ($isEditable ? 1 : 0);
+                @endphp
+                <div class="-mx-2 overflow-x-auto">
+                    <table class="w-full min-w-2xl text-sm">
                         <thead>
-                            <tr style="border-bottom:1px solid var(--color-zinc-200, #e4e4e7)">
-                                <th style="text-align:left;padding:0.5rem;font-weight:500">Product</th>
-                                <th style="text-align:right;padding:0.5rem;font-weight:500;width:100px">Qty</th>
-                                <th style="text-align:right;padding:0.5rem;font-weight:500;width:120px">Unit Cost</th>
-                                <th style="text-align:right;padding:0.5rem;font-weight:500;width:120px">Subtotal</th>
+                            <tr class="border-b border-zinc-200 text-[0.6875rem] uppercase tracking-wider text-zinc-500 dark:border-zinc-700">
+                                <th class="px-2 py-2.5 text-left font-semibold">Product</th>
+                                <th class="w-24 px-2 py-2.5 text-right font-semibold">Qty</th>
+                                <th class="w-28 px-2 py-2.5 text-right font-semibold">Unit Cost</th>
+                                <th class="w-28 px-2 py-2.5 text-right font-semibold">Subtotal</th>
                                 @if($order?->exists)
-                                    <th style="text-align:right;padding:0.5rem;font-weight:500;width:100px">Received</th>
+                                    <th class="w-28 px-2 py-2.5 text-right font-semibold">Received</th>
                                 @endif
                                 @if($isEditable)
-                                    <th style="width:40px"></th>
+                                    <th class="w-10"></th>
                                 @endif
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($items as $index => $item)
-                                <tr wire:key="item-{{ $index }}" style="border-bottom:1px solid var(--color-zinc-100, #f4f4f5)">
-                                    <td style="padding:0.5rem">
-                                        <flux:text class="font-medium">{{ $item['name'] }}</flux:text>
-                                        <flux:text class="text-xs text-zinc-400">{{ $item['sku'] }}</flux:text>
+                                <tr wire:key="item-{{ $index }}" class="border-b border-zinc-100 transition-colors last:border-0 hover:bg-zinc-50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/30">
+                                    <td class="px-2 py-3">
+                                        <div class="font-medium text-zinc-900 dark:text-white">{{ $item['name'] }}</div>
+                                        <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $item['sku'] }}</div>
                                     </td>
-                                    <td style="padding:0.5rem;text-align:right">
+                                    <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model.live="items.{{ $index }}.quantity" type="number" min="1" size="sm" />
+                                            <flux:input wire:model.live="items.{{ $index }}.quantity" type="number" min="1" size="sm" class="text-right tabular-nums" />
                                         @else
-                                            {{ $item['quantity'] }} {{ $item['unit'] }}
+                                            <span class="tabular-nums">{{ $item['quantity'] }}</span> {{ $item['unit'] }}
                                         @endif
                                     </td>
-                                    <td style="padding:0.5rem;text-align:right">
+                                    <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model.live="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" />
+                                            <flux:input wire:model.live="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" class="text-right tabular-nums" />
                                         @else
-                                            {{ money($item['unit_cost']) }}
+                                            <span class="tabular-nums">{{ money($item['unit_cost']) }}</span>
                                         @endif
                                     </td>
-                                    <td style="padding:0.5rem;text-align:right">
-                                        <flux:text class="font-medium">{{ money((float)$item['quantity'] * (float)$item['unit_cost']) }}</flux:text>
+                                    <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                        {{ money((float)$item['quantity'] * (float)$item['unit_cost']) }}
                                     </td>
                                     @if($order?->exists)
-                                        <td style="padding:0.5rem;text-align:right">
+                                        <td class="px-2 py-3 text-right">
                                             <flux:badge size="sm" :color="$item['received'] >= $item['quantity'] ? 'green' : ($item['received'] > 0 ? 'yellow' : 'zinc')">
                                                 {{ $item['received'] }} / {{ $item['quantity'] }}
                                             </flux:badge>
                                         </td>
                                     @endif
                                     @if($isEditable)
-                                        <td style="padding:0.5rem;text-align:right">
-                                            <flux:button icon="trash" variant="ghost" size="sm" square wire:click="removeItem({{ $index }})" type="button" />
+                                        <td class="px-2 py-3 text-right">
+                                            <flux:button icon="x-mark" variant="subtle" size="xs" square wire:click="removeItem({{ $index }})" type="button" />
                                         </td>
                                     @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="padding:2rem;text-align:center;color:var(--color-zinc-400, #a1a1aa)">
-                                        No items added yet. Search above to add products.
+                                    <td colspan="{{ $itemCols }}" class="px-2 py-10 text-center">
+                                        <flux:icon name="magnifying-glass" class="mx-auto size-8 text-zinc-300" />
+                                        <flux:text class="mt-2 text-sm text-zinc-500">No items added yet. Search above to add products.</flux:text>
                                     </td>
                                 </tr>
                             @endforelse
@@ -248,41 +254,44 @@
 
         </div>
 
-        {{-- Right Column --}}
-        <div class="space-y-6">
+        {{-- Right Column. Sticks on desktop so the running total stays visible
+             while working through a long item list. --}}
+        <div class="space-y-6 lg:sticky lg:top-6 lg:self-start">
 
             {{-- Totals --}}
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Order Summary</flux:heading>
 
                 <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">{{ money($this->subtotal) }}</flux:text>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-zinc-500">Subtotal</span>
+                        <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->subtotal) }}</span>
                     </div>
 
-                    <flux:field>
-                        <flux:label class="text-sm">Tax Amount</flux:label>
-                        @if($isEditable)
-                            <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳" />
-                        @else
-                            <flux:text>{{ money($order->tax) }}</flux:text>
-                        @endif
-                    </flux:field>
+                    <div class="grid grid-cols-2 gap-3">
+                        <flux:field>
+                            <flux:label class="text-xs">Tax Amount</flux:label>
+                            @if($isEditable)
+                                <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                            @else
+                                <flux:text class="tabular-nums">{{ money($order->tax) }}</flux:text>
+                            @endif
+                        </flux:field>
 
-                    <flux:field>
-                        <flux:label class="text-sm">Discount Amount</flux:label>
-                        @if($isEditable)
-                            <flux:input wire:model.live="discount" type="number" step="0.01" min="0" prefix="৳" />
-                        @else
-                            <flux:text>{{ money($order->discount) }}</flux:text>
-                        @endif
-                    </flux:field>
+                        <flux:field>
+                            <flux:label class="text-xs">Discount</flux:label>
+                            @if($isEditable)
+                                <flux:input wire:model.live="discount" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                            @else
+                                <flux:text class="tabular-nums">{{ money($order->discount) }}</flux:text>
+                            @endif
+                        </flux:field>
+                    </div>
 
-                    <div class="border-t border-zinc-200 pt-3 dark:border-zinc-700">
-                        <div class="flex justify-between">
-                            <flux:heading>Total</flux:heading>
-                            <flux:heading>{{ money($this->total) }}</flux:heading>
+                    <div class="border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
+                            <span class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ money($this->total) }}</span>
                         </div>
                     </div>
 
@@ -330,8 +339,8 @@
                 @foreach($order->items as $item)
                     @php $remaining = $item->quantity - $item->received_quantity; @endphp
                     <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                        <div class="flex-1">
-                            <flux:text class="text-sm font-medium">{{ $item->product->name }}</flux:text>
+                        <div class="min-w-0 flex-1">
+                            <flux:text class="truncate text-sm font-medium">{{ $item->product->name }}</flux:text>
                             <flux:text class="text-xs text-zinc-400">Ordered: {{ $item->quantity }} · Received: {{ $item->received_quantity }} · Remaining: {{ $remaining }}</flux:text>
                         </div>
                         <flux:input
@@ -339,7 +348,7 @@
                             type="number"
                             min="0"
                             max="{{ $remaining }}"
-                            style="width:90px"
+                            class="w-24 shrink-0 text-right tabular-nums"
                             :disabled="$remaining <= 0"
                         />
                     </div>
@@ -348,7 +357,7 @@
 
             <div class="mt-6 flex justify-end gap-3">
                 <flux:button variant="ghost" wire:click="$set('showReceiveModal', false)" type="button">Cancel</flux:button>
-                <flux:button wire:click="receiveStock" icon="check">Confirm Receive</flux:button>
+                <flux:button variant="primary" wire:click="receiveStock" icon="check">Confirm Receive</flux:button>
             </div>
         </div>
     </flux:modal>

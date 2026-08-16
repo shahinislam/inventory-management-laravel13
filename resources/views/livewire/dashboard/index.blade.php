@@ -1,14 +1,14 @@
 <div class="p-6">
 
     {{-- Header --}}
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
             <flux:heading size="xl">Dashboard</flux:heading>
             <flux:text class="mt-1">Welcome back, {{ auth()->user()->name }}</flux:text>
         </div>
 
         {{-- Period Filter --}}
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <flux:button
                 size="sm"
                 :variant="$period === 'today' ? 'primary' : 'ghost'"
@@ -35,7 +35,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <flux:text class="text-sm text-zinc-500">Total Sales</flux:text>
-                    <flux:heading size="lg" class="mt-1">{{ money($stats['totalSales']) }}</flux:heading>
+                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ money($stats['totalSales']) }}</flux:heading>
                     <flux:text class="text-xs text-zinc-400 mt-1">{{ $stats['totalInvoices'] }} invoices</flux:text>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
@@ -49,11 +49,11 @@
             <div class="flex items-center justify-between">
                 <div>
                     <flux:text class="text-sm text-zinc-500">Total Products</flux:text>
-                    <flux:heading size="lg" class="mt-1">{{ number_format($stats['totalProducts']) }}</flux:heading>
+                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['totalProducts']) }}</flux:heading>
                     @if($stats['lowStock'] > 0)
-                        <flux:text class="text-xs text-red-500 mt-1">{{ $stats['lowStock'] }} low stock</flux:text>
+                        <flux:text class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $stats['lowStock'] }} low stock</flux:text>
                     @else
-                        <flux:text class="text-xs text-green-500 mt-1">All stocked</flux:text>
+                        <flux:text class="text-xs text-green-600 dark:text-green-400 mt-1">All stocked</flux:text>
                     @endif
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
@@ -67,7 +67,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <flux:text class="text-sm text-zinc-500">Customers</flux:text>
-                    <flux:heading size="lg" class="mt-1">{{ number_format($stats['totalCustomers']) }}</flux:heading>
+                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['totalCustomers']) }}</flux:heading>
                     <flux:text class="text-xs text-zinc-400 mt-1">Active customers</flux:text>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900">
@@ -81,7 +81,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <flux:text class="text-sm text-zinc-500">Pending Orders</flux:text>
-                    <flux:heading size="lg" class="mt-1">{{ number_format($stats['pendingOrders']) }}</flux:heading>
+                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['pendingOrders']) }}</flux:heading>
                     <flux:text class="text-xs text-zinc-400 mt-1">Purchase orders</flux:text>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900">
@@ -113,11 +113,11 @@
                 @forelse($recentInvoices as $invoice)
                     <div class="flex items-center justify-between px-4 py-3">
                         <div>
-                            <flux:text class="text-sm font-medium">{{ $invoice->invoice_number }}</flux:text>
+                            <flux:text class="font-mono text-sm font-medium">{{ $invoice->invoice_number }}</flux:text>
                             <flux:text class="text-xs text-zinc-500">{{ $invoice->customer_name }}</flux:text>
                         </div>
                         <div class="text-right">
-                            <flux:text class="text-sm font-medium">{{ money($invoice->total) }}</flux:text>
+                            <flux:text class="text-sm font-medium tabular-nums">{{ money($invoice->total) }}</flux:text>
                             <flux:badge
                                 size="sm"
                                 :color="match($invoice->status) {
@@ -205,8 +205,11 @@
                 <div class="flex items-end justify-between gap-2 h-32">
                     @php $maxSales = max(array_column($salesChart, 'sales')) ?: 1; @endphp
                     @foreach($salesChart as $day)
-                        <div class="flex flex-1 flex-col items-center gap-1">
-                            <flux:text class="text-xs text-zinc-500">{{ money($day['sales']) }}</flux:text>
+                        <div class="flex min-w-0 flex-1 flex-col items-center gap-1">
+                            {{-- Seven bars share the row, so the amount is
+                                 truncated rather than allowed to wrap. --}}
+                            <flux:text class="w-full truncate text-center text-xs tabular-nums text-zinc-500"
+                                :title="money($day['sales'])">{{ money($day['sales']) }}</flux:text>
                             <div
                                 class="w-full rounded-t bg-blue-500 dark:bg-blue-400 min-h-1"
                                 style="height: {{ max(4, ($day['sales'] / $maxSales) * 80) }}px"

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ThemeColors;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +22,22 @@ class Setting extends Model
 
     public static function set(string $key, mixed $value): void
     {
-        static::updateOrCreate(['key' => $key], ['value' => $value]);
+        // Derive the group from the key prefix when creating a row. Without this
+        // a brand-new key falls back to the column default ('general'), so
+        // getGroup() would never return it.
+        $prefix = str_contains($key, '.') ? strstr($key, '.', true) : null;
+        $group = in_array($prefix, self::GROUPS, true) ? $prefix : 'general';
+
+        $setting = static::firstOrNew(['key' => $key]);
+        $setting->value = $value;
+
+        if (! $setting->exists) {
+            $setting->group = $group;
+            $setting->type ??= 'text';
+        }
+
+        $setting->save();
+
         static::flushCache();
     }
 
@@ -50,12 +66,34 @@ class Setting extends Model
     /**
      * Forget the aggregate cache and every per-group cache.
      */
+    /**
+     * Every group cached by getGroup(). Enumerated as a constant rather than
+     * discovered with a distinct() query: a group whose rows were all just
+     * deleted — or that was cached as empty before its rows existed — would not
+     * appear in that query, so its stale entry survived the flush.
+     */
+    private const GROUPS = [
+        'general', 'company', 'invoice', 'pos',
+        'notification', 'currency', 'tax', 'email', 'theme',
+    ];
+
     public static function flushCache(): void
     {
         Cache::forget('settings:all');
 
+        foreach (self::GROUPS as $group) {
+            Cache::forget("settings:group:{$group}");
+        }
+
+        // Also clear any group present in the table but not listed above, so a
+        // future group added to the enum is still invalidated.
         static::query()->distinct()->pluck('group')
+            ->reject(fn ($group) => in_array($group, self::GROUPS, true))
             ->each(fn ($group) => Cache::forget("settings:group:{$group}"));
+
+        // The derived brand palette is built from the theme group, so it has to
+        // go too or the UI keeps the old colours until the cache expires.
+        ThemeColors::flushCache();
     }
 
     private static function castValue(mixed $value, string $type): mixed

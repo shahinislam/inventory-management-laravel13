@@ -14,13 +14,16 @@
     </div>
 
     {{-- Grid --}}
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;max-height:400px;overflow-y:auto">
+    <div class="grid max-h-100 grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3 overflow-y-auto">
         @forelse($media as $item)
             <div
                 wire:key="{{ $item->id }}"
                 wire:click="selectMedia({{ $item->id }})"
-                class="relative cursor-pointer overflow-hidden rounded-lg border-2 transition"
-                style="{{ $selectedId === $item->id ? 'border-color: rgb(59,130,246)' : 'border-color: transparent' }}"
+                @class([
+                    'relative cursor-pointer overflow-hidden rounded-lg border-2 transition',
+                    'border-blue-500 dark:border-blue-400' => $selectedId === $item->id,
+                    'border-transparent hover:border-zinc-300 dark:hover:border-zinc-600' => $selectedId !== $item->id,
+                ])
             >
                 {{-- Selected Check --}}
                 @if($selectedId === $item->id)

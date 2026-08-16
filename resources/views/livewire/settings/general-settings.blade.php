@@ -10,7 +10,7 @@
     @endif
 
     <form wire:submit="save">
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
             <div class="space-y-6">
 
@@ -24,7 +24,7 @@
                             <flux:error name="company_name" />
                         </flux:field>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Email</flux:label>
                                 <flux:input wire:model="company_email" type="email" placeholder="shop@example.com" />
@@ -51,7 +51,7 @@
                 {{-- Currency --}}
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Currency Settings</flux:heading>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Symbol</flux:label>
                             <flux:input wire:model="currency_symbol" placeholder="৳" />
@@ -80,7 +80,7 @@
                 {{-- Tax --}}
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Tax Settings</flux:heading>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:end">
+                    <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Default Tax Rate (%)</flux:label>
                             <flux:input wire:model="tax_rate" type="number" step="0.01" min="0" suffix="%" />
@@ -137,6 +137,55 @@
                     </div>
                 </flux:card>
 
+                {{-- Brand Colours --}}
+                <flux:card class="p-6">
+                    <flux:heading class="mb-1">Brand Colours</flux:heading>
+                    <flux:text class="mb-4 text-sm text-zinc-500">
+                        Primary drives buttons, links and the active menu. Each colour is expanded into a full shade
+                        range automatically — pick the colours from your logo.
+                    </flux:text>
+
+                    <div class="space-y-4">
+                        @foreach ([
+                            ['theme_primary', 'Primary', 'Buttons, links, focus rings, active nav'],
+                            ['theme_secondary', 'Secondary', 'Supporting accents and highlights'],
+                            ['theme_tertiary', 'Tertiary', 'Charts and extra data series'],
+                        ] as [$field, $label, $hint])
+                            <flux:field>
+                                <flux:label>{{ $label }}</flux:label>
+                                <div class="flex items-center gap-3">
+                                    {{-- Native swatch picker and a hex field, bound to the same property so
+                                         either can drive the value. --}}
+                                    <input type="color" wire:model.live="{{ $field }}"
+                                        class="size-10 shrink-0 cursor-pointer rounded-lg border border-zinc-200 bg-transparent p-1 dark:border-zinc-700"
+                                        aria-label="{{ $label }} colour picker" />
+                                    <flux:input wire:model.live="{{ $field }}" class="font-mono" placeholder="#4f46e5" />
+                                </div>
+                                <flux:text class="text-xs text-zinc-500">{{ $hint }}</flux:text>
+                                <flux:error name="{{ $field }}" />
+                            </flux:field>
+                        @endforeach
+
+                        {{-- Live preview: reflects the pickers immediately, before saving. --}}
+                        <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+                            <flux:text class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                                Preview</flux:text>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @foreach (['theme_primary' => 'Primary', 'theme_secondary' => 'Secondary', 'theme_tertiary' => 'Tertiary'] as $field => $label)
+                                    <span
+                                        class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+                                        style="background-color: {{ $$field }}">
+                                        {{ $label }}
+                                    </span>
+                                @endforeach
+                            </div>
+                            <flux:text class="mt-3 text-xs text-zinc-500">
+                                Save to apply across the app.
+                            </flux:text>
+                        </div>
+                    </div>
+                </flux:card>
+
             </div>
 
             {{-- Right: Logo --}}
@@ -144,9 +193,9 @@
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Company Logo</flux:heading>
                     @if($logoUrl)
-                        <img src="{{ $logoUrl }}" class="w-full rounded-lg object-contain bg-zinc-50 dark:bg-zinc-800" style="aspect-ratio:1" />
+                        <img src="{{ $logoUrl }}" class="aspect-square w-full rounded-lg object-contain bg-zinc-50 dark:bg-zinc-800" />
                     @else
-                        <div class="flex items-center justify-center rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700" style="aspect-ratio:1">
+                        <div class="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700">
                             <flux:icon name="building-office" class="size-12 text-zinc-300" />
                         </div>
                     @endif

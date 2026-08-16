@@ -4,6 +4,7 @@ namespace App\Livewire\Settings;
 
 use App\Models\Media;
 use App\Models\Setting;
+use App\Support\ThemeColors;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -50,6 +51,14 @@ class GeneralSettings extends Component
 
     public string $notification_days = '30';
 
+    // Theme — brand colours, stored as hex and expanded into full OKLCH ramps
+    // by App\Support\ThemeColors.
+    public string $theme_primary = '#4f46e5';
+
+    public string $theme_secondary = '#0d9488';
+
+    public string $theme_tertiary = '#d97706';
+
     public bool $showMediaPicker = false;
 
     protected $listeners = ['select-media' => 'selectLogo'];
@@ -78,6 +87,10 @@ class GeneralSettings extends Component
         $this->notification_low_stock = Setting::get('notification.low_stock', true);
         $this->notification_expiry = Setting::get('notification.expiry', true);
         $this->notification_days = (string) Setting::get('notification.days', 30);
+
+        $this->theme_primary = ThemeColors::normalizeHex(Setting::get('theme.primary')) ?? '#4f46e5';
+        $this->theme_secondary = ThemeColors::normalizeHex(Setting::get('theme.secondary')) ?? '#0d9488';
+        $this->theme_tertiary = ThemeColors::normalizeHex(Setting::get('theme.tertiary')) ?? '#d97706';
     }
 
     public function selectLogo(int $mediaId): void
@@ -94,6 +107,14 @@ class GeneralSettings extends Component
             'company_name' => 'required|string|max:200',
             'company_email' => 'nullable|email',
             'invoice_prefix' => 'required|string|max:10',
+            // Accept #rgb or #rrggbb; anything else would produce broken CSS.
+            'theme_primary' => ['required', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'theme_secondary' => ['required', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'theme_tertiary' => ['required', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+        ], [], [
+            'theme_primary' => 'primary colour',
+            'theme_secondary' => 'secondary colour',
+            'theme_tertiary' => 'tertiary colour',
         ]);
 
         Setting::set('company.name', $this->company_name);
@@ -117,6 +138,11 @@ class GeneralSettings extends Component
         Setting::set('notification.low_stock', $this->notification_low_stock ? 'true' : 'false');
         Setting::set('notification.expiry', $this->notification_expiry ? 'true' : 'false');
         Setting::set('notification.days', $this->notification_days);
+
+        // Normalize so a 3-digit shorthand is stored expanded and lowercased.
+        Setting::set('theme.primary', ThemeColors::normalizeHex($this->theme_primary));
+        Setting::set('theme.secondary', ThemeColors::normalizeHex($this->theme_secondary));
+        Setting::set('theme.tertiary', ThemeColors::normalizeHex($this->theme_tertiary));
 
         Cache::flush();
 

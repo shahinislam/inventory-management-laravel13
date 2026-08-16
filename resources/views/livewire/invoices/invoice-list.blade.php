@@ -1,36 +1,28 @@
 <div class="p-6">
 
     {{-- Header --}}
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
             <flux:heading size="xl">Invoices</flux:heading>
             <flux:text class="mt-1">Manage sales invoices & payments</flux:text>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <flux:button icon="shopping-cart" variant="outline" href="{{ route('pos') }}" wire:navigate>POS Terminal</flux:button>
             <flux:button icon="plus" href="{{ route('invoices.create') }}" wire:navigate>New Invoice</flux:button>
         </div>
     </div>
 
     {{-- Summary Cards --}}
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem" class="mb-6">
-        <flux:card class="p-4">
-            <flux:text class="text-sm text-zinc-500">Today's Sales</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600 dark:text-green-400">{{ money($summary['total_today']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-sm text-zinc-500">Pending Amount</flux:text>
-            <flux:heading size="lg" class="mt-1 text-yellow-600 dark:text-yellow-400">{{ money($summary['total_pending']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-sm text-zinc-500">Overdue Invoices</flux:text>
-            <flux:heading size="lg" class="mt-1 text-red-600 dark:text-red-400">{{ $summary['total_overdue'] }}</flux:heading>
-        </flux:card>
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <x-stat-tile label="Today's Sales" :value="money($summary['total_today'])" tone="green" icon="banknotes" />
+        <x-stat-tile label="Pending Amount" :value="money($summary['total_pending'])" tone="yellow" icon="clock" />
+        <x-stat-tile label="Overdue Invoices" :value="$summary['total_overdue']" tone="red"
+            icon="exclamation-triangle" />
     </div>
 
     {{-- Filters --}}
     <flux:card class="mb-6 p-4">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:0.75rem">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search invoice #, customer name or phone..."
@@ -70,7 +62,7 @@
                     <flux:table.row wire:key="{{ $invoice->id }}">
 
                         <flux:table.cell>
-                            <flux:text class="font-medium">{{ $invoice->invoice_number }}</flux:text>
+                            <flux:text class="font-mono font-medium">{{ $invoice->invoice_number }}</flux:text>
                             <flux:text class="text-xs text-zinc-400">{{ $invoice->createdBy->name }}</flux:text>
                         </flux:table.cell>
 
@@ -86,12 +78,12 @@
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <flux:text class="font-medium">{{ money($invoice->total) }}</flux:text>
+                            <flux:text class="font-medium tabular-nums">{{ money($invoice->total) }}</flux:text>
                         </flux:table.cell>
 
                         <flux:table.cell>
                             @if($invoice->due_amount > 0)
-                                <flux:text class="text-sm text-red-500">{{ money($invoice->due_amount) }}</flux:text>
+                                <flux:text class="text-sm tabular-nums text-red-500">{{ money($invoice->due_amount) }}</flux:text>
                             @else
                                 <flux:text class="text-sm text-green-500">Paid</flux:text>
                             @endif

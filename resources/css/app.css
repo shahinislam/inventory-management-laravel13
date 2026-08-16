@@ -11,28 +11,81 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    /* Neutrals in OKLCH, matching Tailwind v4's own ramp so lightness steps are
+       perceptually even (the previous flat hex values were not). A touch of
+       cool hue is carried through so the greys sit with the brand accent
+       rather than looking muddy next to it.
+       400 and 500 stay darker than Tailwind's stock values on purpose: Flux
+       renders table cells at zinc-500 and hint lines at zinc-400, and the stock
+       values failed contrast against white. */
+    --color-zinc-50: oklch(98.5% 0 0);
+    --color-zinc-100: oklch(96.7% 0.001 286.375);
+    --color-zinc-200: oklch(92% 0.004 286.32);
+    --color-zinc-300: oklch(87.1% 0.006 286.286);
+    --color-zinc-400: oklch(64% 0.009 286.13);
+    --color-zinc-500: oklch(48% 0.011 285.9);
+    --color-zinc-600: oklch(44.2% 0.013 285.786);
+    --color-zinc-700: oklch(37% 0.013 285.805);
+    --color-zinc-800: oklch(27.4% 0.014 286.033);
+    --color-zinc-900: oklch(21% 0.013 285.88);
+    --color-zinc-950: oklch(14.1% 0.011 285.82);
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /* Brand palettes. Declared here so Tailwind generates the utility classes
+       (bg-primary-600, text-secondary-400, border-tertiary-500, …); the actual
+       values are overridden at runtime by ThemeColors::css(), which derives a
+       full OKLCH ramp from the three hex colours in Settings → Theme.
+       These literals are the fallback when no setting is stored. */
+    --color-primary-50: oklch(97.1% 0.023 277);
+    --color-primary-100: oklch(93.6% 0.046 277);
+    --color-primary-200: oklch(88.5% 0.087 277);
+    --color-primary-300: oklch(80.9% 0.143 277);
+    --color-primary-400: oklch(70.7% 0.202 277);
+    --color-primary-500: oklch(63.7% 0.23 277);
+    --color-primary-600: oklch(57.7% 0.23 277);
+    --color-primary-700: oklch(50.5% 0.212 277);
+    --color-primary-800: oklch(44.4% 0.184 277);
+    --color-primary-900: oklch(39.6% 0.156 277);
+    --color-primary-950: oklch(28.4% 0.11 277);
+    --color-primary: var(--color-primary-600);
+
+    --color-secondary-50: oklch(97.1% 0.01 184.7);
+    --color-secondary-100: oklch(93.6% 0.021 184.7);
+    --color-secondary-200: oklch(88.5% 0.04 184.7);
+    --color-secondary-300: oklch(80.9% 0.064 184.7);
+    --color-secondary-400: oklch(70.7% 0.092 184.7);
+    --color-secondary-500: oklch(63.7% 0.104 184.7);
+    --color-secondary-600: oklch(57.7% 0.104 184.7);
+    --color-secondary-700: oklch(50.5% 0.096 184.7);
+    --color-secondary-800: oklch(44.4% 0.083 184.7);
+    --color-secondary-900: oklch(39.6% 0.071 184.7);
+    --color-secondary-950: oklch(28.4% 0.05 184.7);
+    --color-secondary: var(--color-secondary-600);
+
+    --color-tertiary-50: oklch(97.1% 0.016 58.3);
+    --color-tertiary-100: oklch(93.6% 0.031 58.3);
+    --color-tertiary-200: oklch(88.5% 0.06 58.3);
+    --color-tertiary-300: oklch(80.9% 0.097 58.3);
+    --color-tertiary-400: oklch(70.7% 0.138 58.3);
+    --color-tertiary-500: oklch(63.7% 0.157 58.3);
+    --color-tertiary-600: oklch(57.7% 0.157 58.3);
+    --color-tertiary-700: oklch(50.5% 0.144 58.3);
+    --color-tertiary-800: oklch(44.4% 0.126 58.3);
+    --color-tertiary-900: oklch(39.6% 0.107 58.3);
+    --color-tertiary-950: oklch(28.4% 0.075 58.3);
+    --color-tertiary: var(--color-tertiary-600);
+
+    /* Flux's accent tokens now point at the brand primary, so primary buttons,
+       links and focus rings follow the configured colour automatically. */
+    --color-accent: var(--color-primary-600);
+    --color-accent-content: var(--color-primary-700);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-primary-500);
+        --color-accent-content: var(--color-primary-400);
+        --color-accent-foreground: var(--color-white);
     }
 }
 
@@ -44,6 +97,14 @@
     ::backdrop,
     ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
+    }
+
+    /* Nudge the whole UI up a step. Tailwind sizes and spacing are rem-based, so
+       raising the root scales text, padding and gaps together — the layout keeps
+       its proportions instead of text outgrowing its containers.
+       16px -> 17px: text-sm becomes ~14.9px, text-base ~17px. */
+    html {
+        font-size: 17px;
     }
 }
 
@@ -59,6 +120,166 @@ input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+/* Table body text.
+   flux:table.cell defaults to text-zinc-500, and flux:text colors itself via
+   [:where(&)]:text-zinc-500 — zero specificity. The result is that primary row
+   data (product names, totals, invoice numbers) renders in the same muted grey
+   as secondary hints, so nothing in a table reads as foreground text.
+
+   Restore body contrast for cell text — but this must not stomp colours the
+   views chose deliberately (text-zinc-400 hint lines, text-red-500 due amounts,
+   text-green-600 paid amounts). Enumerating every hue in :not() would be
+   unmaintainable, so instead the selector is wrapped in a `base` cascade layer:
+   layer order puts it below Tailwind's utilities, so ANY text-* utility on the
+   element wins automatically, whatever its specificity. Only cells with no
+   colour of their own pick this up. */
+/* NOT in @layer base: Tailwind's utilities layer is ordered after base, so a
+   layered rule loses to the .text-zinc-500 Flux puts on every cell — which is
+   why the plain columns stayed grey. At top level these win on specificity.
+   The zinc-400/500 excludes keep the small SKU/hint sub-lines muted, and
+   [data-color] keeps flux:text color="red|green" amounts intact. */
+[data-flux-cell] {
+    @apply text-zinc-950 dark:text-white;
+}
+
+[data-flux-cell] [data-flux-text]:not([data-color]):not(.text-zinc-400):not(.text-zinc-500) {
+    @apply text-zinc-950 dark:text-white;
+}
+
+/* ==========================================================================
+   Buttons — colour by meaning
+   Flux only ships two coloured fills (primary = accent, danger = red); every
+   other variant is grey. These rules give the secondary variants the accent
+   colour so actions read as interactive, while the solid primary fill stays the
+   single loudest thing on a page.
+   Semantic overrides come from data-tone (see below), and `danger` is untouched.
+   ========================================================================== */
+
+/* Flux bakes the variant into utility classes and does NOT emit a data-variant
+   attribute, so these hook the classes it actually renders: outline carries
+   border-zinc-200, ghost/subtle carry text-zinc-800 or text-zinc-500 with no
+   background. Primary and danger keep their own fills and are not matched. */
+
+/* Outline buttons: saturated border and semibold accent text, filling solid on
+   hover. A pale tint-on-white reads as disabled, so the border sits at 500 and
+   the label at 600/700 weight to hold its own next to a primary fill. */
+[data-flux-button].border-zinc-200:not([data-tone]) {
+    @apply border-primary-500 font-semibold text-primary-700;
+}
+
+[data-flux-button].border-zinc-200:not([data-tone]):hover {
+    @apply border-primary-600 bg-primary-600 text-white;
+}
+
+/* Dark mode. Scoped with :is(.dark *) rather than a `.dark ` prefix or a
+   dark: utility — Tailwind strips the prefix when the selector already contains
+   an escaped `dark\:` class, which silently leaked these into light mode. */
+[data-flux-button].border-zinc-200:not([data-tone]):is(.dark *) {
+    border-color: var(--color-primary-500);
+    background-color: transparent;
+    color: var(--color-primary-300);
+}
+
+[data-flux-button].border-zinc-200:not([data-tone]):is(.dark *):hover {
+    border-color: var(--color-primary-500);
+    background-color: var(--color-primary-500);
+    color: var(--color-white);
+}
+
+/* Ghost / subtle: accent text, tinted hover. Transparent background is kept so
+   toolbars and table row actions stay light. */
+[data-flux-button].bg-transparent:not([data-tone]) {
+    @apply font-semibold text-primary-700 dark:text-primary-300;
+}
+
+[data-flux-button].bg-transparent:not([data-tone]):hover {
+    @apply bg-primary-600 text-white dark:bg-primary-500 dark:text-white;
+}
+
+/* Semantic tones. Add data-tone="emerald|amber|rose" to any non-primary button
+   whose meaning is not "the main action": receive/confirm, warn, destructive. */
+[data-flux-button][data-tone='emerald'] {
+    @apply border-emerald-500 font-semibold text-emerald-700 dark:text-emerald-300;
+}
+
+[data-flux-button][data-tone='emerald']:hover {
+    @apply border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500;
+}
+
+[data-flux-button][data-tone='amber'] {
+    @apply border-amber-500 font-semibold text-amber-700 dark:text-amber-300;
+}
+
+[data-flux-button][data-tone='amber']:hover {
+    @apply border-amber-600 bg-amber-600 text-white dark:border-amber-500 dark:bg-amber-500;
+}
+
+[data-flux-button][data-tone='rose'] {
+    @apply border-rose-500 font-semibold text-rose-700 dark:text-rose-300;
+}
+
+[data-flux-button][data-tone='rose']:hover {
+    @apply border-rose-600 bg-rose-600 text-white dark:border-rose-500 dark:bg-rose-500;
+}
+
+/* ==========================================================================
+   Sidebar navigation
+   Flux ships items and group headings at text-sm / text-zinc-500. Darken to the
+   deepest value and step the size up so the nav is legible at a glance.
+   ========================================================================== */
+
+/* Item labels. The link itself carries the colour; [data-content] carries the
+   size. Both need overriding, and :not(:hover) leaves Flux's hover state alone. */
+[data-flux-sidebar-item]:not([data-current]) {
+    @apply text-zinc-950 dark:text-white/90;
+}
+
+/* Active nav item: accent text on a tinted pill, so the current page is the
+   most obvious thing in the sidebar rather than just another dark label. */
+[data-flux-sidebar-item][data-current] {
+    @apply bg-primary-50 font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
+}
+
+[data-flux-sidebar-item] [data-content] {
+    @apply text-sm font-semibold;
+}
+
+/* Group headings ("Inventory", "Settings", …) — the disclosure buttons and the
+   plain heading variant. */
+[data-flux-sidebar] .group\/disclosure-button {
+    @apply text-zinc-950 dark:text-white/90;
+}
+
+[data-flux-sidebar] .group\/disclosure-button span {
+    @apply text-sm font-semibold;
+}
+
+/* Semantic amounts (red due / green paid) must survive the rule above, which
+   outranks their single-class utility. Listed explicitly rather than guarded
+   with :not() for every hue. */
+[data-flux-cell] [data-flux-text].text-red-500,
+[data-flux-cell] [data-flux-text].text-red-600 {
+    @apply text-red-600 dark:text-red-400;
+}
+
+[data-flux-cell] [data-flux-text].text-green-500,
+[data-flux-cell] [data-flux-text].text-green-600 {
+    @apply text-green-600 dark:text-green-400;
+}
+
+/* Column headers: Flux ships them font-medium/zinc-800. Make them bold and the
+   darkest value so the header row clearly frames the data below it. */
+[data-flux-column] {
+    @apply font-bold text-zinc-950 dark:text-white;
+}
+
+/* flux:text pins weight with [:where(&)]:font-normal, silently cancelling the
+   `font-medium` the views put on primary values (product name, qty, stock
+   value). Re-assert it so those read as the anchor of each row. */
+[data-flux-cell] [data-flux-text].font-medium {
+    font-weight: 600;
 }
 
 /* \[:where(&)\]:size-4 {

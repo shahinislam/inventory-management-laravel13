@@ -10,32 +10,17 @@
     </div>
 
     {{-- Summary Cards --}}
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem" class="mb-6">
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Total Products</flux:text>
-            <flux:heading size="lg" class="mt-1">{{ number_format($summary['total_products']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Stock Cost Value</flux:text>
-            <flux:heading size="lg" class="mt-1">{{ money($summary['total_value']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Retail Value</flux:text>
-            <flux:heading size="lg" class="mt-1 text-green-600">{{ money($summary['retail_value']) }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Low Stock</flux:text>
-            <flux:heading size="lg" class="mt-1 text-yellow-600">{{ $summary['low_stock'] }}</flux:heading>
-        </flux:card>
-        <flux:card class="p-4">
-            <flux:text class="text-xs text-zinc-500">Out of Stock</flux:text>
-            <flux:heading size="lg" class="mt-1 text-red-600">{{ $summary['out_of_stock'] }}</flux:heading>
-        </flux:card>
+    <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <x-stat-tile label="Total Products" :value="number_format($summary['total_products'])" icon="cube" />
+        <x-stat-tile label="Stock Cost Value" :value="money($summary['total_value'])" icon="banknotes" />
+        <x-stat-tile label="Retail Value" :value="money($summary['retail_value'])" tone="green" icon="tag" />
+        <x-stat-tile label="Low Stock" :value="$summary['low_stock']" tone="yellow" icon="arrow-trending-down" />
+        <x-stat-tile label="Out of Stock" :value="$summary['out_of_stock']" tone="red" icon="x-circle" />
     </div>
 
     {{-- Filters --}}
-    <flux:card class="mb-6 p-4">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:0.75rem">
+    <flux:card class="mb-6 p-4 print:hidden">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
             <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" />
             <flux:select wire:model.live="warehouseFilter" placeholder="All Warehouses">
                 <flux:select.option value="">All Warehouses</flux:select.option>

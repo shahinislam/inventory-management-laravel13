@@ -10,17 +10,17 @@
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
 
         {{-- Left Column --}}
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
 
             {{-- Customer --}}
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Customer</flux:heading>
 
                 {{-- Customer Search --}}
-                <div style="position:relative" class="mb-4" x-data="{ open: true }" x-on:click.outside="open = false">
+                <div class="relative mb-4" x-data="{ open: true }" x-on:click.outside="open = false">
                     <flux:input wire:model.live.debounce.200ms="customerSearch"
                         placeholder="Search existing customer..." icon="user" x-on:focus="open = true" />
                     @if ($customer_id)
@@ -43,10 +43,9 @@
                     @endif
                 </div>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <flux:field>
-                        <flux:label>Name <flux:badge color="red" size="sm">Required</flux:badge>
-                        </flux:label>
+                        <flux:label badge="Required">Name</flux:label>
                         <flux:input wire:model="customer_name" placeholder="Customer name" />
                         <flux:error name="customer_name" />
                     </flux:field>
@@ -73,8 +72,7 @@
                 <flux:heading class="mb-4">Invoice Items</flux:heading>
 
                 {{-- Product Search --}}
-                {{-- Product Search --}}
-                <div style="position:relative" class="mb-4" x-data="{
+                <div class="relative mb-4" x-data="{
                     open: true,
                     highlight: 0,
                     get items() { return this.$refs.productResultsList ? [...this.$refs.productResultsList.querySelectorAll('[data-search-result]')] : [] },
@@ -101,94 +99,96 @@
                         x-on:keydown.enter.prevent="selectCurrent(); open = false" />
                     @if ($this->productResults->count() > 0)
                         <div x-ref="productResultsList" x-show="open"
-                            class="absolute z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-                            style="max-height:320px;overflow-y:auto">
+                            class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                             @foreach ($this->productResults as $i => $product)
                                 <button type="button" data-search-result wire:click="addProduct({{ $product->id }})"
                                     x-on:click="open = false" x-on:mouseenter="highlight = {{ $i }}"
                                     wire:key="presult-{{ $product->id }}"
-                                    class="flex w-full items-center justify-between px-3 py-2 transition-colors"
-                                    x-bind:style="highlight === {{ $i }} ? 'background-color: rgb(37 99 235 / 0.15)' : ''">
-                                    <div>
-                                        <flux:text
-                                            x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''"
-                                            class="text-sm font-medium">{{ $product->name }}</flux:text>
-                                        <flux:text class="text-xs text-zinc-400">{{ $product->sku }}</flux:text>
+                                    x-bind:data-active="highlight === {{ $i }}"
+                                    class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800">
+                                    <div class="min-w-0">
+                                        <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                                            {{ $product->name }}</div>
+                                        <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $product->sku }}</div>
                                     </div>
-                                    <flux:text
-                                        x-bind:class="highlight === {{ $i }} ? 'text-blue-700 dark:text-blue-300' : ''"
-                                        class="text-sm font-medium">{{ money($product->selling_price) }}
-                                    </flux:text>
+                                    <span
+                                        class="shrink-0 text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">{{ money($product->selling_price) }}</span>
                                 </button>
                             @endforeach
                         </div>
                     @endif
                 </div>
 
-                {{-- Items Table --}}
-                <table style="width:100%;font-size:0.875rem">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--color-zinc-200, #e4e4e7)">
-                            <th style="text-align:left;padding:0.5rem;font-weight:500">Product</th>
-                            <th style="text-align:right;padding:0.5rem;font-weight:500;width:90px">Qty</th>
-                            <th style="text-align:right;padding:0.5rem;font-weight:500;width:110px">Price</th>
-                            <th style="text-align:right;padding:0.5rem;font-weight:500;width:90px">Discount</th>
-                            <th style="text-align:right;padding:0.5rem;font-weight:500;width:80px">Tax%</th>
-                            <th style="text-align:right;padding:0.5rem;font-weight:500;width:100px">Total</th>
-                            <th style="width:40px"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($items as $index => $item)
-                            @php
-                                $line = (float) $item['quantity'] * (float) $item['unit_price'];
-                                $disc = (float) $item['discount'] * (float) $item['quantity'];
-                                $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
-                                $total = $line - $disc + $tax;
-                            @endphp
-                            <tr wire:key="item-{{ $index }}"
-                                style="border-bottom:1px solid var(--color-zinc-100, #f4f4f5)">
-                                <td style="padding:0.5rem">
-                                    <flux:text class="font-medium">{{ $item['name'] }}</flux:text>
-                                    <flux:text class="text-xs text-zinc-400">{{ $item['sku'] }}</flux:text>
-                                    @if (!empty($item['promotion_label']))
-                                        <flux:badge size="sm" color="green" class="mt-1">
-                                            {{ $item['promotion_label'] }}</flux:badge>
-                                    @endif
-                                </td>
-                                <td style="padding:0.5rem">
-                                    <flux:input wire:model.live="items.{{ $index }}.quantity" type="number"
-                                        min="1" size="sm" />
-                                </td>
-                                <td style="padding:0.5rem">
-                                    <flux:input wire:model.live="items.{{ $index }}.unit_price" type="number"
-                                        step="0.01" size="sm" />
-                                </td>
-                                <td style="padding:0.5rem">
-                                    <flux:input wire:model.live="items.{{ $index }}.discount" type="number"
-                                        step="0.01" size="sm" />
-                                </td>
-                                <td style="padding:0.5rem">
-                                    <flux:input wire:model.live="items.{{ $index }}.tax_rate" type="number"
-                                        step="0.01" size="sm" />
-                                </td>
-                                <td style="padding:0.5rem;text-align:right">
-                                    <flux:text class="font-medium">{{ money($total) }}</flux:text>
-                                </td>
-                                <td style="padding:0.5rem">
-                                    <flux:button icon="trash" variant="ghost" size="sm" square
-                                        wire:click="removeItem({{ $index }})" type="button" />
-                                </td>
+                {{-- Items Table. Five numeric inputs can't compress far, so the
+                     table scrolls horizontally rather than crushing columns. --}}
+                <div class="-mx-2 overflow-x-auto">
+                    <table class="w-full min-w-3xl text-sm">
+                        <thead>
+                            <tr
+                                class="border-b border-zinc-200 text-[0.6875rem] uppercase tracking-wider text-zinc-500 dark:border-zinc-700">
+                                <th class="px-2 py-2.5 text-left font-semibold">Product</th>
+                                <th class="w-20 px-2 py-2.5 text-right font-semibold">Qty</th>
+                                <th class="w-28 px-2 py-2.5 text-right font-semibold">Price</th>
+                                <th class="w-24 px-2 py-2.5 text-right font-semibold">Discount</th>
+                                <th class="w-20 px-2 py-2.5 text-right font-semibold">Tax %</th>
+                                <th class="w-28 px-2 py-2.5 text-right font-semibold">Total</th>
+                                <th class="w-10"></th>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" style="padding:2rem;text-align:center;color:var(--color-zinc-400)">
-                                    Search products above to add items
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @forelse($items as $index => $item)
+                                @php
+                                    $line = (float) $item['quantity'] * (float) $item['unit_price'];
+                                    $disc = (float) $item['discount'] * (float) $item['quantity'];
+                                    $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
+                                    $total = $line - $disc + $tax;
+                                @endphp
+                                <tr wire:key="item-{{ $index }}"
+                                    class="border-b border-zinc-100 transition-colors last:border-0 hover:bg-zinc-50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/30">
+                                    <td class="px-2 py-3">
+                                        <div class="font-medium text-zinc-900 dark:text-white">{{ $item['name'] }}</div>
+                                        <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $item['sku'] }}</div>
+                                        @if (!empty($item['promotion_label']))
+                                            <flux:badge size="sm" color="green" icon="tag" class="mt-1.5">
+                                                {{ $item['promotion_label'] }}</flux:badge>
+                                        @endif
+                                    </td>
+                                    <td class="px-2 py-3">
+                                        <flux:input wire:model.live="items.{{ $index }}.quantity" type="number"
+                                            min="1" size="sm" class="text-right tabular-nums" />
+                                    </td>
+                                    <td class="px-2 py-3">
+                                        <flux:input wire:model.live="items.{{ $index }}.unit_price" type="number"
+                                            step="0.01" size="sm" class="text-right tabular-nums" />
+                                    </td>
+                                    <td class="px-2 py-3">
+                                        <flux:input wire:model.live="items.{{ $index }}.discount" type="number"
+                                            step="0.01" size="sm" class="text-right tabular-nums" />
+                                    </td>
+                                    <td class="px-2 py-3">
+                                        <flux:input wire:model.live="items.{{ $index }}.tax_rate" type="number"
+                                            step="0.01" size="sm" class="text-right tabular-nums" />
+                                    </td>
+                                    <td
+                                        class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                        {{ money($total) }}</td>
+                                    <td class="px-2 py-3">
+                                        <flux:button icon="x-mark" variant="subtle" size="xs" square
+                                            wire:click="removeItem({{ $index }})" type="button" />
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="px-2 py-10 text-center">
+                                        <flux:icon name="magnifying-glass" class="mx-auto size-8 text-zinc-300" />
+                                        <flux:text class="mt-2 text-sm text-zinc-500">Search products above to add items
+                                        </flux:text>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
                 @error('items')
                     <flux:text class="text-sm text-red-500 mt-2">{{ $message }}</flux:text>
                 @enderror
@@ -201,16 +201,16 @@
             </flux:card>
         </div>
 
-        {{-- Right Column --}}
-        <div class="space-y-6">
+        {{-- Right Column. Sticks on desktop so the running total and save
+             actions stay reachable while working through a long item list. --}}
+        <div class="space-y-6 lg:sticky lg:top-6 lg:self-start">
 
             {{-- Invoice Details --}}
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Invoice Details</flux:heading>
                 <div class="space-y-4">
                     <flux:field>
-                        <flux:label>Invoice Date <flux:badge color="red" size="sm">Required</flux:badge>
-                        </flux:label>
+                        <flux:label badge="Required">Invoice Date</flux:label>
                         <flux:input wire:model="invoice_date" type="date" />
                         <flux:error name="invoice_date" />
                     </flux:field>
@@ -246,29 +246,38 @@
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Summary</flux:heading>
                 <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <flux:text class="text-sm text-zinc-500">Subtotal</flux:text>
-                        <flux:text class="font-medium">{{ money($this->subtotal) }}</flux:text>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-zinc-500">Subtotal</span>
+                        <span
+                            class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->subtotal) }}</span>
                     </div>
-                    <flux:field>
-                        <flux:label class="text-sm">Discount</flux:label>
-                        <flux:input wire:model.live="discount" type="number" step="0.01" min="0"
-                            prefix="৳" />
-                    </flux:field>
-                    <flux:field>
-                        <flux:label class="text-sm">Additional Tax</flux:label>
-                        <flux:input wire:model.live="tax" type="number" step="0.01" min="0"
-                            prefix="৳" />
-                    </flux:field>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <flux:field>
+                            <flux:label class="text-xs">Discount</flux:label>
+                            <flux:input wire:model.live="discount" type="number" step="0.01" min="0"
+                                prefix="৳" class="tabular-nums" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label class="text-xs">Additional Tax</flux:label>
+                            <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳"
+                                class="tabular-nums" />
+                        </flux:field>
+                    </div>
+
                     @if ($this->taxTotal > 0)
-                        <div class="flex justify-between">
-                            <flux:text class="text-sm text-zinc-500">Tax</flux:text>
-                            <flux:text class="font-medium">{{ money($this->taxTotal) }}</flux:text>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Tax</span>
+                            <span
+                                class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->taxTotal) }}</span>
                         </div>
                     @endif
-                    <div class="flex justify-between border-t border-zinc-200 pt-2 dark:border-zinc-700">
-                        <flux:heading>Total</flux:heading>
-                        <flux:heading>{{ money($this->total) }}</flux:heading>
+
+                    <div
+                        class="flex items-baseline justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                        <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
+                        <span
+                            class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ money($this->total) }}</span>
                     </div>
                 </div>
             </flux:card>
@@ -276,7 +285,8 @@
             {{-- Actions --}}
             <flux:card class="p-6">
                 <div class="space-y-3">
-                    <flux:button wire:click="saveAsPaid" class="w-full" icon="check">Save & Mark Paid</flux:button>
+                    <flux:button variant="primary" wire:click="saveAsPaid" class="w-full" icon="check">Save & Mark Paid
+                    </flux:button>
                     <flux:button wire:click="saveAndSend" variant="outline" class="w-full" icon="paper-airplane">
                         Save & Send</flux:button>
                     <flux:button wire:click="saveDraft" variant="ghost" class="w-full" icon="document">Save as Draft

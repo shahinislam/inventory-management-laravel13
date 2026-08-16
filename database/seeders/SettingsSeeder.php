@@ -56,6 +56,12 @@ class SettingsSeeder extends Seeder
             ['key' => 'pos.receipt_footer',     'value' => 'Thank you!',       'group' => 'pos',          'type' => 'text',    'is_public' => false],
             ['key' => 'pos.print_receipt',      'value' => 'true',             'group' => 'pos',          'type' => 'boolean', 'is_public' => false],
             ['key' => 'pos.barcode_scanner',    'value' => 'true',             'group' => 'pos',          'type' => 'boolean', 'is_public' => false],
+
+            // Theme — brand colours. Stored as hex and injected as CSS custom
+            // properties at render time, so changing one repaints the whole UI.
+            ['key' => 'theme.primary',          'value' => '#4f46e5',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
+            ['key' => 'theme.secondary',        'value' => '#0d9488',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
+            ['key' => 'theme.tertiary',         'value' => '#d97706',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
         ];
 
         foreach ($settings as $setting) {

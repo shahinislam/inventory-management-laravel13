@@ -25,7 +25,7 @@
 
     {{-- Search & Filters --}}
     <flux:card class="mb-6 p-4">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:0.75rem">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by order number or supplier..."

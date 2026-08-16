@@ -6,7 +6,7 @@
     </div>
 
     {{-- Role Cards --}}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem" class="mb-6">
+    <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <flux:card class="p-4">
             <div class="flex items-center gap-2 mb-2">
                 <flux:badge color="purple">Admin</flux:badge>
