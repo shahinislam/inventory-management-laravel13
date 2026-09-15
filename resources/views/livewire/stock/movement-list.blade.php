@@ -22,7 +22,7 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by product name or SKU..."
-                icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="movement-list-search-3b1c07-nofill" />
+                icon="magnifying-glass" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
 
             <flux:select wire:model.live="typeFilter" placeholder="All Types">
                 <flux:select.option value="">All Types</flux:select.option>

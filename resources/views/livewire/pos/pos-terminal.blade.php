@@ -1,6 +1,76 @@
+{{-- Client-side cart maths, the pattern from the Livewire docs: quantities and
+     adjustments change $wire in the browser without a request, and Alpine
+     derives every total by reading $wire. The state reaches the server with the
+     next action (checkout, add, remove), where PosTerminal recalculates with
+     getCartSubtotalProperty(), getCartItemTaxProperty(), getCartTaxTotalProperty()
+     and getCartTotalProperty() — keep these formulas in step with those.
+     money() mirrors the PHP money() helper. --}}
 <div class="p-4" x-data="{
+    currency: @js([
+        'symbol' => (string) (App\Models\Setting::get('currency.symbol', '$') ?? '$'),
+        'position' => App\Models\Setting::get('currency.position', 'before'),
+        'decimals' => (int) App\Models\Setting::get('currency.decimals', 2),
+    ]),
+    costTouched: @js($hasCourier),
     focusSearch() { $refs.searchInput?.focus() },
-        focusAmount() { $refs.amountInput?.focus() }
+    focusAmount() { $refs.amountInput?.focus() },
+    num(value) {
+        const n = parseFloat(String(value ?? '').replace(/,/g, ''));
+        return Number.isFinite(n) ? n : 0;
+    },
+    money(amount) {
+        const formatted = this.num(amount).toLocaleString('en-US', {
+            minimumFractionDigits: this.currency.decimals,
+            maximumFractionDigits: this.currency.decimals,
+        });
+        return this.currency.position === 'after'
+            ? formatted + this.currency.symbol
+            : this.currency.symbol + formatted;
+    },
+
+    // Quantity is clamped to what the warehouse holds, like PosTerminal::updateQty().
+    // live=false keeps the change in the browser until the next action.
+    setQty(index, value) {
+        const item = this.$wire.cart[index];
+        if (! item) return;
+        const qty = Math.max(1, Math.min(Math.trunc(this.num(value)) || 1, item.max_quantity));
+        this.$wire.$set(`cart.${index}.quantity`, qty, false);
+    },
+    incrementQty(index) {
+        const item = this.$wire.cart[index];
+        if (item) this.setQty(index, item.quantity + 1);
+    },
+    decrementQty(index) {
+        const item = this.$wire.cart[index];
+        if (! item) return;
+        // Dropping below one removes the line, which needs the server to redraw the cart.
+        item.quantity > 1 ? this.setQty(index, item.quantity - 1) : this.$wire.removeFromCart(index);
+    },
+
+    net(item) {
+        return this.num(item?.price) * this.num(item?.quantity) - this.num(item?.discount) * this.num(item?.quantity);
+    },
+    lineTotal(index) {
+        const item = this.$wire.cart[index];
+        return this.net(item) * (1 + this.num(item?.tax_rate) / 100);
+    },
+    get totals() {
+        const items = Object.values(this.$wire.cart ?? {});
+        const subtotal = items.reduce((sum, item) => sum + this.net(item), 0);
+        const itemDiscount = items.reduce((sum, item) => sum + this.num(item.discount) * this.num(item.quantity), 0);
+        const tax = items.reduce((sum, item) => sum + this.net(item) * this.num(item.tax_rate) / 100, 0)
+            + this.num(this.$wire.tax);
+        const courier = this.$wire.hasCourier ? this.num(this.$wire.courierCharge) : 0;
+        const courierCost = this.$wire.hasCourier ? this.num(this.$wire.courierCost) : 0;
+        return {
+            subtotal,
+            itemDiscount,
+            tax,
+            courier,
+            courierCost,
+            total: Math.max(0, subtotal - this.num(this.$wire.discount) + tax + courier),
+        };
+    },
 }" x-on:keydown.f2.window.prevent="focusSearch()"
     x-on:keydown.f9.window.prevent="$wire.openPaymentModal()" x-on:keydown.escape.window="$wire.clearCart()">
     {{-- Flash Messages --}}
@@ -18,74 +88,33 @@
 
             {{-- Search Bar --}}
             <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-                <div class="relative" x-data="{
-                    open: true,
-                    highlight: 0,
-                    get items() { return this.$refs.resultsList ? [...this.$refs.resultsList.querySelectorAll('[data-search-result]')] : [] },
-                    get count() { return this.items.length },
-                    moveDown() {
-                        if (this.count > 0) {
-                            this.highlight = (this.highlight + 1) % this.count;
-                            this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
-                        }
-                    },
-                    moveUp() {
-                        if (this.count > 0) {
-                            this.highlight = (this.highlight - 1 + this.count) % this.count;
-                            this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
-                        }
-                    },
-                    selectCurrent() { const el = this.items[this.highlight]; if (el) el.click(); }
-                }">
-                    <flux:input x-ref="searchInput" wire:model.live.debounce.150ms="search" class="h-12 text-base"
-                        placeholder="Scan barcode or search product…" icon="magnifying-glass" autofocus
-                        autocomplete="off" name="pos-product-search-nofill" x-on:focus="open = true"
-                        x-on:input="open = true; highlight = 0" x-on:keydown.arrow-down.prevent="moveDown()"
-                        x-on:keydown.arrow-up.prevent="moveUp()"
-                        x-on:keydown.enter.prevent="selectCurrent(); open = false">
-                        <x-slot name="iconTrailing">
-                            <kbd
-                                class="mr-1 rounded border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">F2</kbd>
-                        </x-slot>
-                    </flux:input>
+                <x-search-select model="search" size="lg" autofocus input-ref="searchInput"
+                    placeholder="Scan barcode or search product…"
+                    :show="$this->searchResults->count() > 0">
+                    <x-slot name="trailing">
+                        <kbd
+                            class="mr-1 rounded border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">F2</kbd>
+                    </x-slot>
 
-                    @if ($this->searchResults->count() > 0)
-                        <div x-ref="resultsList" x-show="open" x-on:click.outside="open = false"
-                            class="absolute z-20 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                            @foreach ($this->searchResults as $i => $product)
-                                <button type="button" data-search-result wire:click="quickAdd({{ $product->id }})"
-                                    x-on:click="open = false" x-on:mouseenter="highlight = {{ $i }}"
-                                    wire:key="search-{{ $product->id }}"
-                                    x-bind:data-active="highlight === {{ $i }}"
-                                    class="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800">
-                                    @if ($product->media)
-                                        <img src="{{ $product->media->file_url }}"
-                                            class="size-9 shrink-0 rounded-md object-cover ring-1 ring-zinc-200 dark:ring-zinc-700" />
-                                    @else
-                                        <div
-                                            class="flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800">
-                                            <flux:icon name="cube" class="size-4 text-zinc-400" />
-                                        </div>
-                                    @endif
-
-                                    <div class="min-w-0 flex-1">
-                                        <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">
-                                            {{ $product->name }}</div>
-                                        <div class="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
-                                            <span class="font-mono">{{ $product->sku }}</span>
-                                            <span class="text-zinc-300 dark:text-zinc-600">·</span>
-                                            <span
-                                                class="{{ $product->quantity > 0 ? '' : 'font-medium text-red-500' }}">{{ $product->quantity > 0 ? $product->quantity . ' in stock' : 'Out of stock' }}</span>
-                                        </div>
+                    @foreach ($this->searchResults as $i => $product)
+                        <x-search-select.option :index="$i" wire:click="quickAdd({{ $product->id }})"
+                            wire:key="search-{{ $product->id }}" :label="$product->name"
+                            :description="$product->sku . ' · ' . $product->quantity . ' in stock'"
+                            :value="money($product->selling_price)">
+                            <x-slot name="leading">
+                                @if ($product->media)
+                                    <img src="{{ $product->media->file_url }}"
+                                        class="size-9 shrink-0 rounded-md object-cover ring-1 ring-zinc-200 dark:ring-zinc-700" />
+                                @else
+                                    <div
+                                        class="flex size-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800">
+                                        <flux:icon name="cube" class="size-4 text-zinc-400" />
                                     </div>
-
-                                    <span
-                                        class="shrink-0 text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">{{ money($product->selling_price) }}</span>
-                                </button>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
+                                @endif
+                            </x-slot>
+                        </x-search-select.option>
+                    @endforeach
+                </x-search-select>
             </div>
 
             {{-- Cart --}}
@@ -149,23 +178,28 @@
                                             @endif
                                         </td>
                                         <td class="px-2 py-3">
+                                            {{-- Quantity changes stay in the browser ($wire.$set with
+                                                 live=false) and are sent with the next action, such as
+                                                 checkout. Only dropping below 1 asks the server, since the
+                                                 row itself has to go. --}}
                                             <div
                                                 class="mx-auto flex w-fit items-center gap-0.5 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700">
                                                 <flux:button icon="minus" size="xs" square variant="subtle"
-                                                    wire:click="decrementQty({{ $index }})" type="button" />
+                                                    x-on:click="decrementQty({{ $index }})" type="button" />
                                                 <input type="number"
-                                                    wire:change="updateQty({{ $index }}, $event.target.value)"
+                                                    x-bind:value="$wire.cart[{{ $index }}]?.quantity"
+                                                    x-on:change="setQty({{ $index }}, $event.target.value); $event.target.value = $wire.cart[{{ $index }}]?.quantity"
                                                     value="{{ $item['quantity'] }}"
                                                     class="w-11 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums text-zinc-900 focus:outline-none focus:ring-0 dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                     min="1" max="{{ $item['max_quantity'] }}" />
                                                 <flux:button icon="plus" size="xs" square variant="subtle"
-                                                    wire:click="incrementQty({{ $index }})" type="button" />
+                                                    x-on:click="incrementQty({{ $index }})" type="button" />
                                             </div>
                                         </td>
                                         <td class="px-2 py-3 text-right tabular-nums text-zinc-500">
                                             {{ money($item['price']) }}</td>
-                                        <td
-                                            class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                        <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white"
+                                            x-text="money(lineTotal({{ $index }}))">
                                             {{ money($lineTotal + $lineTax) }}</td>
                                         <td class="px-2 py-3 text-right">
                                             <flux:button icon="x-mark" size="xs" square variant="subtle"
@@ -202,53 +236,26 @@
 
             {{-- Customer --}}
             <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-                <div class="relative" x-data="{ open: true }" x-on:click.outside="open = false">
-                    @if ($customer_id)
-                        {{-- Selected customer chip. Fixed to h-12 so swapping
-                             between the input and this chip never shifts the
-                             panel height. --}}
-                        <div
-                            class="flex h-12 items-center gap-3 rounded-lg border border-zinc-200 px-3 dark:border-zinc-700">
-                            <div
-                                class="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold uppercase text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                                {{ Str::substr($customerSearch, 0, 2) }}
-                            </div>
-                            <div class="min-w-0 flex-1 leading-tight">
-                                <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">
-                                    {{ $customerSearch }}</div>
-                                <div class="text-xs text-zinc-500">Customer</div>
-                            </div>
-                            <flux:button icon="x-mark" variant="subtle" size="xs" square wire:click="clearCustomer"
-                                type="button" />
-                        </div>
-                    @else
-                        {{-- Matches the product search input's height so both
-                             column headers align across the terminal. --}}
-                        <flux:input wire:model.live.debounce.200ms="customerSearch" class="h-12 text-base"
-                            placeholder="Walk-in customer — search name or phone" icon="user"
-                            x-on:focus="open = true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="pos-terminal-search-d89ff9-nofill" />
-
-                        @if ($this->customerResults->count() > 0)
-                            <div x-show="open"
-                                class="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                                @foreach ($this->customerResults as $cust)
-                                    <button type="button" wire:click="selectCustomer({{ $cust->id }})"
-                                        x-on:click="open = false" wire:key="cust-{{ $cust->id }}"
-                                        class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                        <span
-                                            class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $cust->name }}</span>
-                                        <span class="shrink-0 text-xs tabular-nums text-zinc-500">{{ $cust->phone }}</span>
-                                    </button>
-                                @endforeach
-                            </div>
-                        @endif
-                    @endif
-                </div>
+                {{-- size="lg" matches the product search, so both column headers
+                     line up across the terminal. --}}
+                <x-search-select model="customerSearch" size="lg" icon="user"
+                    placeholder="Walk-in customer — search name or phone"
+                    :show="$this->customerResults->count() > 0"
+                    :selected="$customer_id ? $customerSearch : null"
+                    selected-hint="Customer" clear="clearCustomer">
+                    @foreach ($this->customerResults as $i => $cust)
+                        <x-search-select.option :index="$i" wire:click="selectCustomer({{ $cust->id }})"
+                            wire:key="cust-{{ $cust->id }}" :label="$cust->name" :description="$cust->phone" />
+                    @endforeach
+                </x-search-select>
             </div>
 
-            {{-- Totals --}}
+            {{-- Totals. No min-h-0 here: the card must never be shorter than its
+                 content, or the total and checkout spill out below its border
+                 when the courier fields are open. flex-1 still stretches it to
+                 fill the column when there is room. --}}
             <div
-                class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                class="flex flex-1 flex-col rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
 
                 {{-- Header row mirroring the cart's, so both columns' content
                      starts on the same baseline. --}}
@@ -257,51 +264,62 @@
                     <flux:heading size="sm">Order Summary</flux:heading>
                 </div>
 
-                <div class="min-h-0 flex-1 overflow-y-auto p-4">
+                <div class="flex-1 px-4 py-3">
+
+                    {{-- Every figure below is derived in the browser from $wire (root
+                         x-data); inputs are deferred, so typing makes no request. The
+                         server recalculates from the same state at checkout. --}}
 
                     {{-- Adjustments --}}
                     <div class="grid grid-cols-2 gap-3">
                         <flux:field>
                             <flux:label class="text-xs">Extra Discount</flux:label>
-                            <flux:input wire:model.live="discount" type="number" step="0.01" min="0"
+                            <flux:input wire:model="discount" type="number" step="0.01" min="0" size="sm"
                                 prefix="৳" class="tabular-nums" />
                         </flux:field>
                         <flux:field>
                             <flux:label class="text-xs">Additional Tax</flux:label>
-                            <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳"
+                            <flux:input wire:model="tax" type="number" step="0.01" min="0" size="sm" prefix="৳"
                                 class="tabular-nums" />
                         </flux:field>
                     </div>
 
                     {{-- Courier. The charge is billed to the customer; the cost is
                          what we pay the courier and stays internal. --}}
-                    <div class="mt-3">
-                        <flux:checkbox wire:model.live="hasCourier" label="Add courier charge" />
+                    <div class="mt-2.5">
+                        <flux:checkbox wire:model="hasCourier" label="Add courier charge" />
 
-                        @if ($hasCourier)
-                            <div class="mt-3 grid grid-cols-2 gap-3">
+                        <div x-show="$wire.hasCourier" @unless ($hasCourier) style="display: none" @endunless>
+                            <div class="mt-2 grid grid-cols-2 gap-3">
                                 <flux:field>
                                     <flux:label class="text-xs">Charge to customer</flux:label>
-                                    <flux:input wire:model.live="courierCharge" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums" />
+                                    {{-- Mirrors into the cost until the cost is edited by hand. --}}
+                                    <flux:input wire:model="courierCharge" type="number" step="0.01" size="sm"
+                                        min="0" prefix="৳" class="tabular-nums"
+                                        x-on:input="if (! costTouched) $wire.courierCost = $event.target.value" />
                                 </flux:field>
                                 <flux:field>
                                     <flux:label class="text-xs">Courier cost</flux:label>
-                                    <flux:input wire:model.live="courierCost" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums" />
+                                    <flux:input wire:model="courierCost" type="number" step="0.01" size="sm"
+                                        min="0" prefix="৳" class="tabular-nums"
+                                        x-on:input="costTouched = true" />
                                 </flux:field>
                             </div>
 
-                            @if ($this->courierCostValue > $this->courierChargeValue)
-                                <flux:text size="sm" class="mt-2 text-amber-600 dark:text-amber-400">
-                                    Shop absorbs {{ money($this->courierCostValue - $this->courierChargeValue) }}
-                                </flux:text>
-                            @endif
-                        @endif
+                            {{-- A bound :style, not @unless: Blade directives inside a
+                                 component tag break its parser, and the ">" in the
+                                 condition ends the tag early. --}}
+                            <flux:text size="sm" class="mt-1 text-xs text-amber-600 dark:text-amber-400"
+                                x-show="totals.courierCost > totals.courier"
+                                :style="$this->courierCostValue > $this->courierChargeValue ? '' : 'display: none'">
+                                Shop absorbs <span
+                                    x-text="money(totals.courierCost - totals.courier)">{{ money(max(0, $this->courierCostValue - $this->courierChargeValue)) }}</span>
+                            </flux:text>
+                        </div>
                     </div>
 
                     {{-- Summary lines --}}
-                    <div class="mt-4 space-y-2.5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                    <div class="mt-3 space-y-1.5 border-t border-zinc-200 pt-3 dark:border-zinc-800">
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-zinc-500">Items</span>
                             <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ count($cart) }}</span>
@@ -309,47 +327,45 @@
 
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-zinc-500">Subtotal</span>
-                            <span
-                                class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->cartSubtotal) }}</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.subtotal)">{{ money($this->cartSubtotal) }}</span>
                         </div>
 
-                        @if ($this->cartItemDiscountTotal > 0)
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-zinc-500">Item discounts</span>
-                                <span
-                                    class="font-medium tabular-nums text-green-600 dark:text-green-400">−{{ money($this->cartItemDiscountTotal) }}</span>
-                            </div>
-                        @endif
+                        <div x-show="totals.itemDiscount > 0"
+                            @unless ($this->cartItemDiscountTotal > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Item discounts</span>
+                            <span class="font-medium tabular-nums text-green-600 dark:text-green-400"
+                                x-text="'−' + money(totals.itemDiscount)">−{{ money($this->cartItemDiscountTotal) }}</span>
+                        </div>
 
-                        @if ($this->cartTaxTotal > 0)
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-zinc-500">Tax</span>
-                                <span
-                                    class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->cartTaxTotal) }}</span>
-                            </div>
-                        @endif
+                        <div x-show="totals.tax > 0" @unless ($this->cartTaxTotal > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Tax</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.tax)">{{ money($this->cartTaxTotal) }}</span>
+                        </div>
 
-                        @if ($this->courierChargeValue > 0)
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-zinc-500">Courier</span>
-                                <span
-                                    class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->courierChargeValue) }}</span>
-                            </div>
-                        @endif
+                        <div x-show="totals.courier > 0" @unless ($this->courierChargeValue > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Courier</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.courier)">{{ money($this->courierChargeValue) }}</span>
+                        </div>
                     </div>
                 </div>
 
                 {{-- Total + actions pinned to the bottom --}}
                 <div class="shrink-0 border-t border-zinc-200 dark:border-zinc-800">
-                    <div class="flex items-baseline justify-between px-4 py-4">
+                    <div class="flex items-baseline justify-between px-4 py-2.5">
                         <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
-                        <span
-                            class="text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ money($this->cartTotal) }}</span>
+                        <span class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white"
+                            x-text="money(totals.total)">{{ money($this->cartTotal) }}</span>
                     </div>
 
-                    <div class="px-4 pb-4">
+                    <div class="px-4 pb-3">
                         <flux:button wire:click="openPaymentModal" variant="primary" icon="check-circle"
-                            class="h-12 w-full text-base" :disabled="count($cart) === 0">
+                            class="h-11 w-full text-base" :disabled="count($cart) === 0">
                             <span class="flex w-full items-center justify-center gap-2">
                                 Checkout
                                 <kbd
@@ -359,8 +375,8 @@
                     </div>
 
                     {{-- Shortcuts --}}
-                    <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
-                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500">
+                    <div class="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
                             @foreach (['F2' => 'Search', '↑↓' => 'Navigate', '↵' => 'Add', 'F9' => 'Checkout', 'Esc' => 'Clear'] as $key => $label)
                                 <span class="flex items-center gap-1.5">
                                     <kbd

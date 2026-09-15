@@ -6,7 +6,7 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
 
         {{-- ========== SIDEBAR ========== --}}
-        <flux:sidebar sticky collapsible persist class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 print:hidden">
+        <flux:sidebar sticky collapsible persist class="w-52 border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 print:hidden">
 
             {{-- Logo --}}
             <flux:sidebar.header class="flex items-center justify-between">

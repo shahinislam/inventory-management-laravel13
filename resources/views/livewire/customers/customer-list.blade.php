@@ -25,7 +25,7 @@
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by name, email or phone..."
                 icon="magnifying-glass"
-                class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="customer-list-search-d110a9-nofill" />
+                class="flex-1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="statusFilter" class="w-36">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="active">Active</flux:select.option>

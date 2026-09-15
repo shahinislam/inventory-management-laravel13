@@ -51,12 +51,6 @@ class InvoiceForm extends Component
     /** Paid to the courier; internal, never shown on the customer's copy. */
     public string $courierCost = '0';
 
-    /**
-     * Set once the cost is edited by hand, which stops the charge field from
-     * overwriting it (see updatedCourierCharge).
-     */
-    public bool $courierCostTouched = false;
-
     public string $notes = '';
 
     public array $items = [];
@@ -85,8 +79,6 @@ class InvoiceForm extends Component
             $this->courierCharge = (string) ($invoice->courier_charge ?? '0');
             $this->courierCost = (string) ($invoice->courier_cost ?? '0');
             $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
-            // An existing cost is the user's own figure; never auto-overwrite it.
-            $this->courierCostTouched = $this->hasCourier;
             $this->notes = $invoice->notes ?? '';
 
             $this->items = $invoice->items->map(fn ($item) => [
@@ -147,6 +139,65 @@ class InvoiceForm extends Component
                 ->orWhere('sku', 'like', "%{$this->productSearch}%")
                 ->orWhere('barcode', 'like', "%{$this->productSearch}%")
             )->limit(8)->get();
+    }
+
+    /**
+     * Stock on hand in the selected warehouse, keyed by product id, for every
+     * product on the invoice or in the current search results. One query.
+     *
+     * @return array<int, int>
+     */
+    public function getStockLevelsProperty(): array
+    {
+        $ids = collect($this->items)->pluck('product_id')
+            ->merge($this->productResults->pluck('id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty() || ! $this->warehouse_id) {
+            return [];
+        }
+
+        return DB::table('product_warehouse')
+            ->where('warehouse_id', $this->warehouse_id)
+            ->whereIn('product_id', $ids)
+            ->pluck('quantity', 'product_id')
+            ->map(fn ($qty) => (int) $qty)
+            ->all();
+    }
+
+    /**
+     * Lines asking for more than the warehouse holds.
+     *
+     * An invoice that is already paid had its stock deducted when it was paid,
+     * so comparing it against what is left now would report false shortages.
+     *
+     * @return array<int, array{name: string, requested: int, available: int}>
+     */
+    public function getStockShortagesProperty(): array
+    {
+        if ($this->invoice?->exists && $this->invoice->status === 'paid') {
+            return [];
+        }
+
+        $levels = $this->stockLevels;
+        $shortages = [];
+
+        foreach ($this->items as $item) {
+            $requested = (int) ($item['quantity'] ?: 0);
+            $available = $levels[$item['product_id']] ?? 0;
+
+            if ($requested > $available) {
+                $shortages[$item['product_id']] = [
+                    'name' => $item['name'],
+                    'requested' => $requested,
+                    'available' => $available,
+                ];
+            }
+        }
+
+        return $shortages;
     }
 
     public function selectHighlighted(int $index): void
@@ -232,28 +283,17 @@ class InvoiceForm extends Component
         return $this->itemTax + (float) ($this->tax ?: 0);
     }
 
-    /**
-     * Typing a charge mirrors it into the cost, since pass-through delivery is
-     * the common case. Once the cost is edited by hand we stop.
+    /*
+     * Mirroring the courier charge into the cost happens in the browser
+     * (invoice-form.blade.php). Inputs are deferred, so the server gets a batch
+     * of updates in no guaranteed order and a server-side mirror could overwrite
+     * a cost typed by hand.
      */
-    public function updatedCourierCharge(): void
-    {
-        if (! $this->courierCostTouched) {
-            $this->courierCost = $this->courierCharge;
-        }
-    }
-
-    public function updatedCourierCost(): void
-    {
-        $this->courierCostTouched = true;
-    }
-
     public function updatedHasCourier(): void
     {
         if (! $this->hasCourier) {
             $this->courierCharge = '0';
             $this->courierCost = '0';
-            $this->courierCostTouched = false;
         }
     }
 
@@ -313,6 +353,14 @@ class InvoiceForm extends Component
     public function saveAsPaid(): void
     {
         $this->validate();
+
+        // Marking paid takes the stock out of the warehouse. Refuse up front with
+        // a readable message rather than letting the deduction throw mid-save.
+        if ($this->stockShortages !== []) {
+            $this->addError('stock', 'Not enough stock to mark this invoice paid. Reduce the quantities or save it as a draft.');
+
+            return;
+        }
 
         // The payment row is written inside persist()'s transaction, so a failure
         // there cannot leave a paid invoice with deducted stock and no payment.

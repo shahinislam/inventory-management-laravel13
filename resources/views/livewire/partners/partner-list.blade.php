@@ -38,7 +38,7 @@
     {{-- Search --}}
     <flux:card class="mb-6 p-4">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search partners…" icon="magnifying-glass"
-            class="max-w-sm" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="partner-list-search-96a9bb-nofill" />
+            class="max-w-sm" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
     </flux:card>
 
     {{-- Table --}}

@@ -1,4 +1,43 @@
-<div class="p-4">
+{{-- Client-side totals, the pattern from the Livewire docs: inputs use plain
+     (deferred) wire:model and Alpine derives every figure by reading $wire, so
+     typing costs no server round-trip. The formulas must stay in step with
+     PurchaseForm::getSubtotalProperty() and getTotalProperty(), which the server
+     still uses on save. money() mirrors the PHP money() helper. --}}
+<div class="p-4" x-data="{
+    currency: @js([
+        'symbol' => (string) (App\Models\Setting::get('currency.symbol', '$') ?? '$'),
+        'position' => App\Models\Setting::get('currency.position', 'before'),
+        'decimals' => (int) App\Models\Setting::get('currency.decimals', 2),
+    ]),
+    costTouched: @js($hasCourier),
+    num(value) {
+        const n = parseFloat(String(value ?? '').replace(/,/g, ''));
+        return Number.isFinite(n) ? n : 0;
+    },
+    money(amount) {
+        const formatted = this.num(amount).toLocaleString('en-US', {
+            minimumFractionDigits: this.currency.decimals,
+            maximumFractionDigits: this.currency.decimals,
+        });
+        return this.currency.position === 'after'
+            ? formatted + this.currency.symbol
+            : this.currency.symbol + formatted;
+    },
+    lineTotal(index) {
+        const item = this.$wire.items[index];
+        return this.num(item?.quantity) * this.num(item?.unit_cost);
+    },
+    get totals() {
+        const subtotal = Object.values(this.$wire.items ?? {})
+            .reduce((sum, item) => sum + this.num(item.quantity) * this.num(item.unit_cost), 0);
+        const courier = this.$wire.hasCourier ? this.num(this.$wire.courierCharge) : 0;
+        return {
+            subtotal,
+            courier,
+            total: Math.max(0, subtotal + this.num(this.$wire.tax) - this.num(this.$wire.discount) + courier),
+        };
+    },
+}">
 
     @php
         $isDraft   = !$order || $order->isDraft();
@@ -121,68 +160,15 @@
 
                 {{-- Product Search (editable only) --}}
                 @if($isEditable)
-                {{-- Result count is read from the DOM rather than baked in from
-                     Blade: a Livewire re-render morphs this markup, and an
-                     x-effect resetting the highlight would wipe the arrow-key
-                     position on every keystroke. --}}
-                <div
-                    class="relative mb-4"
-                    x-data="{
-                        open: true,
-                        highlight: 0,
-                        get items() { return this.$refs.resultsList ? [...this.$refs.resultsList.querySelectorAll('[data-search-result]')] : [] },
-                        get count() { return this.items.length },
-                        moveDown() {
-                            if (this.count > 0) {
-                                this.highlight = (this.highlight + 1) % this.count;
-                                this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
-                            }
-                        },
-                        moveUp() {
-                            if (this.count > 0) {
-                                this.highlight = (this.highlight - 1 + this.count) % this.count;
-                                this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
-                            }
-                        },
-                        selectCurrent() { const el = this.items[this.highlight]; if (el) el.click(); }
-                    }"
-                    x-on:click.outside="open = false"
-                >
-                    <flux:input
-                        wire:model.live.debounce.150ms="productSearch"
-                        placeholder="Search product by name, SKU or barcode to add..."
-                        icon="magnifying-glass"
-                        autocomplete="off"
-                        name="purchase-product-search-nofill"
-                        x-on:focus="open = true"
-                        x-on:input="open = true; highlight = 0"
-                        x-on:keydown.arrow-down.prevent="moveDown()"
-                        x-on:keydown.arrow-up.prevent="moveUp()"
-                        x-on:keydown.enter.prevent="selectCurrent(); open = false"
-                    />
-                    @if($searchResults->count() > 0)
-                        <div x-ref="resultsList" x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                            @foreach($searchResults as $i => $product)
-                                <button
-                                    type="button"
-                                    data-search-result
-                                    wire:click="addProduct({{ $product->id }})"
-                                    x-on:click="open = false"
-                                    x-on:mouseenter="highlight = {{ $i }}"
-                                    wire:key="search-{{ $product->id }}"
-                                    x-bind:data-active="highlight === {{ $i }}"
-                                    class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800"
-                                >
-                                    <div class="min-w-0">
-                                        <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
-                                        <div class="mt-0.5 text-xs text-zinc-500"><span class="font-mono">{{ $product->sku }}</span> · Cost: <span class="tabular-nums">{{ money($product->cost_price) }}</span></div>
-                                    </div>
-                                    <flux:icon name="plus" class="size-4 shrink-0 text-zinc-400" />
-                                </button>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
+                <x-search-select model="productSearch" class="mb-4"
+                    placeholder="Search product by name, SKU or barcode to add..."
+                    :show="$searchResults->count() > 0">
+                    @foreach($searchResults as $i => $product)
+                        <x-search-select.option :index="$i" wire:click="addProduct({{ $product->id }})"
+                            wire:key="search-{{ $product->id }}" :label="$product->name"
+                            :description="$product->sku" :value="money($product->cost_price)" />
+                    @endforeach
+                </x-search-select>
                 @endif
 
                 {{-- Items Table --}}
@@ -216,19 +202,20 @@
                                     </td>
                                     <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model.live="items.{{ $index }}.quantity" type="number" min="1" size="sm" class="text-right tabular-nums" />
+                                            <flux:input wire:model="items.{{ $index }}.quantity" type="number" min="1" size="sm" class="text-right tabular-nums" />
                                         @else
                                             <span class="tabular-nums">{{ $item['quantity'] }}</span> {{ $item['unit'] }}
                                         @endif
                                     </td>
                                     <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model.live="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" class="text-right tabular-nums" />
+                                            <flux:input wire:model="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" class="text-right tabular-nums" />
                                         @else
                                             <span class="tabular-nums">{{ money($item['unit_cost']) }}</span>
                                         @endif
                                     </td>
-                                    <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                    <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white"
+                                        x-text="money(lineTotal({{ $index }}))">
                                         {{ money((float)$item['quantity'] * (float)$item['unit_cost']) }}
                                     </td>
                                     @if($order?->exists)
@@ -272,23 +259,27 @@
 
         {{-- Right Column. Sticks on desktop so the running total stays visible
              while working through a long item list. --}}
-        <div class="space-y-6 lg:sticky lg:top-6 lg:self-start">
+        <div class="space-y-4 lg:self-start">
 
             {{-- Totals --}}
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Order Summary</flux:heading>
 
+                {{-- Every figure here is derived in the browser from $wire (root
+                     x-data); inputs are deferred, so typing makes no request. The
+                     server recalculates from the same inputs on save. --}}
                 <div class="space-y-3">
                     <div class="flex items-center justify-between text-sm">
                         <span class="text-zinc-500">Subtotal</span>
-                        <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->subtotal) }}</span>
+                        <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                            x-text="money(totals.subtotal)">{{ money($this->subtotal) }}</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <flux:field>
                             <flux:label class="text-xs">Tax Amount</flux:label>
                             @if($isEditable)
-                                <flux:input wire:model.live="tax" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                                <flux:input wire:model="tax" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
                             @else
                                 <flux:text class="tabular-nums">{{ money($order->tax) }}</flux:text>
                             @endif
@@ -297,7 +288,7 @@
                         <flux:field>
                             <flux:label class="text-xs">Discount</flux:label>
                             @if($isEditable)
-                                <flux:input wire:model.live="discount" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                                <flux:input wire:model="discount" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
                             @else
                                 <flux:text class="tabular-nums">{{ money($order->discount) }}</flux:text>
                             @endif
@@ -308,22 +299,24 @@
                          is anything paid separately to a courier. --}}
                     @if($isEditable)
                         <div>
-                            <flux:checkbox wire:model.live="hasCourier" label="Add courier charge" />
+                            <flux:checkbox wire:model="hasCourier" label="Add courier charge" />
 
-                            @if ($hasCourier)
-                                <div class="mt-3 grid grid-cols-2 gap-3">
-                                    <flux:field>
-                                        <flux:label class="text-xs">Billed by supplier</flux:label>
-                                        <flux:input wire:model.live="courierCharge" type="number" step="0.01"
-                                            min="0" prefix="৳" class="tabular-nums" />
-                                    </flux:field>
-                                    <flux:field>
-                                        <flux:label class="text-xs">Courier cost</flux:label>
-                                        <flux:input wire:model.live="courierCost" type="number" step="0.01"
-                                            min="0" prefix="৳" class="tabular-nums" />
-                                    </flux:field>
-                                </div>
-                            @endif
+                            <div x-show="$wire.hasCourier" @unless ($hasCourier) style="display: none" @endunless
+                                class="mt-3 grid grid-cols-2 gap-3">
+                                <flux:field>
+                                    <flux:label class="text-xs">Billed by supplier</flux:label>
+                                    {{-- Mirrors into the cost until the cost is edited by hand. --}}
+                                    <flux:input wire:model="courierCharge" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums"
+                                        x-on:input="if (! costTouched) $wire.courierCost = $event.target.value" />
+                                </flux:field>
+                                <flux:field>
+                                    <flux:label class="text-xs">Courier cost</flux:label>
+                                    <flux:input wire:model="courierCost" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums"
+                                        x-on:input="costTouched = true" />
+                                </flux:field>
+                            </div>
                         </div>
                     @elseif($order?->courier_charge > 0 || $order?->courier_cost > 0)
                         <div class="flex items-center justify-between text-sm">
@@ -332,17 +325,21 @@
                         </div>
                     @endif
 
-                    @if($isEditable && $this->courierChargeValue > 0)
-                        <div class="flex items-center justify-between text-sm">
+                    @if($isEditable)
+                        <div x-show="totals.courier > 0"
+                            @unless ($this->courierChargeValue > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
                             <span class="text-zinc-500">Courier</span>
-                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->courierChargeValue) }}</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.courier)">{{ money($this->courierChargeValue) }}</span>
                         </div>
                     @endif
 
                     <div class="border-t border-zinc-200 pt-3 dark:border-zinc-800">
                         <div class="flex items-baseline justify-between">
                             <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
-                            <span class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ money($this->total) }}</span>
+                            <span class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white"
+                                x-text="money(totals.total)">{{ money($this->total) }}</span>
                         </div>
                     </div>
 

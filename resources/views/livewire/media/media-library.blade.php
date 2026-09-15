@@ -67,7 +67,7 @@
             wire:model.live.debounce.300ms="search"
             placeholder="Search files..."
             icon="magnifying-glass"
-            class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="media-library-search-af34dd-nofill" />
+            class="flex-1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
 
         {{-- Type Filter --}}
         <flux:select wire:model.live="typeFilter" class="w-36">

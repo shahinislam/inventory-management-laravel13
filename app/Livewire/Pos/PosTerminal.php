@@ -45,12 +45,6 @@ class PosTerminal extends Component
     /** Paid to the courier; internal, never shown on the customer's copy. */
     public string $courierCost = '0';
 
-    /**
-     * Set once the cashier edits the cost by hand, which stops the charge
-     * field from overwriting it (see updatedCourierCharge).
-     */
-    public bool $courierCostTouched = false;
-
     public string $paymentMethod = 'cash';
 
     public string $amountReceived = '';
@@ -244,22 +238,6 @@ class PosTerminal extends Component
 
     // ============ COURIER ============
 
-    /**
-     * Typing a charge mirrors it into the cost, since pass-through delivery is
-     * the common case. Once the cashier edits the cost themselves we stop.
-     */
-    public function updatedCourierCharge(): void
-    {
-        if (! $this->courierCostTouched) {
-            $this->courierCost = $this->courierCharge;
-        }
-    }
-
-    public function updatedCourierCost(): void
-    {
-        $this->courierCostTouched = true;
-    }
-
     public function updatedHasCourier(): void
     {
         if (! $this->hasCourier) {
@@ -272,7 +250,6 @@ class PosTerminal extends Component
         $this->hasCourier = false;
         $this->courierCharge = '0';
         $this->courierCost = '0';
-        $this->courierCostTouched = false;
     }
 
     /** The charge, or zero when the courier option is switched off. */

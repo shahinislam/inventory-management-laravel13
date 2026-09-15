@@ -112,7 +112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('purchases')->name('purchases.')->middleware('role:admin,manager')->group(function () {
         Route::get('/', PurchaseList::class)->name('index');
         Route::get('/create', PurchaseForm::class)->name('create');
-        Route::get('/{purchaseOrder}/edit', PurchaseForm::class)->name('edit');
+        Route::get('/{order}/edit', PurchaseForm::class)->name('edit');
     });
 
     // Invoices — viewers may read invoices but not create or edit them.

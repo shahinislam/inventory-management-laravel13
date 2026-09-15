@@ -24,8 +24,8 @@ class SettingsSeeder extends Seeder
             ['key' => 'company.tax_number',     'value' => null,               'group' => 'company',      'type' => 'text',    'is_public' => false],
 
             // Currency
-            ['key' => 'currency.symbol',        'value' => '$',                'group' => 'currency',     'type' => 'text',    'is_public' => true],
-            ['key' => 'currency.code',          'value' => 'USD',              'group' => 'currency',     'type' => 'text',    'is_public' => true],
+            ['key' => 'currency.symbol',        'value' => '৳',                'group' => 'currency',     'type' => 'text',    'is_public' => true],
+            ['key' => 'currency.code',          'value' => 'BDT',              'group' => 'currency',     'type' => 'text',    'is_public' => true],
             ['key' => 'currency.position',      'value' => 'before',           'group' => 'currency',     'type' => 'text',    'is_public' => true],
             ['key' => 'currency.decimals',      'value' => '2',                'group' => 'currency',     'type' => 'number',  'is_public' => true],
 

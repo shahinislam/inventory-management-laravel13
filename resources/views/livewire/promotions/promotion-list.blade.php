@@ -14,7 +14,7 @@
 
     <flux:card class="mb-6 p-4">
         <div class="flex items-center gap-3">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or code..." icon="magnifying-glass" class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="promotion-list-search-060458-nofill" />
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or code..." icon="magnifying-glass" class="flex-1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="statusFilter" class="w-40">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="active">Active</flux:select.option>

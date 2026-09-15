@@ -29,57 +29,21 @@
                         {{-- Product Search --}}
                         <flux:field>
                             <flux:label badge="Required">Product</flux:label>
-                            <div
-                                class="relative"
-                                x-data="{
-                                    open: true,
-                                    highlight: 0,
-                                    count: {{ $products->count() }},
-                                    moveDown() { if (this.count > 0) this.highlight = (this.highlight + 1) % this.count },
-                                    moveUp() { if (this.count > 0) this.highlight = (this.highlight - 1 + this.count) % this.count },
-                                }"
-                                x-on:click.outside="open = false"
-                                x-effect="count = {{ $products->count() }}; highlight = 0"
-                            >
-                                <flux:input
-                                    wire:model.live.debounce.150ms="search"
-                                    placeholder="Search by name, SKU or scan barcode..."
-                                    icon="magnifying-glass"
-                                    autofocus
-                                    x-on:focus="open = true"
-                                    x-on:keydown.arrow-down.prevent="moveDown()"
-                                    x-on:keydown.arrow-up.prevent="moveUp()"
-                                    x-on:keydown.enter.prevent="open = false; $wire.selectHighlighted(highlight)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="stock-transfer-search-eeaa7f-nofill" />
-                                @if($selectedProduct)
-                                    <flux:button
-                                        icon="x-mark" variant="ghost" size="sm" square
-                                        class="absolute right-2 top-1/2 -translate-y-1/2"
-                                        wire:click="clearProduct" type="button"
-                                    />
-                                @endif
-
-                                @if($products->count() > 0 && !$selectedProduct)
-                                    <div x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                                        @foreach($products as $i => $product)
-                                            <button
-                                                type="button"
-                                                wire:click="selectProduct({{ $product->id }})"
-                                                x-on:click="open = false"
-                                                x-on:mouseenter="highlight = {{ $i }}"
-                                                wire:key="prod-{{ $product->id }}"
-                                                x-bind:data-active="highlight === {{ $i }}"
-                                                class="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left transition-colors data-[active=true]:bg-zinc-100 dark:data-[active=true]:bg-zinc-800"
-                                            >
-                                                <div class="min-w-0">
-                                                    <div class="truncate text-sm font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
-                                                    <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $product->sku }}</div>
-                                                </div>
-                                                <flux:badge size="sm" color="zinc">{{ $product->quantity }} {{ $product->unit }}</flux:badge>
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
+                            <x-search-select model="search" autofocus
+                                placeholder="Search by name, SKU or scan barcode..."
+                                :show="$products->count() > 0"
+                                :selected="$selectedProduct?->name"
+                                :selected-hint="$selectedProduct?->sku"
+                                clear="clearProduct">
+                                @foreach($products as $i => $product)
+                                    <x-search-select.option :index="$i"
+                                        wire:click="selectProduct({{ $product->id }})"
+                                        wire:key="prod-{{ $product->id }}"
+                                        :label="$product->name"
+                                        :description="$product->sku"
+                                        :value="$product->quantity . ' ' . $product->unit" />
+                                @endforeach
+                            </x-search-select>
                             <flux:error name="product_id" />
                         </flux:field>
 

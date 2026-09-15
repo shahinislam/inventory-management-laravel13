@@ -38,12 +38,6 @@ class PurchaseForm extends Component
     /** Freight paid separately to a courier, outside the supplier invoice. */
     public string $courierCost = '0';
 
-    /**
-     * Set once the cost is edited by hand, which stops the charge field from
-     * overwriting it (see updatedCourierCharge).
-     */
-    public bool $courierCostTouched = false;
-
     // Line items
     public array $items = [];
 
@@ -73,8 +67,6 @@ class PurchaseForm extends Component
             $this->courierCharge = (string) ($order->courier_charge ?? '0');
             $this->courierCost = (string) ($order->courier_cost ?? '0');
             $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
-            // An existing cost is the user's own figure; never auto-overwrite it.
-            $this->courierCostTouched = $this->hasCourier;
 
             $this->items = $order->items->map(fn ($item) => [
                 'product_id' => $item->product_id,
@@ -173,28 +165,17 @@ class PurchaseForm extends Component
         }, 0);
     }
 
-    /**
-     * Typing a charge mirrors it into the cost, since pass-through freight is
-     * the common case. Once the cost is edited by hand we stop.
+    /*
+     * Mirroring the freight charge into the cost happens in the browser
+     * (purchase-form.blade.php). Inputs are deferred, so the server gets a batch
+     * of updates in no guaranteed order and a server-side mirror could overwrite
+     * a cost typed by hand.
      */
-    public function updatedCourierCharge(): void
-    {
-        if (! $this->courierCostTouched) {
-            $this->courierCost = $this->courierCharge;
-        }
-    }
-
-    public function updatedCourierCost(): void
-    {
-        $this->courierCostTouched = true;
-    }
-
     public function updatedHasCourier(): void
     {
         if (! $this->hasCourier) {
             $this->courierCharge = '0';
             $this->courierCost = '0';
-            $this->courierCostTouched = false;
         }
     }
 

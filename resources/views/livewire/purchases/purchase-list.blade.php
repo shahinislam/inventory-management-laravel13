@@ -29,7 +29,7 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by order number or supplier..."
-                icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="purchase-list-search-cd6158-nofill" />
+                icon="magnifying-glass" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="statusFilter" placeholder="All Status">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="draft">Draft</flux:select.option>
@@ -82,7 +82,7 @@
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <flux:badge size="sm" color="zinc">{{ $order->items_count }} items</flux:badge>
+                            <flux:badge size="sm" color="zinc">{{ $order->items_count }} {{ Str::plural('item', $order->items_count) }}</flux:badge>
                         </flux:table.cell>
 
                         <flux:table.cell>

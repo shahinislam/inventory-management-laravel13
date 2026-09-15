@@ -17,7 +17,7 @@
 
     <flux:card class="mb-6 p-4">
         <div class="flex items-center gap-3">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or email..." icon="magnifying-glass" class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="user-management-search-476ffc-nofill" />
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or email..." icon="magnifying-glass" class="flex-1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="roleFilter" class="w-40">
                 <flux:select.option value="">All Roles</flux:select.option>
                 <flux:select.option value="admin">Admin</flux:select.option>

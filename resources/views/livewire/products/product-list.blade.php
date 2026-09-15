@@ -21,7 +21,7 @@
                     wire:model.live.debounce.300ms="search"
                     placeholder="Search by name, SKU or barcode..."
                     icon="magnifying-glass"
-                    autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="product-list-search-f8c20c-nofill" />
+                    autofocus autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             </div>
 
             {{-- Toggle Filters --}}

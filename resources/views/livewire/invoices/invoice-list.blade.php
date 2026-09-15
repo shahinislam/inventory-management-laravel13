@@ -26,7 +26,7 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search invoice #, customer name or phone..."
-                icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="invoice-list-search-d2178d-nofill" />
+                icon="magnifying-glass" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="statusFilter" placeholder="All Status">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="draft">Draft</flux:select.option>

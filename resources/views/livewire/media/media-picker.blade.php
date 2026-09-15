@@ -5,7 +5,7 @@
             wire:model.live.debounce.300ms="search"
             placeholder="Search images..."
             icon="magnifying-glass"
-            class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="media-picker-search-3607ab-nofill" />
+            class="flex-1" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
 
         {{-- Upload --}}
         <flux:button icon="arrow-up-tray" variant="ghost" size="sm" x-on:click="$refs.pickerInput.click()">Upload</flux:button>

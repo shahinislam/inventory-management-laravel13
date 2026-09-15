@@ -27,7 +27,6 @@ it('adds the courier charge to the POS cart total', function () {
         ->assertSet('cart.0.price', 100.0)
         ->set('hasCourier', true)
         ->set('courierCharge', '60')
-        ->assertSet('courierCost', '60') // mirrored
         ->tap(fn ($c) => expect($c->instance()->cartTotal)->toBe(160.0));
 });
 
@@ -46,7 +45,10 @@ it('leaves the cart total alone while the courier tick is off', function () {
         ->tap(fn ($c) => expect($c->instance()->cartTotal)->toBe(100.0));
 });
 
-it('stops mirroring the charge once the cost is edited by hand', function () {
+it('never overwrites a courier cost on the server when the charge changes', function () {
+    // Mirroring the charge into the cost is done in the browser. The server
+    // must not do it, or a batch of deferred updates could clobber a cost the
+    // cashier typed by hand.
     Livewire::test(PosTerminal::class)
         ->set('hasCourier', true)
         ->set('courierCost', '120')

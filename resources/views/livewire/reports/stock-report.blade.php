@@ -21,7 +21,7 @@
     {{-- Filters --}}
     <flux:card class="mb-6 p-4 print:hidden">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="stock-report-search-1b0a89-nofill" />
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" name="q-{{ Str::random(10) }}" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" />
             <flux:select wire:model.live="warehouseFilter" placeholder="All Warehouses">
                 <flux:select.option value="">All Warehouses</flux:select.option>
                 @foreach($warehouses as $warehouse)
