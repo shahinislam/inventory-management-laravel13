@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'invoice_number', 'warehouse_id', 'customer_id', 'created_by',
     'customer_name', 'customer_email', 'customer_phone', 'customer_address',
     'status', 'payment_method',
-    'subtotal', 'tax', 'discount', 'total', 'paid_amount', 'due_amount',
+    'subtotal', 'tax', 'discount', 'courier_charge', 'courier_cost', 'total', 'paid_amount', 'due_amount',
     'invoice_date', 'due_date', 'paid_date', 'notes',
 ])]
 class Invoice extends Model
@@ -25,6 +25,8 @@ class Invoice extends Model
             'subtotal' => 'decimal:2',
             'tax' => 'decimal:2',
             'discount' => 'decimal:2',
+            'courier_charge' => 'decimal:2',
+            'courier_cost' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'due_amount' => 'decimal:2',
@@ -103,5 +105,16 @@ class Invoice extends Model
     public function calculateDue(): float
     {
         return max(0, $this->total - $this->paid_amount);
+    }
+
+    /**
+     * What the shop made (or lost) on delivery for this sale.
+     *
+     * Zero when the charge is passed straight through to the courier, negative
+     * when the shop absorbed all or part of the delivery cost.
+     */
+    public function getCourierMarginAttribute(): float
+    {
+        return (float) $this->courier_charge - (float) $this->courier_cost;
     }
 }

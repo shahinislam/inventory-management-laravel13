@@ -30,6 +30,20 @@ class PurchaseForm extends Component
 
     public string $discount = '0';
 
+    public bool $hasCourier = false;
+
+    /** Freight billed by the supplier; part of the order total. */
+    public string $courierCharge = '0';
+
+    /** Freight paid separately to a courier, outside the supplier invoice. */
+    public string $courierCost = '0';
+
+    /**
+     * Set once the cost is edited by hand, which stops the charge field from
+     * overwriting it (see updatedCourierCharge).
+     */
+    public bool $courierCostTouched = false;
+
     // Line items
     public array $items = [];
 
@@ -56,6 +70,11 @@ class PurchaseForm extends Component
             // are nullable in practice, so a null would raise a TypeError.
             $this->tax = (string) ($order->tax ?? '0');
             $this->discount = (string) ($order->discount ?? '0');
+            $this->courierCharge = (string) ($order->courier_charge ?? '0');
+            $this->courierCost = (string) ($order->courier_cost ?? '0');
+            $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
+            // An existing cost is the user's own figure; never auto-overwrite it.
+            $this->courierCostTouched = $this->hasCourier;
 
             $this->items = $order->items->map(fn ($item) => [
                 'product_id' => $item->product_id,
@@ -81,6 +100,8 @@ class PurchaseForm extends Component
             'notes' => 'nullable|string',
             'tax' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'courierCharge' => 'nullable|numeric|min:0',
+            'courierCost' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:1',
@@ -152,13 +173,49 @@ class PurchaseForm extends Component
         }, 0);
     }
 
+    /**
+     * Typing a charge mirrors it into the cost, since pass-through freight is
+     * the common case. Once the cost is edited by hand we stop.
+     */
+    public function updatedCourierCharge(): void
+    {
+        if (! $this->courierCostTouched) {
+            $this->courierCost = $this->courierCharge;
+        }
+    }
+
+    public function updatedCourierCost(): void
+    {
+        $this->courierCostTouched = true;
+    }
+
+    public function updatedHasCourier(): void
+    {
+        if (! $this->hasCourier) {
+            $this->courierCharge = '0';
+            $this->courierCost = '0';
+            $this->courierCostTouched = false;
+        }
+    }
+
+    /** The charge, or zero when the courier option is switched off. */
+    public function getCourierChargeValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCharge ?: 0) : 0.0;
+    }
+
+    public function getCourierCostValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCost ?: 0) : 0.0;
+    }
+
     public function getTotalProperty(): float
     {
         $subtotal = $this->subtotal;
         $tax = (float) ($this->tax ?: 0);
         $discount = (float) ($this->discount ?: 0);
 
-        return max(0, $subtotal + $tax - $discount);
+        return max(0, $subtotal + $tax - $discount + $this->courierChargeValue);
     }
 
     private function buildItemsData(): array
@@ -184,11 +241,11 @@ class PurchaseForm extends Component
         $this->redirect(route('purchases.index'), navigate: true);
     }
 
-    public function submitForApproval(): void
+    public function placeOrder(): void
     {
         $this->validate();
-        $this->persist('pending');
-        session()->flash('success', 'Purchase order submitted for approval!');
+        $this->persist('ordered');
+        session()->flash('success', 'Purchase order placed!');
         $this->redirect(route('purchases.index'), navigate: true);
     }
 
@@ -210,6 +267,8 @@ class PurchaseForm extends Component
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'discount' => $discount,
+                'courier_charge' => $this->courierChargeValue,
+                'courier_cost' => $this->courierCostValue,
                 'total' => $total,
                 'status' => $status,
                 'created_by' => $this->order?->created_by ?? auth()->id(),
@@ -246,40 +305,28 @@ class PurchaseForm extends Component
         return true;
     }
 
-    public function approve(): void
-    {
-        if (! $this->authorizeStateChange('approve')) {
-            return;
-        }
-
-        if (! $this->order?->canApprove()) {
-            session()->flash('error', 'Only draft or pending orders can be approved.');
-
-            return;
-        }
-
-        $this->order->update([
-            'status' => 'approved',
-            'approved_by' => auth()->id(),
-        ]);
-
-        session()->flash('success', 'Purchase order approved!');
-    }
-
+    /**
+     * Move a saved order to "ordered", meaning it has been placed with the
+     * supplier and is now awaiting delivery.
+     *
+     * There is no approval gate: orders go straight from draft to ordered.
+     * `pending` and `approved` remain valid states only so that orders created
+     * before the gate was removed still move forward.
+     */
     public function markAsOrdered(): void
     {
         if (! $this->authorizeStateChange('modify')) {
             return;
         }
 
-        if ($this->order?->status !== 'approved') {
-            session()->flash('error', 'Only approved orders can be marked as ordered.');
+        if (! $this->order?->canPlace()) {
+            session()->flash('error', 'This order has already been placed.');
 
             return;
         }
 
         $this->order->update(['status' => 'ordered']);
-        session()->flash('success', 'Purchase order marked as ordered!');
+        session()->flash('success', 'Purchase order placed!');
     }
 
     public function cancel(): void
@@ -325,7 +372,7 @@ class PurchaseForm extends Component
      */
     private function canReceiveStock(): bool
     {
-        return in_array($this->order?->status, ['approved', 'ordered'], true);
+        return in_array($this->order?->status, ['pending', 'approved', 'ordered'], true);
     }
 
     public function receiveStock(): void

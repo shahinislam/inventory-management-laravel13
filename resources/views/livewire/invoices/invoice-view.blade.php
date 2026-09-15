@@ -257,6 +257,13 @@
                                 {{ money($invoice->tax) }}</span>
                         </div>
                     @endif
+                    @if ($invoice->courier_charge > 0)
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Courier</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
+                                {{ money($invoice->courier_charge) }}</span>
+                        </div>
+                    @endif
                 </div>
 
                 <div
@@ -267,6 +274,24 @@
                         class="text-xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white print:text-black">
                         {{ money($invoice->total) }}</span>
                 </div>
+
+                @if ($invoice->courier_cost > 0)
+                    {{-- Internal only: what the courier cost us, and whether the
+                         delivery charge covered it. Never printed. --}}
+                    <div class="mt-3 space-y-1 border-t border-dashed border-zinc-200 pt-3 text-xs dark:border-zinc-700 print:hidden">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Courier cost (internal)</span>
+                            <span class="tabular-nums text-zinc-500">{{ money($invoice->courier_cost) }}</span>
+                        </div>
+                        @if ($invoice->courier_margin < 0)
+                            <div class="flex justify-between">
+                                <span class="text-amber-600 dark:text-amber-400">Shop absorbed</span>
+                                <span class="tabular-nums text-amber-600 dark:text-amber-400">
+                                    {{ money(abs($invoice->courier_margin)) }}</span>
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 <div class="mt-3 space-y-2 border-t border-zinc-200 pt-3 text-sm dark:border-zinc-800">
                     <div class="flex justify-between">

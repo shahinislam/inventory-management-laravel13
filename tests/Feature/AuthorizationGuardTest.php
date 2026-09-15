@@ -104,48 +104,50 @@ function orderInState(string $status, User $user): PurchaseOrder
     return $order;
 }
 
-it('blocks staff from approving a purchase order', function () {
+it('blocks staff from placing a purchase order', function () {
     $staff = User::factory()->create(['role' => 'staff', 'is_active' => true]);
-    $order = orderInState('pending', $staff);
+    $order = orderInState('draft', $staff);
 
     $this->actingAs($staff);
 
-    Livewire::test(PurchaseForm::class, ['order' => $order])->call('approve');
+    Livewire::test(PurchaseForm::class, ['order' => $order])->call('markAsOrdered');
 
-    expect($order->fresh()->status)->toBe('pending');
+    expect($order->fresh()->status)->toBe('draft');
 });
 
-it('lets a manager approve a pending order', function () {
+it('lets a manager place a draft order directly', function () {
+    // There is no approval gate: draft goes straight to ordered.
     $manager = User::factory()->create(['role' => 'manager', 'is_active' => true]);
-    $order = orderInState('pending', $manager);
+    $order = orderInState('draft', $manager);
 
     $this->actingAs($manager);
 
-    Livewire::test(PurchaseForm::class, ['order' => $order])->call('approve');
+    Livewire::test(PurchaseForm::class, ['order' => $order])->call('markAsOrdered');
 
-    expect($order->fresh()->status)->toBe('approved');
+    expect($order->fresh()->status)->toBe('ordered');
 });
 
-it('refuses to approve an already received order', function () {
+it('still lets a legacy pending order be placed', function () {
+    // Orders created before the approval gate was removed must not get stuck.
     $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-    $order = orderInState('received', $admin);
-
-    $this->actingAs($admin);
-
-    Livewire::test(PurchaseForm::class, ['order' => $order])->call('approve');
-
-    expect($order->fresh()->status)->toBe('received');
-});
-
-it('refuses to mark a draft order as ordered', function () {
-    $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
-    $order = orderInState('draft', $admin);
+    $order = orderInState('pending', $admin);
 
     $this->actingAs($admin);
 
     Livewire::test(PurchaseForm::class, ['order' => $order])->call('markAsOrdered');
 
-    expect($order->fresh()->status)->toBe('draft');
+    expect($order->fresh()->status)->toBe('ordered');
+});
+
+it('refuses to place an already received order', function () {
+    $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+    $order = orderInState('received', $admin);
+
+    $this->actingAs($admin);
+
+    Livewire::test(PurchaseForm::class, ['order' => $order])->call('markAsOrdered');
+
+    expect($order->fresh()->status)->toBe('received');
 });
 
 it('refuses to cancel a received order', function () {

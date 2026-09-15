@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     <div class="mb-6 flex items-center gap-4">
         <flux:button icon="arrow-left" variant="ghost" href="{{ route('promotions.index') }}" wire:navigate />

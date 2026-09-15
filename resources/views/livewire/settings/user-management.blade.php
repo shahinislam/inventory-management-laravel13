@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -17,7 +17,7 @@
 
     <flux:card class="mb-6 p-4">
         <div class="flex items-center gap-3">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or email..." icon="magnifying-glass" class="flex-1" />
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search by name or email..." icon="magnifying-glass" class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="user-management-search-476ffc-nofill" />
             <flux:select wire:model.live="roleFilter" class="w-40">
                 <flux:select.option value="">All Roles</flux:select.option>
                 <flux:select.option value="admin">Admin</flux:select.option>

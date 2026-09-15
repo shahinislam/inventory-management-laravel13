@@ -151,6 +151,33 @@
                 </flux:sidebar.group>
                 @endif
 
+                {{-- Partnership --}}
+                @if(auth()->user()->isAdmin())
+                <flux:sidebar.group :heading="__('Partnership')" expandable icon="users"
+                    :expanded="request()->routeIs('partners.*')">
+                    <flux:sidebar.item
+                        icon="chart-bar-square"
+                        :href="route('partners.report')"
+                        :current="request()->routeIs('partners.report')"
+                        wire:navigate
+                    >{{ __('Profit Report') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="users"
+                        :href="route('partners.index')"
+                        :current="request()->routeIs('partners.index') || request()->routeIs('partners.create') || request()->routeIs('partners.edit')"
+                        wire:navigate
+                    >{{ __('Partners') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="banknotes"
+                        :href="route('partners.transactions')"
+                        :current="request()->routeIs('partners.transactions')"
+                        wire:navigate
+                    >{{ __('Investments') }}</flux:sidebar.item>
+                </flux:sidebar.group>
+                @endif
+
                 {{-- Media --}}
                 @if(auth()->user()->hasRole(['admin', 'manager', 'staff']))
                 <flux:sidebar.group :heading="__('Media')">

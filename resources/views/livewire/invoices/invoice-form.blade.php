@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center gap-4">
@@ -10,7 +10,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
 
         {{-- Left Column --}}
         <div class="min-w-0 space-y-6">
@@ -22,7 +22,7 @@
                 {{-- Customer Search --}}
                 <div class="relative mb-4" x-data="{ open: true }" x-on:click.outside="open = false">
                     <flux:input wire:model.live.debounce.200ms="customerSearch"
-                        placeholder="Search existing customer..." icon="user" x-on:focus="open = true" />
+                        placeholder="Search existing customer..." icon="user" x-on:focus="open = true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="invoice-form-search-b0bec9-nofill" />
                     @if ($customer_id)
                         <flux:button icon="x-mark" variant="ghost" size="sm" square
                             class="absolute right-2 top-1/2 -translate-y-1/2" wire:click="clearCustomer"
@@ -122,7 +122,7 @@
                 {{-- Items Table. Five numeric inputs can't compress far, so the
                      table scrolls horizontally rather than crushing columns. --}}
                 <div class="-mx-2 overflow-x-auto">
-                    <table class="w-full min-w-3xl text-sm">
+                    <table class="w-full min-w-xl text-sm">
                         <thead>
                             <tr
                                 class="border-b border-zinc-200 text-[0.6875rem] uppercase tracking-wider text-zinc-500 dark:border-zinc-700">
@@ -265,11 +265,46 @@
                         </flux:field>
                     </div>
 
+                    {{-- Courier. The charge is billed to the customer; the cost is
+                         what we pay the courier and stays internal. --}}
+                    <div>
+                        <flux:checkbox wire:model.live="hasCourier" label="Add courier charge" />
+
+                        @if ($hasCourier)
+                            <div class="mt-3 grid grid-cols-2 gap-3">
+                                <flux:field>
+                                    <flux:label class="text-xs">Charge to customer</flux:label>
+                                    <flux:input wire:model.live="courierCharge" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums" />
+                                </flux:field>
+                                <flux:field>
+                                    <flux:label class="text-xs">Courier cost</flux:label>
+                                    <flux:input wire:model.live="courierCost" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums" />
+                                </flux:field>
+                            </div>
+
+                            @if ($this->courierCostValue > $this->courierChargeValue)
+                                <flux:text size="sm" class="mt-2 text-amber-600 dark:text-amber-400">
+                                    Shop absorbs {{ money($this->courierCostValue - $this->courierChargeValue) }}
+                                </flux:text>
+                            @endif
+                        @endif
+                    </div>
+
                     @if ($this->taxTotal > 0)
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-zinc-500">Tax</span>
                             <span
                                 class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->taxTotal) }}</span>
+                        </div>
+                    @endif
+
+                    @if ($this->courierChargeValue > 0)
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Courier</span>
+                            <span
+                                class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->courierChargeValue) }}</span>
                         </div>
                     @endif
 

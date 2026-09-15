@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center gap-4">
@@ -54,8 +54,7 @@
                                     x-on:focus="open = true"
                                     x-on:keydown.arrow-down.prevent="moveDown()"
                                     x-on:keydown.arrow-up.prevent="moveUp()"
-                                    x-on:keydown.enter.prevent="open = false; $wire.selectHighlighted(highlight)"
-                                />
+                                    x-on:keydown.enter.prevent="open = false; $wire.selectHighlighted(highlight)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="stock-adjustment-search-eeaa7f-nofill" />
                                 @if($selectedProduct)
                                     <flux:button
                                         icon="x-mark" variant="ghost" size="sm" square

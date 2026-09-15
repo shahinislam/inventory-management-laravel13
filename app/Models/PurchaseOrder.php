@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'order_number', 'supplier_id', 'warehouse_id',
     'created_by', 'approved_by', 'status',
-    'subtotal', 'tax', 'discount', 'total', 'paid_amount',
+    'subtotal', 'tax', 'discount', 'courier_charge', 'courier_cost', 'total', 'paid_amount',
     'order_date', 'expected_date', 'received_date', 'notes',
 ])]
 class PurchaseOrder extends Model
@@ -24,6 +24,8 @@ class PurchaseOrder extends Model
             'subtotal' => 'decimal:2',
             'tax' => 'decimal:2',
             'discount' => 'decimal:2',
+            'courier_charge' => 'decimal:2',
+            'courier_cost' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'order_date' => 'date',
@@ -93,13 +95,19 @@ class PurchaseOrder extends Model
         return $this->status === 'draft';
     }
 
-    public function canApprove(): bool
+    /**
+     * Whether this order can still be placed with the supplier.
+     *
+     * `pending` and `approved` are legacy states from when purchase orders
+     * required approval; they are kept so existing orders can still move on.
+     */
+    public function canPlace(): bool
     {
-        return in_array($this->status, ['draft', 'pending']);
+        return in_array($this->status, ['draft', 'pending', 'approved'], true);
     }
 
     public function canReceive(): bool
     {
-        return $this->status === 'approved';
+        return in_array($this->status, ['pending', 'approved', 'ordered'], true);
     }
 }

@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -25,8 +25,7 @@
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by name, email or phone..."
                 icon="magnifying-glass"
-                class="flex-1"
-            />
+                class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="customer-list-search-d110a9-nofill" />
             <flux:select wire:model.live="statusFilter" class="w-36">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="active">Active</flux:select.option>

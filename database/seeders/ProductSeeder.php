@@ -5,6 +5,9 @@ namespace Database\Seeders;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Models\User;
+use App\Models\Warehouse;
+use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -163,8 +166,21 @@ class ProductSeeder extends Seeder
             ],
         ];
 
+        // Stock lives in product_warehouse, not on products.quantity — the POS
+        // and every stock query read the pivot. Seeding the column alone leaves
+        // products invisible to product search, so put the opening stock into
+        // the default warehouse through the same service the app uses.
+        $warehouse = Warehouse::getDefault() ?? Warehouse::first();
+        $inventory = app(InventoryService::class);
+
+        // Stock movements are attributed to the acting user, and seeding has no
+        // authenticated session. Act as the admin so the audit trail is valid.
+        if ($admin = User::where('role', 'admin')->first()) {
+            auth()->setUser($admin);
+        }
+
         foreach ($products as $product) {
-            Product::updateOrCreate(
+            $record = Product::updateOrCreate(
                 ['sku' => $product['sku']],
                 array_merge($product, [
                     'slug' => Str::slug($product['name']),
@@ -172,6 +188,24 @@ class ProductSeeder extends Seeder
                     'status' => 'active',
                 ])
             );
+
+            if (! $warehouse || $product['quantity'] <= 0) {
+                continue;
+            }
+
+            // Re-running the seeder must not keep stacking stock on top.
+            $onHand = $inventory->stockIn($record->id, $warehouse->id);
+            $shortfall = (int) $product['quantity'] - $onHand;
+
+            if ($shortfall > 0) {
+                $inventory->add(
+                    productId: $record->id,
+                    warehouseId: $warehouse->id,
+                    quantity: $shortfall,
+                    type: 'adjustment',
+                    extra: ['notes' => 'Opening stock (seed)'],
+                );
+            }
         }
     }
 }

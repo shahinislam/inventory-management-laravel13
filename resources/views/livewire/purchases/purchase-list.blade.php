@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -29,14 +29,15 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by order number or supplier..."
-                icon="magnifying-glass"
-            />
+                icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="purchase-list-search-cd6158-nofill" />
             <flux:select wire:model.live="statusFilter" placeholder="All Status">
                 <flux:select.option value="">All Status</flux:select.option>
                 <flux:select.option value="draft">Draft</flux:select.option>
-                <flux:select.option value="pending">Pending</flux:select.option>
-                <flux:select.option value="approved">Approved</flux:select.option>
                 <flux:select.option value="ordered">Ordered</flux:select.option>
+                {{-- Legacy statuses from before the approval step was removed.
+                     Listed so existing orders remain filterable. --}}
+                <flux:select.option value="pending">Pending (legacy)</flux:select.option>
+                <flux:select.option value="approved">Approved (legacy)</flux:select.option>
                 <flux:select.option value="received">Received</flux:select.option>
                 <flux:select.option value="cancelled">Cancelled</flux:select.option>
             </flux:select>

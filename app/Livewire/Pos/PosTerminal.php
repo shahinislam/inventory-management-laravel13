@@ -37,6 +37,20 @@ class PosTerminal extends Component
 
     public string $tax = '0';
 
+    public bool $hasCourier = false;
+
+    /** Billed to the customer; part of the invoice total. */
+    public string $courierCharge = '0';
+
+    /** Paid to the courier; internal, never shown on the customer's copy. */
+    public string $courierCost = '0';
+
+    /**
+     * Set once the cashier edits the cost by hand, which stops the charge
+     * field from overwriting it (see updatedCourierCharge).
+     */
+    public bool $courierCostTouched = false;
+
     public string $paymentMethod = 'cash';
 
     public string $amountReceived = '';
@@ -225,6 +239,51 @@ class PosTerminal extends Component
         $this->tax = '0';
         $this->amountReceived = '';
         $this->paymentMethod = 'cash';
+        $this->resetCourier();
+    }
+
+    // ============ COURIER ============
+
+    /**
+     * Typing a charge mirrors it into the cost, since pass-through delivery is
+     * the common case. Once the cashier edits the cost themselves we stop.
+     */
+    public function updatedCourierCharge(): void
+    {
+        if (! $this->courierCostTouched) {
+            $this->courierCost = $this->courierCharge;
+        }
+    }
+
+    public function updatedCourierCost(): void
+    {
+        $this->courierCostTouched = true;
+    }
+
+    public function updatedHasCourier(): void
+    {
+        if (! $this->hasCourier) {
+            $this->resetCourier();
+        }
+    }
+
+    private function resetCourier(): void
+    {
+        $this->hasCourier = false;
+        $this->courierCharge = '0';
+        $this->courierCost = '0';
+        $this->courierCostTouched = false;
+    }
+
+    /** The charge, or zero when the courier option is switched off. */
+    public function getCourierChargeValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCharge ?: 0) : 0.0;
+    }
+
+    public function getCourierCostValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCost ?: 0) : 0.0;
     }
 
     // ============ TOTALS ============
@@ -265,7 +324,7 @@ class PosTerminal extends Component
     {
         $discount = (float) ($this->discount ?: 0);
 
-        return max(0, $this->cartSubtotal - $discount + $this->cartTaxTotal);
+        return max(0, $this->cartSubtotal - $discount + $this->cartTaxTotal + $this->courierChargeValue);
     }
 
     public function getChangeDueProperty(): float
@@ -370,6 +429,8 @@ class PosTerminal extends Component
                 'subtotal' => $this->cartSubtotal,
                 'tax' => $this->cartTaxTotal,
                 'discount' => (float) ($this->discount ?: 0),
+                'courier_charge' => $this->courierChargeValue,
+                'courier_cost' => $this->courierCostValue,
                 'total' => $total,
                 'paid_amount' => $total,
                 'due_amount' => 0,

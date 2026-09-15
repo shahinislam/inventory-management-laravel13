@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -67,8 +67,7 @@
             wire:model.live.debounce.300ms="search"
             placeholder="Search files..."
             icon="magnifying-glass"
-            class="flex-1"
-        />
+            class="flex-1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="media-library-search-af34dd-nofill" />
 
         {{-- Type Filter --}}
         <flux:select wire:model.live="typeFilter" class="w-36">

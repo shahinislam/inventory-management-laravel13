@@ -26,6 +26,10 @@ return new class extends Migration
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('tax', 12, 2)->default(0);
             $table->decimal('discount', 12, 2)->default(0);
+            // Freight billed by the supplier. Part of `total`.
+            $table->decimal('courier_charge', 12, 2)->default(0);
+            // Freight paid separately to a courier, outside the supplier invoice.
+            $table->decimal('courier_cost', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->default(0);
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->date('order_date');

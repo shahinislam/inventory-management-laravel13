@@ -9,6 +9,10 @@ use App\Livewire\Invoices\InvoiceForm;
 use App\Livewire\Invoices\InvoiceList;
 use App\Livewire\Invoices\InvoiceView;
 use App\Livewire\Media\MediaLibrary;
+use App\Livewire\Partners\PartnerForm;
+use App\Livewire\Partners\PartnerList;
+use App\Livewire\Partners\PartnershipReport;
+use App\Livewire\Partners\PartnerTransactions;
 use App\Livewire\Pos\PosTerminal;
 use App\Livewire\Products\ProductForm;
 use App\Livewire\Products\ProductList;
@@ -157,6 +161,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/stock', StockReport::class)->name('stock');
         Route::get('/sales', SalesReport::class)->name('sales');
         Route::get('/low-stock', LowStockAlert::class)->name('low-stock');
+    });
+
+    // Partnership (Admin only) — investment and profit figures are sensitive.
+    // Literal segments are declared before the /{partner} catch-alls.
+    Route::prefix('partners')->name('partners.')->middleware('role:admin')->group(function () {
+        Route::get('/', PartnerList::class)->name('index');
+        Route::get('/report', PartnershipReport::class)->name('report');
+        Route::get('/transactions', PartnerTransactions::class)->name('transactions');
+        Route::get('/create', PartnerForm::class)->name('create');
+        Route::get('/{partner}/edit', PartnerForm::class)->name('edit');
     });
 
     // Settings (Admin only)

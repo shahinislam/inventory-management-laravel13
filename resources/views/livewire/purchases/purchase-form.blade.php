@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     @php
         $isDraft   = !$order || $order->isDraft();
@@ -32,13 +32,10 @@
         {{-- Workflow Actions --}}
         @if($order?->exists)
             <div class="flex gap-2">
-                @if($order->status === 'pending')
-                    <flux:button icon="check-circle" wire:click="approve">Approve</flux:button>
-                @endif
-                @if($order->status === 'approved')
+                @if($order->canPlace())
                     <flux:button icon="truck" wire:click="markAsOrdered">Mark as Ordered</flux:button>
                 @endif
-                @if(in_array($order->status, ['approved', 'ordered']))
+                @if($order->canReceive())
                     <flux:button variant="primary" icon="inbox-arrow-down" wire:click="openReceiveModal">Receive Stock
                     </flux:button>
                 @endif
@@ -57,7 +54,7 @@
         <div class="mb-4 rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-400">{{ session('error') }}</div>
     @endif
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_20rem]">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
 
         {{-- Left Column --}}
         <div class="min-w-0 space-y-6">
@@ -124,32 +121,51 @@
 
                 {{-- Product Search (editable only) --}}
                 @if($isEditable)
+                {{-- Result count is read from the DOM rather than baked in from
+                     Blade: a Livewire re-render morphs this markup, and an
+                     x-effect resetting the highlight would wipe the arrow-key
+                     position on every keystroke. --}}
                 <div
                     class="relative mb-4"
                     x-data="{
                         open: true,
                         highlight: 0,
-                        count: {{ $searchResults->count() }},
-                        moveDown() { if (this.count > 0) this.highlight = (this.highlight + 1) % this.count },
-                        moveUp() { if (this.count > 0) this.highlight = (this.highlight - 1 + this.count) % this.count },
+                        get items() { return this.$refs.resultsList ? [...this.$refs.resultsList.querySelectorAll('[data-search-result]')] : [] },
+                        get count() { return this.items.length },
+                        moveDown() {
+                            if (this.count > 0) {
+                                this.highlight = (this.highlight + 1) % this.count;
+                                this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
+                            }
+                        },
+                        moveUp() {
+                            if (this.count > 0) {
+                                this.highlight = (this.highlight - 1 + this.count) % this.count;
+                                this.items[this.highlight]?.scrollIntoView({ block: 'nearest' });
+                            }
+                        },
+                        selectCurrent() { const el = this.items[this.highlight]; if (el) el.click(); }
                     }"
                     x-on:click.outside="open = false"
-                    x-effect="count = {{ $searchResults->count() }}; highlight = 0"
                 >
                     <flux:input
                         wire:model.live.debounce.150ms="productSearch"
                         placeholder="Search product by name, SKU or barcode to add..."
                         icon="magnifying-glass"
+                        autocomplete="off"
+                        name="purchase-product-search-nofill"
                         x-on:focus="open = true"
+                        x-on:input="open = true; highlight = 0"
                         x-on:keydown.arrow-down.prevent="moveDown()"
                         x-on:keydown.arrow-up.prevent="moveUp()"
-                        x-on:keydown.enter.prevent="open = false; $wire.selectHighlighted(highlight)"
+                        x-on:keydown.enter.prevent="selectCurrent(); open = false"
                     />
                     @if($searchResults->count() > 0)
-                        <div x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+                        <div x-ref="resultsList" x-show="open" class="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                             @foreach($searchResults as $i => $product)
                                 <button
                                     type="button"
+                                    data-search-result
                                     wire:click="addProduct({{ $product->id }})"
                                     x-on:click="open = false"
                                     x-on:mouseenter="highlight = {{ $i }}"
@@ -176,7 +192,7 @@
                     $itemCols = 4 + ($order?->exists ? 1 : 0) + ($isEditable ? 1 : 0);
                 @endphp
                 <div class="-mx-2 overflow-x-auto">
-                    <table class="w-full min-w-2xl text-sm">
+                    <table class="w-full min-w-lg text-sm">
                         <thead>
                             <tr class="border-b border-zinc-200 text-[0.6875rem] uppercase tracking-wider text-zinc-500 dark:border-zinc-700">
                                 <th class="px-2 py-2.5 text-left font-semibold">Product</th>
@@ -288,6 +304,41 @@
                         </flux:field>
                     </div>
 
+                    {{-- Freight. The charge is what the supplier bills us; the cost
+                         is anything paid separately to a courier. --}}
+                    @if($isEditable)
+                        <div>
+                            <flux:checkbox wire:model.live="hasCourier" label="Add courier charge" />
+
+                            @if ($hasCourier)
+                                <div class="mt-3 grid grid-cols-2 gap-3">
+                                    <flux:field>
+                                        <flux:label class="text-xs">Billed by supplier</flux:label>
+                                        <flux:input wire:model.live="courierCharge" type="number" step="0.01"
+                                            min="0" prefix="৳" class="tabular-nums" />
+                                    </flux:field>
+                                    <flux:field>
+                                        <flux:label class="text-xs">Courier cost</flux:label>
+                                        <flux:input wire:model.live="courierCost" type="number" step="0.01"
+                                            min="0" prefix="৳" class="tabular-nums" />
+                                    </flux:field>
+                                </div>
+                            @endif
+                        </div>
+                    @elseif($order?->courier_charge > 0 || $order?->courier_cost > 0)
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Courier</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($order->courier_charge) }}</span>
+                        </div>
+                    @endif
+
+                    @if($isEditable && $this->courierChargeValue > 0)
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Courier</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->courierChargeValue) }}</span>
+                        </div>
+                    @endif
+
                     <div class="border-t border-zinc-200 pt-3 dark:border-zinc-800">
                         <div class="flex items-baseline justify-between">
                             <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Total</span>
@@ -312,8 +363,8 @@
             @if($isEditable)
             <flux:card class="p-6">
                 <div class="space-y-3">
-                    <flux:button wire:click="submitForApproval" class="w-full" icon="paper-airplane">
-                        Submit for Approval
+                    <flux:button wire:click="placeOrder" variant="primary" class="w-full" icon="truck">
+                        Place Order
                     </flux:button>
                     <flux:button wire:click="saveDraft" variant="outline" class="w-full" icon="document">
                         Save as Draft

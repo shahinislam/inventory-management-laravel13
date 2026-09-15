@@ -30,6 +30,7 @@ class RoleManagement extends Component
             'Suppliers' => ['admin' => true, 'manager' => true, 'staff' => false, 'viewer' => false],
             'Reports' => ['admin' => true, 'manager' => true, 'staff' => false, 'viewer' => false],
             'Media Library' => ['admin' => true, 'manager' => true, 'staff' => true, 'viewer' => false],
+            'Partnership' => ['admin' => true, 'manager' => false, 'staff' => false, 'viewer' => false],
             'Settings' => ['admin' => true, 'manager' => false, 'staff' => false, 'viewer' => false],
         ];
 

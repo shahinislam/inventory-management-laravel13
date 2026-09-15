@@ -384,6 +384,12 @@
                             <td>{{ money($invoice->tax) }}</td>
                         </tr>
                     @endif
+                    @if ($invoice->courier_charge > 0)
+                        <tr>
+                            <td class="muted">Courier</td>
+                            <td>{{ money($invoice->courier_charge) }}</td>
+                        </tr>
+                    @endif
                     <tr class="grand">
                         <td>TOTAL</td>
                         <td>{{ money($invoice->total) }}</td>

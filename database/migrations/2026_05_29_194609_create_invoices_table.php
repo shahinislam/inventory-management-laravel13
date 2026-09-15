@@ -38,6 +38,12 @@ return new class extends Migration
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('tax', 12, 2)->default(0);
             $table->decimal('discount', 12, 2)->default(0);
+            // What the customer is billed for delivery. Part of `total`.
+            $table->decimal('courier_charge', 12, 2)->default(0);
+            // What the courier actually costs the shop. Internal only. May exceed
+            // courier_charge when delivery is free, in which case the shop absorbs
+            // the difference.
+            $table->decimal('courier_cost', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->default(0);
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->decimal('due_amount', 12, 2)->default(0);

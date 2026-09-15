@@ -43,6 +43,20 @@ class InvoiceForm extends Component
 
     public string $discount = '0';
 
+    public bool $hasCourier = false;
+
+    /** Billed to the customer; part of the invoice total. */
+    public string $courierCharge = '0';
+
+    /** Paid to the courier; internal, never shown on the customer's copy. */
+    public string $courierCost = '0';
+
+    /**
+     * Set once the cost is edited by hand, which stops the charge field from
+     * overwriting it (see updatedCourierCharge).
+     */
+    public bool $courierCostTouched = false;
+
     public string $notes = '';
 
     public array $items = [];
@@ -68,6 +82,11 @@ class InvoiceForm extends Component
             // See PurchaseForm::mount() — string-typed properties, nullable columns.
             $this->tax = (string) ($invoice->tax ?? '0');
             $this->discount = (string) ($invoice->discount ?? '0');
+            $this->courierCharge = (string) ($invoice->courier_charge ?? '0');
+            $this->courierCost = (string) ($invoice->courier_cost ?? '0');
+            $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
+            // An existing cost is the user's own figure; never auto-overwrite it.
+            $this->courierCostTouched = $this->hasCourier;
             $this->notes = $invoice->notes ?? '';
 
             $this->items = $invoice->items->map(fn ($item) => [
@@ -126,6 +145,7 @@ class InvoiceForm extends Component
             ->where(fn ($q) => $q
                 ->where('name', 'like', "%{$this->productSearch}%")
                 ->orWhere('sku', 'like', "%{$this->productSearch}%")
+                ->orWhere('barcode', 'like', "%{$this->productSearch}%")
             )->limit(8)->get();
     }
 
@@ -212,9 +232,45 @@ class InvoiceForm extends Component
         return $this->itemTax + (float) ($this->tax ?: 0);
     }
 
+    /**
+     * Typing a charge mirrors it into the cost, since pass-through delivery is
+     * the common case. Once the cost is edited by hand we stop.
+     */
+    public function updatedCourierCharge(): void
+    {
+        if (! $this->courierCostTouched) {
+            $this->courierCost = $this->courierCharge;
+        }
+    }
+
+    public function updatedCourierCost(): void
+    {
+        $this->courierCostTouched = true;
+    }
+
+    public function updatedHasCourier(): void
+    {
+        if (! $this->hasCourier) {
+            $this->courierCharge = '0';
+            $this->courierCost = '0';
+            $this->courierCostTouched = false;
+        }
+    }
+
+    /** The charge, or zero when the courier option is switched off. */
+    public function getCourierChargeValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCharge ?: 0) : 0.0;
+    }
+
+    public function getCourierCostValueProperty(): float
+    {
+        return $this->hasCourier ? (float) ($this->courierCost ?: 0) : 0.0;
+    }
+
     public function getTotalProperty(): float
     {
-        return max(0, $this->subtotal - (float) ($this->discount ?: 0) + $this->taxTotal);
+        return max(0, $this->subtotal - (float) ($this->discount ?: 0) + $this->taxTotal + $this->courierChargeValue);
     }
 
     protected function rules(): array
@@ -229,6 +285,8 @@ class InvoiceForm extends Component
             'payment_method' => 'nullable|string',
             'tax' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'courierCharge' => 'nullable|numeric|min:0',
+            'courierCost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.quantity' => 'required|numeric|min:1',
@@ -286,6 +344,8 @@ class InvoiceForm extends Component
                 'subtotal' => $this->subtotal,
                 'tax' => $this->taxTotal,
                 'discount' => (float) ($this->discount ?: 0),
+                'courier_charge' => $this->courierChargeValue,
+                'courier_cost' => $this->courierCostValue,
                 'total' => $this->total,
                 'paid_amount' => $status === 'paid' ? $this->total : 0,
                 'due_amount' => $status === 'paid' ? 0 : $this->total,

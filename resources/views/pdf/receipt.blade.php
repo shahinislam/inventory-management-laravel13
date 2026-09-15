@@ -287,6 +287,12 @@
                 <td>{{ money($invoice->tax, false) }}</td>
             </tr>
         @endif
+        @if ($invoice->courier_charge > 0)
+            <tr>
+                <td>Courier</td>
+                <td>{{ money($invoice->courier_charge, false) }}</td>
+            </tr>
+        @endif
     </table>
 
     <div class="rule-solid"></div>

@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -22,8 +22,7 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 placeholder="Search by product name or SKU..."
-                icon="magnifying-glass"
-            />
+                icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="movement-list-search-3b1c07-nofill" />
 
             <flux:select wire:model.live="typeFilter" placeholder="All Types">
                 <flux:select.option value="">All Types</flux:select.option>

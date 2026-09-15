@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -21,8 +21,7 @@
                     wire:model.live.debounce.300ms="search"
                     placeholder="Search by name, SKU or barcode..."
                     icon="magnifying-glass"
-                    autofocus
-                />
+                    autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="product-list-search-f8c20c-nofill" />
             </div>
 
             {{-- Toggle Filters --}}

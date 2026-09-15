@@ -11,7 +11,7 @@
         </div>
     @endif
 
-    <div class="grid h-[calc(100vh-7rem)] grid-cols-1 gap-4 xl:grid-cols-[1fr_26rem]">
+    <div class="grid h-[calc(100vh-6rem)] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
 
         {{-- ============ LEFT: PRODUCT SEARCH & CART ============ --}}
         <div class="flex min-h-0 flex-col gap-4">
@@ -226,7 +226,7 @@
                              column headers align across the terminal. --}}
                         <flux:input wire:model.live.debounce.200ms="customerSearch" class="h-12 text-base"
                             placeholder="Walk-in customer — search name or phone" icon="user"
-                            x-on:focus="open = true" />
+                            x-on:focus="open = true" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="pos-terminal-search-d89ff9-nofill" />
 
                         @if ($this->customerResults->count() > 0)
                             <div x-show="open"
@@ -273,6 +273,33 @@
                         </flux:field>
                     </div>
 
+                    {{-- Courier. The charge is billed to the customer; the cost is
+                         what we pay the courier and stays internal. --}}
+                    <div class="mt-3">
+                        <flux:checkbox wire:model.live="hasCourier" label="Add courier charge" />
+
+                        @if ($hasCourier)
+                            <div class="mt-3 grid grid-cols-2 gap-3">
+                                <flux:field>
+                                    <flux:label class="text-xs">Charge to customer</flux:label>
+                                    <flux:input wire:model.live="courierCharge" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums" />
+                                </flux:field>
+                                <flux:field>
+                                    <flux:label class="text-xs">Courier cost</flux:label>
+                                    <flux:input wire:model.live="courierCost" type="number" step="0.01"
+                                        min="0" prefix="৳" class="tabular-nums" />
+                                </flux:field>
+                            </div>
+
+                            @if ($this->courierCostValue > $this->courierChargeValue)
+                                <flux:text size="sm" class="mt-2 text-amber-600 dark:text-amber-400">
+                                    Shop absorbs {{ money($this->courierCostValue - $this->courierChargeValue) }}
+                                </flux:text>
+                            @endif
+                        @endif
+                    </div>
+
                     {{-- Summary lines --}}
                     <div class="mt-4 space-y-2.5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                         <div class="flex items-center justify-between text-sm">
@@ -299,6 +326,14 @@
                                 <span class="text-zinc-500">Tax</span>
                                 <span
                                     class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->cartTaxTotal) }}</span>
+                            </div>
+                        @endif
+
+                        @if ($this->courierChargeValue > 0)
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-zinc-500">Courier</span>
+                                <span
+                                    class="font-medium tabular-nums text-zinc-900 dark:text-white">{{ money($this->courierChargeValue) }}</span>
                             </div>
                         @endif
                     </div>

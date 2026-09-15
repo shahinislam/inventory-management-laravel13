@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     <div class="mb-6">
         <flux:heading size="xl">Role Management</flux:heading>

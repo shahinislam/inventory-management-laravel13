@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-4">
 
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
@@ -20,7 +20,7 @@
     {{-- Filters --}}
     <flux:card class="mb-6 p-4 print:hidden">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
-            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" />
+            <flux:input wire:model.live.debounce.300ms="search" placeholder="Search product..." icon="magnifying-glass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="low-stock-alert-search-1b0a89-nofill" />
             <flux:select wire:model.live="categoryFilter" placeholder="All Categories">
                 <flux:select.option value="">All Categories</flux:select.option>
                 @foreach($categories as $cat)
