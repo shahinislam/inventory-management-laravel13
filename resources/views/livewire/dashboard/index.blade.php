@@ -28,68 +28,18 @@
     </div>
 
     {{-- Stats Grid --}}
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-6">
+    <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <x-stat-tile label="Total Sales" :value="money($stats['totalSales'])" tone="green" icon="currency-dollar"
+            :hint="$stats['totalInvoices'].' invoices'" />
 
-        {{-- Total Sales --}}
-        <flux:card class="p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <flux:text class="text-sm text-zinc-500">Total Sales</flux:text>
-                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ money($stats['totalSales']) }}</flux:heading>
-                    <flux:text class="text-xs text-zinc-400 mt-1">{{ $stats['totalInvoices'] }} invoices</flux:text>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                    <flux:icon name="currency-dollar" class="size-5 text-green-600 dark:text-green-400" />
-                </div>
-            </div>
-        </flux:card>
+        <x-stat-tile label="Total Products" :value="number_format($stats['totalProducts'])" tone="blue" icon="cube"
+            :hint="$stats['lowStock'] > 0 ? $stats['lowStock'].' low stock' : 'All stocked'" />
 
-        {{-- Total Products --}}
-        <flux:card class="p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <flux:text class="text-sm text-zinc-500">Total Products</flux:text>
-                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['totalProducts']) }}</flux:heading>
-                    @if($stats['lowStock'] > 0)
-                        <flux:text class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $stats['lowStock'] }} low stock</flux:text>
-                    @else
-                        <flux:text class="text-xs text-green-600 dark:text-green-400 mt-1">All stocked</flux:text>
-                    @endif
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                    <flux:icon name="cube" class="size-5 text-blue-600 dark:text-blue-400" />
-                </div>
-            </div>
-        </flux:card>
+        <x-stat-tile label="Customers" :value="number_format($stats['totalCustomers'])" tone="purple" icon="users"
+            hint="Active customers" />
 
-        {{-- Total Customers --}}
-        <flux:card class="p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <flux:text class="text-sm text-zinc-500">Customers</flux:text>
-                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['totalCustomers']) }}</flux:heading>
-                    <flux:text class="text-xs text-zinc-400 mt-1">Active customers</flux:text>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900">
-                    <flux:icon name="users" class="size-5 text-purple-600 dark:text-purple-400" />
-                </div>
-            </div>
-        </flux:card>
-
-        {{-- Pending Orders --}}
-        <flux:card class="p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <flux:text class="text-sm text-zinc-500">Pending Orders</flux:text>
-                    <flux:heading size="lg" class="mt-1 tabular-nums">{{ number_format($stats['pendingOrders']) }}</flux:heading>
-                    <flux:text class="text-xs text-zinc-400 mt-1">Purchase orders</flux:text>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900">
-                    <flux:icon name="clipboard-document-list" class="size-5 text-orange-600 dark:text-orange-400" />
-                </div>
-            </div>
-        </flux:card>
-
+        <x-stat-tile label="Pending Orders" :value="number_format($stats['pendingOrders'])" tone="yellow"
+            icon="clipboard-document-list" hint="Purchase orders" />
     </div>
 
     {{-- Quick Actions --}}

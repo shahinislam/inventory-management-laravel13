@@ -433,8 +433,69 @@
                     </div>
                 </flux:field>
 
+                {{-- Account / card the money goes to (Card & Bank only) --}}
+                @if (App\Models\PaymentAccount::requiredFor($paymentMethod))
+                    <flux:field>
+                        <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                            {{ $paymentMethod === 'card' ? 'Card' : 'Account' }}
+                        </flux:label>
+                        @if ($this->paymentAccounts->isEmpty())
+                            <flux:text class="text-sm text-amber-600 dark:text-amber-400">
+                                No active {{ $paymentMethod === 'card' ? 'cards' : 'bank accounts' }}.
+                                <a href="{{ route('payment-accounts.index') }}" class="underline" wire:navigate>Add one</a> first.
+                            </flux:text>
+                        @else
+                            <flux:select wire:model="paymentAccountId" placeholder="Select account...">
+                                @foreach ($this->paymentAccounts as $account)
+                                    <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @endif
+                        <flux:error name="paymentAccountId" />
+                    </flux:field>
+                @endif
+
+                {{-- Due / credit sale --}}
+                <div class="rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <flux:text class="text-sm font-medium">Sell on due</flux:text>
+                            <flux:text class="text-xs text-zinc-500">Customer pays part now, the rest later</flux:text>
+                        </div>
+                        <flux:switch wire:model.live="payLater" />
+                    </div>
+
+                    @if ($payLater)
+                        <div class="mt-3 space-y-3" x-data="{
+                            total: @js(round($this->cartTotal, 2)),
+                            get due() {
+                                const paid = parseFloat(String($wire.paidNow ?? '').replace(/,/g, '')) || 0;
+                                return Math.max(0, this.total - paid);
+                            },
+                        }">
+                            @unless ($customer_id)
+                                <flux:text class="text-xs text-amber-600 dark:text-amber-400">Select a customer before completing a due sale.</flux:text>
+                            @endunless
+                            <flux:error name="customer_id" />
+
+                            <flux:field>
+                                <flux:label class="text-xs">Paying now</flux:label>
+                                <flux:input wire:model="paidNow" type="number" step="0.01" min="0" prefix="৳"
+                                    class="tabular-nums" />
+                                <flux:error name="paidNow" />
+                            </flux:field>
+
+                            <div class="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 dark:bg-red-950/30">
+                                <span class="text-sm font-medium text-red-700 dark:text-red-300">Due</span>
+                                <span class="font-semibold tabular-nums text-red-700 dark:text-red-400"
+                                    x-text="due.toFixed(2)">{{ number_format($this->dueAfterPayment, 2) }}</span>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
                 {{-- Amount Received (Cash only) --}}
-                @if ($paymentMethod === 'cash')
+                @if ($paymentMethod === 'cash' && ! $payLater)
                     <flux:field>
                         <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Received
                         </flux:label>

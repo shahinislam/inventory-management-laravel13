@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('payments', function (Blueprint $table) {
+        Schema::create('purchase_payments', function (Blueprint $table) {
             $table->id();
             $table->string('payment_number', 100)->unique();
-            $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            $table->foreignId('purchase_order_id')->constrained('purchase_orders')->cascadeOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
             $table->foreignId('payment_account_id')->nullable()->constrained('payment_accounts')->nullOnDelete();
             $table->decimal('amount', 12, 2);
@@ -25,28 +25,15 @@ return new class extends Migration
                 'cheque',
                 'other',
             ])->index();
-            $table->enum('status', [
-                'pending',
-                'completed',
-                'failed',
-                'refunded',
-            ])->default('completed')->index();
             $table->string('reference', 100)->nullable();
-            $table->string('bank_name', 100)->nullable();
-            $table->string('account_number', 100)->nullable();
-            $table->string('cheque_number', 100)->nullable();
             $table->date('payment_date');
             $table->text('notes')->nullable();
             $table->timestamps();
 
             // Indexes
-            $table->index('payment_number');
             $table->index('payment_date');
-            $table->index('reference');
-            $table->index(['invoice_id', 'status']);
-            $table->index(['method', 'status']);
-            $table->index(['created_by', 'payment_date']);
-            $table->index(['payment_date', 'method', 'status']);
+            $table->index(['purchase_order_id', 'payment_date']);
+            $table->index(['payment_account_id', 'payment_date']);
         });
     }
 
@@ -55,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('payments');
+        Schema::dropIfExists('purchase_payments');
     }
 };

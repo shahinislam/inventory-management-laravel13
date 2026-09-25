@@ -1,4 +1,4 @@
-<div class="p-4">
+<div class="p-4" data-print-report="Stock Report">
 
     {{-- Header --}}
     <div class="mb-6 flex items-center justify-between">
@@ -11,8 +11,8 @@
 
     {{-- Summary Cards --}}
     <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <x-stat-tile label="Total Products" :value="number_format($summary['total_products'])" icon="cube" />
-        <x-stat-tile label="Stock Cost Value" :value="money($summary['total_value'])" icon="banknotes" />
+        <x-stat-tile label="Total Products" :value="number_format($summary['total_products'])" tone="blue" icon="cube" />
+        <x-stat-tile label="Stock Cost Value" :value="money($summary['total_value'])" tone="blue" icon="banknotes" />
         <x-stat-tile label="Retail Value" :value="money($summary['retail_value'])" tone="green" icon="tag" />
         <x-stat-tile label="Low Stock" :value="$summary['low_stock']" tone="yellow" icon="arrow-trending-down" />
         <x-stat-tile label="Out of Stock" :value="$summary['out_of_stock']" tone="red" icon="x-circle" />

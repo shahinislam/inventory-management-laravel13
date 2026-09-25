@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Stock;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Product;
 use App\Models\Warehouse;
@@ -10,6 +11,8 @@ use Livewire\Component;
 
 class StockAdjustment extends Component
 {
+    use HandlesBarcodeScans;
+
     public string $search = '';
 
     public ?int $product_id = null;
@@ -112,6 +115,19 @@ class StockAdjustment extends Component
         session()->flash('success', "Stock adjusted: {$product->name} from {$before} to {$after}");
         $this->reset(['product_id', 'quantity', 'reason', 'notes', 'search', 'selectedProduct']);
         $this->adjustment_type = 'add';
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        $product = $this->findScannedProduct($code);
+
+        if (! $product) {
+            return false;
+        }
+
+        $this->selectProduct($product->id);
+
+        return true;
     }
 
     public function render()

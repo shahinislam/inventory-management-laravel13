@@ -308,7 +308,10 @@
 
     <table class="totals">
         <tr>
-            <td>{{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? 'Paid')) }}</td>
+            <td>{{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? 'Paid')) }}@if ($account = $invoice->payments->first()?->paymentAccount)
+                    ({{ $account->display_name }})
+                @endif
+            </td>
             <td>{{ money($invoice->paid_amount, false) }}</td>
         </tr>
         @if ($invoice->due_amount > 0)

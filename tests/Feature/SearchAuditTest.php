@@ -63,10 +63,10 @@ it('finds a stocked product in POS search by name, sku and barcode', function (s
 })->with(['Soyabean', 'TEER-SOY']);
 
 it('auto-adds a product to the POS cart on an exact barcode scan', function () {
-    // A scan is not a browse: POS adds the item and clears the box, so the
-    // result list is empty by design.
+    // Scans arrive as the barcode-scanned event from the browser-side scanner
+    // detector (resources/js/app.js), not through the search box.
     Livewire::test(PosTerminal::class)
-        ->set('search', '8901234567890')
+        ->dispatch('barcode-scanned', code: '8901234567890')
         ->assertCount('cart', 1)
         ->assertSet('search', '');
 });

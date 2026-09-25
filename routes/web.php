@@ -13,6 +13,8 @@ use App\Livewire\Partners\PartnerForm;
 use App\Livewire\Partners\PartnerList;
 use App\Livewire\Partners\PartnershipReport;
 use App\Livewire\Partners\PartnerTransactions;
+use App\Livewire\PaymentAccounts\PaymentAccountForm;
+use App\Livewire\PaymentAccounts\PaymentAccountList;
 use App\Livewire\Pos\PosTerminal;
 use App\Livewire\Products\ProductForm;
 use App\Livewire\Products\ProductList;
@@ -20,7 +22,9 @@ use App\Livewire\Promotions\PromotionForm;
 use App\Livewire\Promotions\PromotionList;
 use App\Livewire\Purchases\PurchaseForm;
 use App\Livewire\Purchases\PurchaseList;
+use App\Livewire\Reports\DueReport;
 use App\Livewire\Reports\LowStockAlert;
+use App\Livewire\Reports\PaymentAccountReport;
 use App\Livewire\Reports\SalesReport;
 use App\Livewire\Reports\StockReport;
 use App\Livewire\Settings\GeneralSettings;
@@ -79,6 +83,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
+    // Payment Accounts — bank accounts, cards and wallets payments go through.
+    Route::prefix('payment-accounts')->name('payment-accounts.')->group(function () {
+        Route::get('/', PaymentAccountList::class)
+            ->middleware('role:admin,manager,viewer')->name('index');
+
+        Route::middleware('role:admin,manager')->group(function () {
+            Route::get('/create', PaymentAccountForm::class)->name('create');
+            Route::get('/{account}/edit', PaymentAccountForm::class)->name('edit');
+        });
+    });
+
     // Warehouses
     Route::prefix('warehouses')->name('warehouses.')->middleware('role:admin')->group(function () {
         Route::get('/', WarehouseList::class)->name('index');
@@ -130,7 +145,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // dialog, so it must be declared before the catch-all /{invoice}.
             Route::get('/{invoice}/receipt', function (Invoice $invoice) {
                 return view('pdf.receipt', [
-                    'invoice' => $invoice->load(['items', 'warehouse', 'createdBy', 'payments']),
+                    'invoice' => $invoice->load(['items', 'warehouse', 'createdBy', 'payments.paymentAccount']),
                     'company' => Setting::getGroup('company'),
                 ]);
             })->name('receipt');
@@ -161,6 +176,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/stock', StockReport::class)->name('stock');
         Route::get('/sales', SalesReport::class)->name('sales');
         Route::get('/low-stock', LowStockAlert::class)->name('low-stock');
+        Route::get('/dues', DueReport::class)->name('dues');
+        Route::get('/accounts', PaymentAccountReport::class)->name('accounts');
     });
 
     // Partnership (Admin only) — investment and profit figures are sensitive.

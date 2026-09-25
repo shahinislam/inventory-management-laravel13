@@ -2,17 +2,23 @@
 
 namespace App\Livewire\Purchases;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
+use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\PurchasePayment;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class PurchaseForm extends Component
 {
+    use HandlesBarcodeScans;
+
     public ?PurchaseOrder $order = null;
 
     // Header fields
@@ -23,6 +29,8 @@ class PurchaseForm extends Component
     public string $order_date = '';
 
     public string $expected_date = '';
+
+    public string $payment_due_date = '';
 
     public string $notes = '';
 
@@ -49,16 +57,28 @@ class PurchaseForm extends Component
 
     public array $receiveQuantities = [];
 
+    // Record payment modal
+    public bool $showPaymentModal = false;
+
+    public string $payment_amount = '';
+
+    public string $payment_method = 'cash';
+
+    public ?int $payment_account_id = null;
+
+    public string $payment_reference = '';
+
     public function mount(?PurchaseOrder $order = null): void
     {
         $this->order_date = now()->format('Y-m-d');
 
         if ($order?->exists) {
-            $this->order = $order->load('items.product');
+            $this->order = $order->load(['items.product', 'payments.paymentAccount']);
             $this->supplier_id = $order->supplier_id;
             $this->warehouse_id = $order->warehouse_id;
             $this->order_date = $order->order_date->format('Y-m-d');
             $this->expected_date = $order->expected_date?->format('Y-m-d') ?? '';
+            $this->payment_due_date = $order->payment_due_date?->format('Y-m-d') ?? '';
             $this->notes = $order->notes ?? '';
             // Cast explicitly: these are string-typed properties and the columns
             // are nullable in practice, so a null would raise a TypeError.
@@ -89,6 +109,7 @@ class PurchaseForm extends Component
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'order_date' => 'required|date',
             'expected_date' => 'nullable|date|after_or_equal:order_date',
+            'payment_due_date' => 'nullable|date|after_or_equal:order_date',
             'notes' => 'nullable|string',
             'tax' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
@@ -244,6 +265,7 @@ class PurchaseForm extends Component
                 'warehouse_id' => $this->warehouse_id,
                 'order_date' => $this->order_date,
                 'expected_date' => $this->expected_date ?: null,
+                'payment_due_date' => $this->payment_due_date ?: null,
                 'notes' => $this->notes ?: null,
                 'subtotal' => $subtotal,
                 'tax' => $tax,
@@ -325,6 +347,91 @@ class PurchaseForm extends Component
         $this->order->update(['status' => 'cancelled']);
         session()->flash('success', 'Purchase order cancelled.');
         $this->redirect(route('purchases.index'), navigate: true);
+    }
+
+    // ============ SUPPLIER PAYMENTS ============
+
+    public function openPaymentModal(): void
+    {
+        if (! $this->authorizeStateChange('pay')) {
+            return;
+        }
+
+        if (! $this->order?->canRecordPayment()) {
+            session()->flash('error', 'Payments can only be recorded on placed orders with a balance due.');
+
+            return;
+        }
+
+        $this->resetErrorBag();
+        // No thousands separator — see PosTerminal::openPaymentModal().
+        $this->payment_amount = number_format($this->order->due_amount, 2, '.', '');
+        $this->payment_reference = '';
+        $this->updatedPaymentMethod();
+        $this->showPaymentModal = true;
+    }
+
+    public function updatedPaymentMethod(): void
+    {
+        $accounts = PaymentAccount::forMethod($this->payment_method)->get();
+        $this->payment_account_id = $accounts->count() === 1 ? $accounts->first()->id : null;
+    }
+
+    public function recordPayment(): void
+    {
+        if (! $this->authorizeStateChange('pay')) {
+            return;
+        }
+
+        // Re-checked here: this method is directly callable from the browser.
+        if (! $this->order?->canRecordPayment()) {
+            session()->flash('error', 'Payments can only be recorded on placed orders with a balance due.');
+
+            return;
+        }
+
+        $this->payment_amount = str_replace(',', '', $this->payment_amount);
+
+        $this->validate([
+            'payment_amount' => 'required|numeric|min:0.01|max:'.$this->order->due_amount,
+            'payment_method' => 'required|in:cash,card,bank_transfer,cheque,other',
+            'payment_reference' => 'nullable|string|max:100',
+            'payment_account_id' => PaymentAccount::rule($this->payment_method),
+        ], [
+            'payment_account_id.required' => 'Select the account or card this was paid from.',
+            'payment_amount.max' => 'Amount cannot be more than the balance due.',
+        ]);
+
+        $amount = (float) $this->payment_amount;
+
+        DB::transaction(function () use ($amount) {
+            // Lock before reading the balance so two payments at once cannot
+            // both pass the check — see InvoiceView::recordPayment().
+            $order = PurchaseOrder::whereKey($this->order->id)->lockForUpdate()->firstOrFail();
+
+            if ($amount > $order->due_amount) {
+                throw ValidationException::withMessages([
+                    'payment_amount' => 'Amount exceeds the outstanding balance of '
+                        .number_format($order->due_amount, 2).'.',
+                ]);
+            }
+
+            PurchasePayment::create([
+                'purchase_order_id' => $order->id,
+                'created_by' => auth()->id(),
+                'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
+                'amount' => $amount,
+                'method' => $this->payment_method,
+                'reference' => $this->payment_reference ?: null,
+                'payment_date' => now(),
+            ]);
+
+            $order->increment('paid_amount', $amount);
+        });
+
+        $this->order->refresh()->load(['items.product', 'payments.paymentAccount']);
+        $this->showPaymentModal = false;
+        session()->flash('success', 'Payment recorded successfully!');
     }
 
     public function openReceiveModal(): void
@@ -416,8 +523,36 @@ class PurchaseForm extends Component
         DashboardIndex::flushCache();
 
         $this->showReceiveModal = false;
-        $this->order->refresh()->load('items.product');
+        $this->order->refresh()->load(['items.product', 'payments.paymentAccount']);
         session()->flash('success', 'Stock received and inventory updated!');
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        if ($this->order?->exists && ! $this->order->isDraft()) {
+            $this->scanError = 'This order has been placed and can no longer be edited.';
+
+            return false;
+        }
+
+        $product = $this->findScannedProduct($code);
+
+        if (! $product) {
+            return false;
+        }
+
+        // Scanning a product already on the order adds one more.
+        foreach ($this->items as $i => $item) {
+            if ($item['product_id'] === $product->id) {
+                $this->items[$i]['quantity'] = (string) ((int) $item['quantity'] + 1);
+
+                return true;
+            }
+        }
+
+        $this->addProduct($product->id);
+
+        return true;
     }
 
     public function render()
@@ -425,8 +560,11 @@ class PurchaseForm extends Component
         $suppliers = Supplier::active()->get();
         $warehouses = Warehouse::active()->get();
         $searchResults = $this->searchProducts();
+        $paymentAccounts = $this->showPaymentModal
+            ? PaymentAccount::forMethod($this->payment_method)->get()
+            : collect();
 
-        return view('livewire.purchases.purchase-form', compact('suppliers', 'warehouses', 'searchResults'))
+        return view('livewire.purchases.purchase-form', compact('suppliers', 'warehouses', 'searchResults', 'paymentAccounts'))
             ->layout('layouts.app', ['title' => $this->order?->exists ? "Order {$this->order->order_number}" : 'New Purchase Order']);
     }
 }

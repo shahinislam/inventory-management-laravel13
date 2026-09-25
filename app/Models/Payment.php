@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'payment_number', 'invoice_id', 'created_by',
-    'amount', 'method', 'status',
+    'payment_account_id', 'amount', 'method', 'status',
     'reference', 'bank_name', 'account_number',
     'cheque_number', 'payment_date', 'notes',
 ])]
@@ -28,12 +28,26 @@ class Payment extends Model
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn ($m) => $m->payment_number ??= NumberGeneratorService::generate('payment'));
+        static::creating(function ($m) {
+            $m->payment_number ??= NumberGeneratorService::generate('payment');
+
+            // Snapshot the account details so the payment stays readable even
+            // if the account is later renamed or deleted.
+            if ($m->payment_account_id && $account = PaymentAccount::find($m->payment_account_id)) {
+                $m->bank_name ??= $account->bank_name ?? $account->name;
+                $m->account_number ??= $account->account_number;
+            }
+        });
     }
 
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function paymentAccount()
+    {
+        return $this->belongsTo(PaymentAccount::class)->withTrashed();
     }
 
     public function createdBy()

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Stock;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Product;
 use App\Models\Warehouse;
@@ -10,6 +11,8 @@ use Livewire\Component;
 
 class StockTransfer extends Component
 {
+    use HandlesBarcodeScans;
+
     public string $search = '';
 
     public ?int $product_id = null;
@@ -124,6 +127,19 @@ class StockTransfer extends Component
 
         session()->flash('success', "Transferred {$qty} {$product->unit} of {$product->name} from {$fromName} to {$toName}");
         $this->reset(['product_id', 'quantity', 'notes', 'search', 'selectedProduct', 'to_warehouse_id']);
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        $product = $this->findScannedProduct($code);
+
+        if (! $product) {
+            return false;
+        }
+
+        $this->selectProduct($product->id);
+
+        return true;
     }
 
     public function render()

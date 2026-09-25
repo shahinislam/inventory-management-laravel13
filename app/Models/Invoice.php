@@ -82,6 +82,13 @@ class Invoice extends Model
         return $q->whereIn('status', ['draft', 'sent', 'partial', 'overdue']);
     }
 
+    /** Issued invoices the customer still owes money on (drafts are not owed yet). */
+    public function scopeWithDue($q)
+    {
+        return $q->whereIn('status', ['sent', 'partial', 'overdue'])
+            ->where('due_amount', '>', 0);
+    }
+
     public function scopeToday($q)
     {
         return $q->whereDate('invoice_date', today());

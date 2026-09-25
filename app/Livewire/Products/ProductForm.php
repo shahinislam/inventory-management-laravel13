@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Products;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Category;
 use App\Models\Media;
@@ -12,6 +13,8 @@ use Livewire\Component;
 
 class ProductForm extends Component
 {
+    use HandlesBarcodeScans;
+
     public ?Product $product = null;
 
     // Form fields
@@ -140,6 +143,13 @@ class ProductForm extends Component
     public function removeMedia(): void
     {
         $this->media_id = null;
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        $this->barcode = $code;
+
+        return true;
     }
 
     public function render()

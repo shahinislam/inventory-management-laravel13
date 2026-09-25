@@ -1,4 +1,4 @@
-<div class="p-4">
+<div class="p-4" data-print-report="Sales Report">
 
     {{-- Header --}}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">

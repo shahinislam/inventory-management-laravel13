@@ -318,6 +318,9 @@
             <td>
                 <div class="label">Payment Method</div>
                 <div class="bold">{{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? '—')) }}</div>
+                @if ($account = $invoice->payments->first()?->paymentAccount)
+                    <div class="muted">{{ $account->display_name }}</div>
+                @endif
             </td>
             <td>
                 <div class="label">Served By</div>
@@ -417,7 +420,10 @@
                 @foreach ($invoice->payments as $payment)
                     <tr>
                         <td class="muted" style="width:28%">{{ $payment->payment_number }}</td>
-                        <td style="width:26%">{{ ucfirst(str_replace('_', ' ', $payment->method)) }}@if ($payment->reference)
+                        <td style="width:26%">{{ ucfirst(str_replace('_', ' ', $payment->method)) }}@if ($payment->paymentAccount)
+                                <span class="faint">· {{ $payment->paymentAccount->display_name }}</span>
+                            @endif
+                            @if ($payment->reference)
                                 <span class="faint">· {{ $payment->reference }}</span>
                             @endif
                         </td>

@@ -34,6 +34,7 @@ return new class extends Migration
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->date('order_date');
             $table->date('expected_date')->nullable();
+            $table->date('payment_due_date')->nullable()->index();
             $table->date('received_date')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();

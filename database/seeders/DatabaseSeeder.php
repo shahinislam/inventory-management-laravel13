@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             SupplierSeeder::class,
             PartnerSeeder::class,
+            PaymentAccountSeeder::class,
+            SampleTransactionSeeder::class,
         ]);
     }
 }

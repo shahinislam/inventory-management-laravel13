@@ -47,6 +47,10 @@ class SettingsSeeder extends Seeder
             ['key' => 'payment.prefix',         'value' => 'PAY',              'group' => 'invoice',      'type' => 'text',    'is_public' => false],
             ['key' => 'payment.next_number',    'value' => '1',                'group' => 'invoice',      'type' => 'number',  'is_public' => false],
 
+            // Purchase payment
+            ['key' => 'purchase_payment.prefix',      'value' => 'PP',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+            ['key' => 'purchase_payment.next_number', 'value' => '1',    'group' => 'invoice', 'type' => 'number', 'is_public' => false],
+
             // Notification
             ['key' => 'notification.low_stock', 'value' => 'true',             'group' => 'notification', 'type' => 'boolean', 'is_public' => false],
             ['key' => 'notification.expiry',    'value' => 'true',             'group' => 'notification', 'type' => 'boolean', 'is_public' => false],

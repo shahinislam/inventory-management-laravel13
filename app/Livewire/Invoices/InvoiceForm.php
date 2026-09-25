@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Invoices;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
+use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\Promotion;
 use App\Models\Warehouse;
@@ -17,6 +19,8 @@ use Livewire\Component;
 
 class InvoiceForm extends Component
 {
+    use HandlesBarcodeScans;
+
     public ?Invoice $invoice = null;
 
     public ?int $customer_id = null;
@@ -38,6 +42,8 @@ class InvoiceForm extends Component
     public string $due_date = '';
 
     public string $payment_method = 'cash';
+
+    public ?int $payment_account_id = null;
 
     public string $tax = '0';
 
@@ -362,6 +368,11 @@ class InvoiceForm extends Component
             return;
         }
 
+        $this->validate(
+            ['payment_account_id' => PaymentAccount::rule($this->payment_method)],
+            ['payment_account_id.required' => 'Select the account or card this was paid to.'],
+        );
+
         // The payment row is written inside persist()'s transaction, so a failure
         // there cannot leave a paid invoice with deducted stock and no payment.
         $invoice = $this->persist('paid');
@@ -455,6 +466,7 @@ class InvoiceForm extends Component
                 Payment::create([
                     'invoice_id' => $invoice->id,
                     'created_by' => auth()->id(),
+                    'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
                     'amount' => $this->total,
                     'method' => $this->payment_method,
                     'status' => 'completed',
@@ -466,11 +478,31 @@ class InvoiceForm extends Component
         });
     }
 
+    public function updatedPaymentMethod(): void
+    {
+        $accounts = PaymentAccount::forMethod($this->payment_method)->get();
+        $this->payment_account_id = $accounts->count() === 1 ? $accounts->first()->id : null;
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        $product = $this->findScannedProduct($code);
+
+        if (! $product) {
+            return false;
+        }
+
+        $this->addProduct($product->id); // adds 1 more if already listed
+
+        return true;
+    }
+
     public function render()
     {
         $warehouses = Warehouse::active()->get();
+        $paymentAccounts = PaymentAccount::forMethod($this->payment_method)->get();
 
-        return view('livewire.invoices.invoice-form', compact('warehouses'))
+        return view('livewire.invoices.invoice-form', compact('warehouses', 'paymentAccounts'))
             ->layout('layouts.app', ['title' => $this->invoice?->exists ? 'Edit Invoice' : 'New Invoice']);
     }
 }

@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Pos;
 
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
+use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\Promotion;
 use App\Models\Warehouse;
@@ -17,6 +19,8 @@ use Livewire\Component;
 
 class PosTerminal extends Component
 {
+    use HandlesBarcodeScans;
+
     public string $search = '';
 
     public int $highlightIndex = 0;
@@ -49,6 +53,14 @@ class PosTerminal extends Component
 
     public string $amountReceived = '';
 
+    /** Bank account or card the payment went through (card / bank only). */
+    public ?int $paymentAccountId = null;
+
+    /** Sell on credit: take part (or none) of the total now, the rest is due. */
+    public bool $payLater = false;
+
+    public string $paidNow = '0';
+
     public bool $showPaymentModal = false;
 
     public bool $showSuccessModal = false;
@@ -64,16 +76,8 @@ class PosTerminal extends Component
 
     public function updatedSearch(): void
     {
+        // Scanner input is handled by HandlesBarcodeScans, not by this box.
         $this->highlightIndex = 0;
-
-        // Auto-add on exact barcode match
-        if (strlen($this->search) >= 8) {
-            $product = Product::where('barcode', $this->search)->active()->first();
-            if ($product) {
-                $this->addToCart($product->id);
-                $this->search = '';
-            }
-        }
     }
 
     public function getSearchResultsProperty()
@@ -233,6 +237,9 @@ class PosTerminal extends Component
         $this->tax = '0';
         $this->amountReceived = '';
         $this->paymentMethod = 'cash';
+        $this->paymentAccountId = null;
+        $this->payLater = false;
+        $this->paidNow = '0';
         $this->resetCourier();
     }
 
@@ -321,6 +328,23 @@ class PosTerminal extends Component
         return (float) str_replace(',', '', $this->amountReceived ?: '0');
     }
 
+    private function paidNowValue(): float
+    {
+        return (float) str_replace(',', '', $this->paidNow ?: '0');
+    }
+
+    /** What is left owing when selling on credit. */
+    public function getDueAfterPaymentProperty(): float
+    {
+        return $this->payLater ? max(0, $this->cartTotal - $this->paidNowValue()) : 0.0;
+    }
+
+    /** Accounts the selected method can be paid through. */
+    public function getPaymentAccountsProperty()
+    {
+        return PaymentAccount::forMethod($this->paymentMethod)->get();
+    }
+
     // ============ CUSTOMER ============
 
     public function getCustomerResultsProperty()
@@ -364,12 +388,19 @@ class PosTerminal extends Component
         // No thousands separator: this populates a numeric input that is later
         // cast with (float), and "1,100.00" would cast to 1.0.
         $this->amountReceived = number_format($this->cartTotal, 2, '.', '');
+        $this->setPaymentMethod($this->paymentMethod);
         $this->showPaymentModal = true;
     }
 
     public function setPaymentMethod(string $method): void
     {
         $this->paymentMethod = $method;
+        $this->resetErrorBag('paymentAccountId');
+
+        // Pre-select when there is only one account to choose from.
+        $accounts = $this->paymentAccounts;
+        $this->paymentAccountId = $accounts->count() === 1 ? $accounts->first()->id : null;
+
         if ($method === 'cash') {
             $this->amountReceived = number_format($this->cartTotal, 2, '.', '');
         }
@@ -381,16 +412,38 @@ class PosTerminal extends Component
             return;
         }
 
-        $received = $this->amountReceivedValue();
         $total = $this->cartTotal;
 
-        if ($this->paymentMethod === 'cash' && $received < $total) {
-            session()->flash('error', 'Received amount is less than total.');
+        if ($this->payLater) {
+            // A credit sale must be traceable to the customer who owes it.
+            $this->paidNow = str_replace(',', '', $this->paidNow ?: '0');
+            $this->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'paidNow' => 'required|numeric|min:0|max:'.$total,
+            ], [
+                'customer_id.required' => 'Select a customer to sell on due.',
+                'paidNow.max' => 'Paid amount cannot be more than the total.',
+            ]);
+            $paid = $this->paidNowValue();
+        } else {
+            if ($this->paymentMethod === 'cash' && $this->amountReceivedValue() < $total) {
+                session()->flash('error', 'Received amount is less than total.');
 
-            return;
+                return;
+            }
+            $paid = $total;
         }
 
-        $invoice = DB::transaction(function () use ($total) {
+        $due = max(0, $total - $paid);
+
+        if ($paid > 0) {
+            $this->validate(
+                ['paymentAccountId' => PaymentAccount::rule($this->paymentMethod)],
+                ['paymentAccountId.required' => 'Select the account or card this was paid to.'],
+            );
+        }
+
+        $invoice = DB::transaction(function () use ($total, $paid, $due) {
             $customer = $this->customer_id ? Customer::find($this->customer_id) : null;
 
             $invoice = Invoice::create([
@@ -401,7 +454,7 @@ class PosTerminal extends Component
                 'customer_email' => $customer?->email,
                 'customer_phone' => $customer?->phone,
                 'customer_address' => $customer?->full_address,
-                'status' => 'paid',
+                'status' => $due <= 0 ? 'paid' : ($paid > 0 ? 'partial' : 'sent'),
                 'payment_method' => $this->paymentMethod,
                 'subtotal' => $this->cartSubtotal,
                 'tax' => $this->cartTaxTotal,
@@ -409,10 +462,10 @@ class PosTerminal extends Component
                 'courier_charge' => $this->courierChargeValue,
                 'courier_cost' => $this->courierCostValue,
                 'total' => $total,
-                'paid_amount' => $total,
-                'due_amount' => 0,
+                'paid_amount' => $paid,
+                'due_amount' => $due,
                 'invoice_date' => now(),
-                'paid_date' => now(),
+                'paid_date' => $due <= 0 ? now() : null,
             ]);
 
             $inventory = app(InventoryService::class);
@@ -443,14 +496,18 @@ class PosTerminal extends Component
                 );
             }
 
-            Payment::create([
-                'invoice_id' => $invoice->id,
-                'created_by' => auth()->id(),
-                'amount' => $total,
-                'method' => $this->paymentMethod,
-                'status' => 'completed',
-                'payment_date' => now(),
-            ]);
+            // Nothing taken now on a full-due sale, so no payment row.
+            if ($paid > 0) {
+                Payment::create([
+                    'invoice_id' => $invoice->id,
+                    'created_by' => auth()->id(),
+                    'payment_account_id' => PaymentAccount::requiredFor($this->paymentMethod) ? $this->paymentAccountId : null,
+                    'amount' => $paid,
+                    'method' => $this->paymentMethod,
+                    'status' => 'completed',
+                    'payment_date' => now(),
+                ]);
+            }
 
             // Update customer stats
             if ($customer) {
@@ -500,6 +557,36 @@ class PosTerminal extends Component
     {
         $this->showSuccessModal = false;
         $this->lastInvoice = null;
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        if ($this->showPaymentModal) {
+            $this->scanError = 'Finish or cancel the payment before scanning.';
+
+            return false;
+        }
+
+        // Scanning on the "sale complete" screen starts the next sale.
+        if ($this->showSuccessModal) {
+            $this->newSale();
+        }
+
+        $product = $this->findScannedProduct($code);
+
+        if (! $product || $product->status !== 'active') {
+            return false;
+        }
+
+        if ($this->stockHere($product->id) <= 0) {
+            $this->scanError = "{$product->name} is out of stock in this warehouse.";
+
+            return false;
+        }
+
+        $this->addToCart($product->id);
+
+        return true;
     }
 
     public function render()

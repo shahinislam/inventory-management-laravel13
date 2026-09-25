@@ -8,6 +8,9 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Short viewports (e.g. laptops with 125–150% display scaling). */
+@custom-variant short (@media (max-height: 640px));
+
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
@@ -246,6 +249,23 @@ select:focus[data-flux-control] {
     @apply text-sm font-semibold;
 }
 
+/* Items inside an expanded group: the sidebar width is fixed, so claw back
+   room for the label — a shallower indent than Flux's ps-7, tighter icon gap
+   and padding, and a slightly smaller label — so names like "Account Report"
+   fit instead of truncating. */
+[data-flux-sidebar-group] > div[data-open],
+[data-flux-sidebar-group] > div.ps-7 {
+    padding-inline-start: 0.75rem;
+}
+
+[data-flux-sidebar-group] [data-flux-sidebar-item] {
+    @apply gap-2 px-2;
+}
+
+[data-flux-sidebar-group] [data-flux-sidebar-item] [data-content] {
+    @apply text-[0.8125rem];
+}
+
 /* Group headings ("Inventory", "Settings", …) — the disclosure buttons and the
    plain heading variant. */
 [data-flux-sidebar] .group\/disclosure-button {
@@ -275,6 +295,64 @@ select:focus[data-flux-control] {
     @apply font-bold text-zinc-950 dark:text-white;
 }
 
+/* ==========================================================================
+   Tables — modern look
+   A tinted, rounded header band, softer row dividers, and a row hover with an
+   accent bar on the left edge. Flux zeroes the outer cells' padding
+   (first:ps-0 / last:pe-0); it is restored so content never touches the
+   header band's rounded edge.
+   ========================================================================== */
+[data-flux-column] {
+    @apply border-b-0 bg-zinc-100/80 px-2.5 py-2 text-xs uppercase tracking-wider text-zinc-600 dark:bg-white/5 dark:text-zinc-300;
+}
+
+[data-flux-column]:first-child {
+    @apply rounded-s-lg ps-4;
+}
+
+[data-flux-column]:last-child {
+    @apply rounded-e-lg pe-4;
+}
+
+/* Compact rows: Flux ships py-3 px-3 on every cell. */
+[data-flux-cell] {
+    @apply border-zinc-100 px-2.5 py-2 transition-colors duration-150 dark:border-white/10;
+}
+
+[data-flux-cell]:first-child {
+    @apply ps-4;
+}
+
+[data-flux-cell]:last-child {
+    @apply pe-4;
+}
+
+/* Row hover: tint the whole row, round its ends, and draw an accent bar. */
+[data-flux-rows] [data-flux-row]:hover > [data-flux-cell] {
+    @apply bg-primary-50/60 dark:bg-primary-500/10;
+}
+
+[data-flux-rows] [data-flux-row]:hover > [data-flux-cell]:first-child {
+    @apply rounded-s-lg;
+    box-shadow: inset 3px 0 0 var(--color-primary-500);
+}
+
+[data-flux-rows] [data-flux-row]:hover > [data-flux-cell]:last-child {
+    @apply rounded-e-lg;
+}
+
+/* A hovered row's rounded ends expose the divider above the next row; drop
+   the divider right under a hovered row so the pill reads cleanly. */
+[data-flux-rows] [data-flux-row]:hover + [data-flux-row] > [data-flux-cell] {
+    @apply border-transparent;
+}
+
+/* Empty-state rows ("No suppliers found") span every column: no hover. */
+[data-flux-rows] [data-flux-row]:has(> [data-flux-cell][colspan]:only-child):hover > [data-flux-cell] {
+    @apply bg-transparent;
+    box-shadow: none;
+}
+
 /* flux:text pins weight with [:where(&)]:font-normal, silently cancelling the
    `font-medium` the views put on primary values (product name, qty, stock
    value). Re-assert it so those read as the anchor of each row. */
@@ -285,3 +363,140 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* ============ REPORT PRINTING ============
+   Pages marked data-print-report="Title" print only their tables: summary
+   cards, filters and any block without a table are dropped, and every
+   column is laid out on the page instead of behind a scroll bar. */
+@media print {
+    @page {
+        margin: 10mm;
+    }
+
+    [data-print-report] {
+        padding: 0 !important;
+    }
+
+    /* Title comes from the attribute, since the on-screen header is hidden. */
+    [data-print-report]::before {
+        content: attr(data-print-report);
+        display: block;
+        margin-bottom: 8pt;
+        font-size: 16pt;
+        font-weight: 700;
+        color: #000;
+    }
+
+    /* Only blocks that contain a table survive. */
+    [data-print-report] > :not(:has([data-flux-table])),
+    [data-print-report] [data-flux-card]:not(:has([data-flux-table])),
+    [data-print-report] [data-flux-pagination] {
+        display: none !important;
+    }
+
+    /* Grids that held tables side by side stack full width. */
+    [data-print-report] > * {
+        display: block !important;
+        margin-bottom: 12pt !important;
+    }
+
+    [data-print-report] [data-flux-card] {
+        border: 1px solid #d4d4d8 !important;
+        box-shadow: none !important;
+        break-inside: auto;
+        margin-bottom: 12pt;
+    }
+
+    /* No scroll area: all columns fit the page width, text wraps. */
+    [data-print-report] ui-table-scroll-area {
+        overflow: visible !important;
+    }
+
+    [data-print-report] [data-flux-table] {
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+        white-space: normal !important;
+        font-size: 9pt;
+    }
+
+    [data-print-report] [data-flux-table] th,
+    [data-print-report] [data-flux-table] td {
+        padding: 4pt 6pt !important;
+    }
+
+    [data-print-report] [data-flux-table] thead {
+        display: table-header-group;
+    }
+
+    [data-print-report] [data-flux-table] tr {
+        break-inside: avoid;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Gradient auth layout (layouts/auth/gradient). Colours come from the brand
+   ramps so the page follows Settings → Theme.
+   ------------------------------------------------------------------------- */
+.auth-gradient {
+    background:
+        radial-gradient(ellipse at 15% 20%, var(--color-primary-500) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, var(--color-secondary-500) 0%, transparent 55%),
+        radial-gradient(ellipse at 70% 10%, var(--color-tertiary-400) 0%, transparent 45%),
+        linear-gradient(135deg, var(--color-primary-800), var(--color-primary-950) 60%, var(--color-secondary-900));
+    background-size: 160% 160%;
+    animation: auth-pan 18s ease-in-out infinite alternate;
+}
+
+.auth-blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    animation: auth-drift 22s ease-in-out infinite alternate;
+}
+.auth-blob-1 { width: 28rem; height: 28rem; top: -6rem; left: -6rem; background: var(--color-primary-400); }
+.auth-blob-2 { width: 24rem; height: 24rem; bottom: -8rem; left: 35%; background: var(--color-secondary-400); animation-duration: 26s; animation-delay: -6s; }
+.auth-blob-3 { width: 20rem; height: 20rem; top: 20%; right: -4rem; background: var(--color-tertiary-400); opacity: 0.4; animation-duration: 30s; animation-delay: -12s; }
+
+.auth-grid {
+    background-image:
+        linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse at 30% 50%, black 20%, transparent 75%);
+}
+
+.auth-shimmer {
+    background: linear-gradient(90deg, #fff, var(--color-tertiary-200), var(--color-secondary-200), #fff);
+    background-size: 300% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: auth-shimmer 8s linear infinite;
+}
+
+.auth-card { animation: auth-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.auth-float { animation: auth-float 7s ease-in-out infinite; }
+.auth-float-delay { animation-delay: -3.5s; }
+.auth-bar { transform-origin: bottom; animation: auth-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.auth-progress { width: 82%; animation: auth-fill 1.6s cubic-bezier(0.22, 1, 0.36, 1) both 0.3s; }
+
+@keyframes auth-pan { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+@keyframes auth-drift {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(4rem, 3rem) scale(1.1); }
+    100% { transform: translate(-2rem, 5rem) scale(0.95); }
+}
+@keyframes auth-shimmer { to { background-position: 300% 0; } }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
+@keyframes auth-float { 50% { transform: translateY(-10px); } }
+@keyframes auth-grow { from { transform: scaleY(0); } }
+@keyframes auth-fill { from { width: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-gradient, .auth-blob, .auth-shimmer, .auth-card,
+    .auth-float, .auth-bar, .auth-progress { animation: none; }
+}

@@ -1,11 +1,14 @@
-<x-layouts::auth :title="__('Forgot password')">
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Forgot password')" :description="__('Enter your email to receive a password reset link')" />
+<x-layouts::auth.focus :title="__('Forgot password')" icon="key" step="1">
+    <div class="flex flex-col gap-5 short:gap-4">
+        <div class="text-center">
+            <h1 class="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">{{ __('Forgot your password?') }}</h1>
+            <p class="mt-1 text-sm text-zinc-500 short:hidden dark:text-zinc-400">{{ __('No worries — we\'ll email you a reset link.') }}</p>
+        </div>
 
         <!-- Session Status -->
-        <x-auth-session-status class="text-center" :status="session('status')" />
+        <x-auth-session-status class="rounded-xl bg-green-50 px-4 py-3 text-center dark:bg-green-500/10" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.email') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.email') }}" class="flex flex-col gap-4 short:gap-3">
             @csrf
 
             <!-- Email Address -->
@@ -13,19 +16,18 @@
                 name="email"
                 :label="__('Email address')"
                 type="email"
+                icon="envelope"
                 required
                 autofocus
                 placeholder="email@example.com"
             />
 
-            <flux:button variant="primary" type="submit" class="w-full" data-test="email-password-reset-link-button">
-                {{ __('Email password reset link') }}
-            </flux:button>
+            <x-auth-button data-test="email-password-reset-link-button">{{ __('Email password reset link') }}</x-auth-button>
         </form>
 
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-400">
-            <span>{{ __('Or, return to') }}</span>
-            <flux:link :href="route('login')" wire:navigate>{{ __('log in') }}</flux:link>
-        </div>
+        <a href="{{ route('login') }}" class="group inline-flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white" wire:navigate>
+            <flux:icon.arrow-left variant="micro" class="transition-transform group-hover:-translate-x-0.5" />
+            {{ __('Back to log in') }}
+        </a>
     </div>
-</x-layouts::auth>
+</x-layouts::auth.focus>

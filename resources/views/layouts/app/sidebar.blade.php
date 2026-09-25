@@ -105,7 +105,7 @@
                 {{-- Purchasing --}}
                 @if(auth()->user()->hasRole(['admin', 'manager', 'viewer']))
                 <flux:sidebar.group :heading="__('Purchasing')" expandable icon="truck"
-                    :expanded="request()->routeIs('purchases.*', 'suppliers.*')">
+                    :expanded="request()->routeIs('purchases.*', 'suppliers.*', 'payment-accounts.*')">
                     @if(auth()->user()->hasRole(['admin', 'manager']))
                     <flux:sidebar.item
                         icon="clipboard-document-list"
@@ -121,6 +121,13 @@
                         :current="request()->routeIs('suppliers.*')"
                         wire:navigate
                     >{{ __('Suppliers') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="credit-card"
+                        :href="route('payment-accounts.index')"
+                        :current="request()->routeIs('payment-accounts.*')"
+                        wire:navigate
+                    >{{ __('Payment Accounts') }}</flux:sidebar.item>
                 </flux:sidebar.group>
                 @endif
 
@@ -148,6 +155,20 @@
                         :current="request()->routeIs('reports.low-stock')"
                         wire:navigate
                     >{{ __('Low Stock Alerts') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="clock"
+                        :href="route('reports.dues')"
+                        :current="request()->routeIs('reports.dues')"
+                        wire:navigate
+                    >{{ __('Due Report') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="building-library"
+                        :href="route('reports.accounts')"
+                        :current="request()->routeIs('reports.accounts')"
+                        wire:navigate
+                    >{{ __('Account Report') }}</flux:sidebar.item>
                 </flux:sidebar.group>
                 @endif
 

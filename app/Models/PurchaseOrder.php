@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'order_number', 'supplier_id', 'warehouse_id',
     'created_by', 'approved_by', 'status',
     'subtotal', 'tax', 'discount', 'courier_charge', 'courier_cost', 'total', 'paid_amount',
-    'order_date', 'expected_date', 'received_date', 'notes',
+    'order_date', 'expected_date', 'payment_due_date', 'received_date', 'notes',
 ])]
 class PurchaseOrder extends Model
 {
@@ -30,6 +30,7 @@ class PurchaseOrder extends Model
             'paid_amount' => 'decimal:2',
             'order_date' => 'date',
             'expected_date' => 'date',
+            'payment_due_date' => 'date',
             'received_date' => 'date',
         ];
     }
@@ -65,6 +66,18 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(PurchasePayment::class);
+    }
+
+    /** Placed orders that still owe the supplier money. */
+    public function scopeWithDue($q)
+    {
+        return $q->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereColumn('paid_amount', '<', 'total');
+    }
+
     public function scopePending($q)
     {
         return $q->where('status', 'pending');
@@ -88,6 +101,12 @@ class PurchaseOrder extends Model
     public function isPaid(): bool
     {
         return $this->paid_amount >= $this->total;
+    }
+
+    /** Payments can be made once the order is placed, until it is fully paid. */
+    public function canRecordPayment(): bool
+    {
+        return ! in_array($this->status, ['draft', 'cancelled'], true) && ! $this->isPaid();
     }
 
     public function isDraft(): bool

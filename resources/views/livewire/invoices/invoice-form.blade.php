@@ -303,12 +303,25 @@
 
                     <flux:field>
                         <flux:label>Payment Method</flux:label>
-                        <flux:select wire:model="payment_method">
+                        <flux:select wire:model.live="payment_method">
                             <flux:select.option value="cash">Cash</flux:select.option>
                             <flux:select.option value="card">Card</flux:select.option>
                             <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
                         </flux:select>
                     </flux:field>
+
+                    @if (App\Models\PaymentAccount::requiredFor($payment_method))
+                        <flux:field>
+                            <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                            <flux:select wire:model="payment_account_id" placeholder="Select account...">
+                                @foreach ($paymentAccounts as $account)
+                                    <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:description>Required when marking the invoice paid.</flux:description>
+                            <flux:error name="payment_account_id" />
+                        </flux:field>
+                    @endif
                 </div>
             </flux:card>
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Invoices;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentAccount;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +24,11 @@ class InvoiceView extends Component
 
     public string $payment_reference = '';
 
+    public ?int $payment_account_id = null;
+
     public function mount(Invoice $invoice): void
     {
-        $this->invoice = $invoice->load(['items.product', 'customer', 'warehouse', 'createdBy', 'payments']);
+        $this->invoice = $invoice->load(['items.product', 'customer', 'warehouse', 'createdBy', 'payments.paymentAccount']);
     }
 
     public function openPaymentModal(): void
@@ -45,6 +48,9 @@ class InvoiceView extends Component
             'payment_amount' => 'required|numeric|min:0.01|max:'.$this->invoice->due_amount,
             'payment_method' => 'required|in:cash,card,bank_transfer,cheque,other',
             'payment_reference' => 'nullable|string|max:100',
+            'payment_account_id' => PaymentAccount::rule($this->payment_method),
+        ], [
+            'payment_account_id.required' => 'Select the account or card this was paid to.',
         ]);
 
         $amount = (float) $this->payment_amount;
@@ -67,6 +73,7 @@ class InvoiceView extends Component
             Payment::create([
                 'invoice_id' => $invoice->id,
                 'created_by' => auth()->id(),
+                'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
                 'amount' => $amount,
                 'method' => $this->payment_method,
                 'status' => 'completed',
@@ -87,9 +94,15 @@ class InvoiceView extends Component
 
         DashboardIndex::flushCache();
 
-        $this->invoice->refresh()->load('payments');
+        $this->invoice->refresh()->load('payments.paymentAccount');
         $this->showPaymentModal = false;
         session()->flash('success', 'Payment recorded successfully!');
+    }
+
+    public function updatedPaymentMethod(): void
+    {
+        $accounts = PaymentAccount::forMethod($this->payment_method)->get();
+        $this->payment_account_id = $accounts->count() === 1 ? $accounts->first()->id : null;
     }
 
     public function downloadPdf()
@@ -109,7 +122,9 @@ class InvoiceView extends Component
     {
         $company = Setting::getGroup('company');
 
-        return view('livewire.invoices.invoice-view', compact('company'))
+        $paymentAccounts = PaymentAccount::forMethod($this->payment_method)->get();
+
+        return view('livewire.invoices.invoice-view', compact('company', 'paymentAccounts'))
             ->layout('layouts.app', ['title' => $this->invoice->invoice_number]);
     }
 }

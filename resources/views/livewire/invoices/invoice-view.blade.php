@@ -189,7 +189,11 @@
                 <div class="mt-2 font-medium text-zinc-900 dark:text-white print:text-black">
                     {{ $invoice->createdBy->name }}</div>
                 <div class="mt-0.5 text-sm text-zinc-500">
-                    {{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? '—')) }}</div>
+                    {{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? '—')) }}
+                    @if ($account = $invoice->payments->first()?->paymentAccount)
+                        · {{ $account->display_name }}
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -321,6 +325,9 @@
                                 <td class="py-2 pr-3 font-mono text-xs text-zinc-500">{{ $payment->payment_number }}</td>
                                 <td class="py-2 pr-3">
                                     {{ ucfirst(str_replace('_', ' ', $payment->method)) }}
+                                    @if ($payment->paymentAccount)
+                                        <span class="text-zinc-400">· {{ $payment->paymentAccount->display_name }}</span>
+                                    @endif
                                     @if ($payment->reference)
                                         <span class="text-zinc-400">· {{ $payment->reference }}</span>
                                     @endif
@@ -377,7 +384,7 @@
 
                 <flux:field>
                     <flux:label>Payment Method</flux:label>
-                    <flux:select wire:model="payment_method">
+                    <flux:select wire:model.live="payment_method">
                         <flux:select.option value="cash">Cash</flux:select.option>
                         <flux:select.option value="card">Card</flux:select.option>
                         <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
@@ -386,6 +393,18 @@
                     </flux:select>
                     <flux:error name="payment_method" />
                 </flux:field>
+
+                @if (App\Models\PaymentAccount::requiredFor($payment_method))
+                    <flux:field>
+                        <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                        <flux:select wire:model="payment_account_id" placeholder="Select account...">
+                            @foreach ($paymentAccounts as $account)
+                                <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="payment_account_id" />
+                    </flux:field>
+                @endif
 
                 <flux:field>
                     <flux:label>Reference <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>

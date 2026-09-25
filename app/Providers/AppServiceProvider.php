@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\Promotion;
 use App\Models\PurchaseOrder;
@@ -54,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
             Warehouse::class,
             Invoice::class,
             PurchaseOrder::class,
+            PaymentAccount::class,
             Promotion::class,
             User::class,
         ];

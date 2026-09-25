@@ -74,6 +74,9 @@
                 @if($order->canPlace())
                     <flux:button icon="truck" wire:click="markAsOrdered">Mark as Ordered</flux:button>
                 @endif
+                @if($order->canRecordPayment())
+                    <flux:button icon="banknotes" wire:click="openPaymentModal">Record Payment</flux:button>
+                @endif
                 @if($order->canReceive())
                     <flux:button variant="primary" icon="inbox-arrow-down" wire:click="openReceiveModal">Receive Stock
                     </flux:button>
@@ -149,6 +152,16 @@
                             <flux:error name="expected_date" />
                         @else
                             <flux:text class="font-medium">{{ $order->expected_date?->format('d M Y') ?? '-' }}</flux:text>
+                        @endif
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Payment Due Date</flux:label>
+                        @if($isEditable)
+                            <flux:input wire:model="payment_due_date" type="date" />
+                            <flux:error name="payment_due_date" />
+                        @else
+                            <flux:text class="font-medium">{{ $order->payment_due_date?->format('d M Y') ?? '-' }}</flux:text>
                         @endif
                     </flux:field>
                 </div>
@@ -343,18 +356,42 @@
                         </div>
                     </div>
 
-                    @if($order?->exists && $order->paid_amount > 0)
+                    @if($order?->exists && !$order->isDraft() && $order->status !== 'cancelled')
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Paid</flux:text>
                             <flux:text class="text-green-500">{{ money($order->paid_amount) }}</flux:text>
                         </div>
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Due</flux:text>
-                            <flux:text class="text-red-500">{{ money($order->due_amount) }}</flux:text>
+                            <flux:text @class(['text-red-500' => $order->due_amount > 0, 'text-zinc-500' => $order->due_amount <= 0])>{{ money($order->due_amount) }}</flux:text>
                         </div>
                     @endif
                 </div>
             </flux:card>
+
+            {{-- Payment History --}}
+            @if($order?->exists && $order->payments->isNotEmpty())
+            <flux:card class="p-6">
+                <flux:heading class="mb-4">Payments</flux:heading>
+                <div class="space-y-3">
+                    @foreach($order->payments as $payment)
+                        <div class="flex items-start justify-between gap-2 text-sm" wire:key="pp-{{ $payment->id }}">
+                            <div class="min-w-0">
+                                <div class="font-medium text-zinc-900 dark:text-white">
+                                    {{ ucfirst(str_replace('_', ' ', $payment->method)) }}
+                                </div>
+                                <div class="truncate text-xs text-zinc-500">
+                                    {{ $payment->payment_date->format('d M Y') }}
+                                    @if($payment->paymentAccount) · {{ $payment->paymentAccount->display_name }} @endif
+                                    @if($payment->reference) · {{ $payment->reference }} @endif
+                                </div>
+                            </div>
+                            <span class="shrink-0 font-medium tabular-nums">{{ money($payment->amount) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </flux:card>
+            @endif
 
             {{-- Actions --}}
             @if($isEditable)
@@ -406,6 +443,60 @@
             <div class="mt-6 flex justify-end gap-3">
                 <flux:button variant="ghost" wire:click="$set('showReceiveModal', false)" type="button">Cancel</flux:button>
                 <flux:button variant="primary" wire:click="receiveStock" icon="check">Confirm Receive</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- Record Payment Modal --}}
+    <flux:modal wire:model="showPaymentModal" class="w-full max-w-md">
+        <div class="p-6">
+            <flux:heading>Record Payment</flux:heading>
+            <flux:text class="mt-1 text-sm text-zinc-500">
+                Due to {{ $order->supplier->name }}: <span class="font-medium text-red-500">{{ money($order->due_amount) }}</span>
+            </flux:text>
+
+            <div class="mt-5 space-y-4">
+                <flux:field>
+                    <flux:label badge="Required">Amount</flux:label>
+                    <flux:input wire:model="payment_amount" type="number" step="0.01" min="0"
+                        max="{{ $order->due_amount }}" prefix="৳" class="tabular-nums" />
+                    <flux:error name="payment_amount" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Payment Method</flux:label>
+                    <flux:select wire:model.live="payment_method">
+                        <flux:select.option value="cash">Cash</flux:select.option>
+                        <flux:select.option value="card">Card</flux:select.option>
+                        <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
+                        <flux:select.option value="cheque">Cheque</flux:select.option>
+                        <flux:select.option value="other">Other</flux:select.option>
+                    </flux:select>
+                    <flux:error name="payment_method" />
+                </flux:field>
+
+                @if (App\Models\PaymentAccount::requiredFor($payment_method))
+                    <flux:field>
+                        <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                        <flux:select wire:model="payment_account_id" placeholder="Select account...">
+                            @foreach ($paymentAccounts as $account)
+                                <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="payment_account_id" />
+                    </flux:field>
+                @endif
+
+                <flux:field>
+                    <flux:label>Reference <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
+                    <flux:input wire:model="payment_reference" placeholder="Transaction ID / cheque number" />
+                    <flux:error name="payment_reference" />
+                </flux:field>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <flux:button variant="ghost" wire:click="$set('showPaymentModal', false)" type="button">Cancel</flux:button>
+                <flux:button variant="primary" wire:click="recordPayment" icon="check">Record Payment</flux:button>
             </div>
         </div>
     </flux:modal>

@@ -3,6 +3,7 @@
 namespace App\Livewire\Products;
 
 use App\Concerns\AuthorizesDestructiveActions;
+use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Category;
 use App\Models\Product;
@@ -14,6 +15,7 @@ use Livewire\WithPagination;
 class ProductList extends Component
 {
     use AuthorizesDestructiveActions, WithPagination;
+    use HandlesBarcodeScans;
 
     public string $search = '';
 
@@ -78,6 +80,14 @@ class ProductList extends Component
             $this->deleteId = null;
             $this->dispatch('notify', message: 'Product deleted successfully!', type: 'success');
         }
+    }
+
+    protected function handleScan(string $code): bool
+    {
+        $this->search = $code;
+        $this->resetPage();
+
+        return true;
     }
 
     public function render()
