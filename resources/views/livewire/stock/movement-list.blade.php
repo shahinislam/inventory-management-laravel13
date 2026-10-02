@@ -28,7 +28,8 @@
                 <flux:select.option value="">All Types</flux:select.option>
                 <flux:select.option value="purchase">Purchase</flux:select.option>
                 <flux:select.option value="sale">Sale</flux:select.option>
-                <flux:select.option value="return">Return</flux:select.option>
+                <flux:select.option value="return">Customer return</flux:select.option>
+                <flux:select.option value="purchase_return">Return to supplier</flux:select.option>
                 <flux:select.option value="adjustment">Adjustment</flux:select.option>
                 <flux:select.option value="transfer_in">Transfer In</flux:select.option>
                 <flux:select.option value="transfer_out">Transfer Out</flux:select.option>
@@ -88,6 +89,7 @@
                                 :color="match($movement->type) {
                                     'purchase', 'return', 'transfer_in' => 'green',
                                     'sale', 'transfer_out' => 'blue',
+                                    'purchase_return' => 'orange',
                                     'damaged', 'expired' => 'red',
                                     'adjustment' => 'yellow',
                                     default => 'zinc'
@@ -97,12 +99,12 @@
 
                         <flux:table.cell>
                             <flux:text class="font-medium {{ $movement->isInbound() ? 'text-green-500' : 'text-red-500' }}">
-                                {{ $movement->isInbound() ? '+' : '-' }}{{ $movement->quantity }}
+                                {{ $movement->isInbound() ? '+' : '-' }}{{ format_qty($movement->quantity) }}
                             </flux:text>
                         </flux:table.cell>
 
                         <flux:table.cell>
-                            <flux:text class="text-sm">{{ $movement->before_quantity }} → {{ $movement->after_quantity }}</flux:text>
+                            <flux:text class="text-sm">{{ format_qty($movement->before_quantity) }} → {{ format_qty($movement->after_quantity) }}</flux:text>
                         </flux:table.cell>
 
                         <flux:table.cell>

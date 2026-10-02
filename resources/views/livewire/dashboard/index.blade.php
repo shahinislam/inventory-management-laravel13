@@ -103,7 +103,7 @@
                         </div>
                         <div class="text-right">
                             <flux:badge size="sm" color="red">
-                                {{ $product->quantity }} / {{ $product->min_stock_level }}
+                                {{ format_qty($product->quantity) }} / {{ format_qty($product->min_stock_level) }}
                             </flux:badge>
                         </div>
                     </div>
@@ -133,7 +133,7 @@
                                 size="sm"
                                 :color="$movement->isInbound() ? 'green' : 'red'"
                             >
-                                {{ $movement->isInbound() ? '+' : '-' }}{{ $movement->quantity }}
+                                {{ $movement->isInbound() ? '+' : '-' }}{{ format_qty($movement->quantity) }}
                             </flux:badge>
                             <flux:text class="text-xs text-zinc-500 mt-1">{{ ucfirst(str_replace('_', ' ', $movement->type)) }}</flux:text>
                         </div>

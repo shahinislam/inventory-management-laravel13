@@ -46,7 +46,7 @@
                                         wire:key="prod-{{ $product->id }}"
                                         :label="$product->name"
                                         :description="$product->sku"
-                                        :value="$product->quantity . ' ' . $product->unit" />
+                                        :value="format_qty($product->quantity, $product->unit)" />
                                 @endforeach
                             </x-search-select>
                             <flux:error name="product_id" />
@@ -58,7 +58,7 @@
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <flux:text class="text-sm text-zinc-500">Current Stock</flux:text>
-                                        <flux:heading size="lg">{{ $selectedProduct->quantity }} {{ $selectedProduct->unit }}</flux:heading>
+                                        <flux:heading size="lg">{{ format_qty($selectedProduct->quantity, $selectedProduct->unit) }}</flux:heading>
                                     </div>
                                     <flux:badge :color="$selectedProduct->isLowStock() ? 'red' : 'green'">
                                         Min: {{ $selectedProduct->min_stock_level }}
@@ -87,7 +87,7 @@
                                 @endif
                                 <flux:badge color="red" size="sm">Required</flux:badge>
                             </flux:label>
-                            <flux:input wire:model="quantity" type="number" min="0" placeholder="0" />
+                            <flux:input wire:model.live.debounce.400ms="quantity" type="number" min="0" :step="$selectedProduct?->isLoose() ? '0.001' : '1'" placeholder="0" />
                             <flux:error name="quantity" />
                         </flux:field>
 
@@ -95,7 +95,7 @@
                         @if($selectedProduct && $quantity !== '')
                             @php
                                 $before = $selectedProduct->quantity;
-                                $qty = (int) $quantity;
+                                $qty = round((float) $quantity, 3);
                                 $after = match($adjustment_type) {
                                     'add' => $before + $qty,
                                     'remove' => max(0, $before - $qty),

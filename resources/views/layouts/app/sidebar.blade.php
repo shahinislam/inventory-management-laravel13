@@ -6,7 +6,8 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
 
         {{-- ========== SIDEBAR ========== --}}
-        <flux:sidebar sticky collapsible persist class="w-52 border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 print:hidden">
+        <flux:sidebar sticky collapsible persist class="w-52 border-e print:hidden"
+            data-sidebar-style="{{ in_array($sidebarStyle = \App\Models\Setting::get('theme.sidebar', 'light'), ['light', 'dark', 'brand'], true) ? $sidebarStyle : 'light' }}">
 
             {{-- Logo --}}
             <flux:sidebar.header class="flex items-center justify-between">
@@ -15,10 +16,7 @@
             </flux:sidebar.header>
 
             {{-- Navigation --}}
-            <flux:sidebar.nav class="flex-1 overflow-y-auto min-h-0 py-2"
-                x-data="{ active: null }"
-                @disclosure-opened.window="active = $event.detail"
-            >
+            <flux:sidebar.nav class="flex-1 overflow-y-auto min-h-0 py-2">
 
                 {{-- Main --}}
                 <flux:sidebar.item
@@ -45,7 +43,7 @@
                     <flux:sidebar.item
                         icon="cube"
                         :href="route('products.index')"
-                        :current="request()->routeIs('products.*')"
+                        :current="request()->routeIs('products.*') && ! request()->routeIs('products.labels*')"
                         wire:navigate
                     >{{ __('Products') }}</flux:sidebar.item>
 
@@ -61,9 +59,25 @@
                     <flux:sidebar.item
                         icon="arrows-up-down"
                         :href="route('stock.index')"
-                        :current="request()->routeIs('stock.*')"
+                        :current="request()->routeIs('stock.index', 'stock.adjust', 'stock.transfer')"
                         wire:navigate
                     >{{ __('Stock Movements') }}</flux:sidebar.item>
+
+                    @if(auth()->user()->hasRole(['admin', 'manager', 'staff']))
+                    <flux:sidebar.item
+                        icon="clipboard-document-check"
+                        :href="route('stock.count')"
+                        :current="request()->routeIs('stock.count')"
+                        wire:navigate
+                    >{{ __('Stock Count') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="qr-code"
+                        :href="route('products.labels')"
+                        :current="request()->routeIs('products.labels*')"
+                        wire:navigate
+                    >{{ __('Print Labels') }}</flux:sidebar.item>
+                    @endif
 
                     @if(auth()->user()->isAdmin())
                     <flux:sidebar.item
@@ -77,7 +91,23 @@
 
                 {{-- Sales --}}
                 <flux:sidebar.group :heading="__('Sales')" expandable icon="document-text"
-                    :expanded="request()->routeIs('invoices.*', 'customers.*', 'promotions.*')">
+                    :expanded="request()->routeIs('invoices.*', 'customers.*', 'promotions.*', 'membership-rewards.*', 'returns.*', 'shifts.*')">
+                    @if(auth()->user()->hasRole(['admin', 'manager', 'staff']))
+                    <flux:sidebar.item
+                        icon="arrow-uturn-left"
+                        :href="route('returns.create')"
+                        :current="request()->routeIs('returns.*')"
+                        wire:navigate
+                    >{{ __('Return Items') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="banknotes"
+                        :href="auth()->user()->hasRole(['admin', 'manager']) ? route('shifts.index') : route('shifts.current')"
+                        :current="request()->routeIs('shifts.*')"
+                        wire:navigate
+                    >{{ auth()->user()->hasRole(['admin', 'manager']) ? __('Cash Shifts') : __('My Shift') }}</flux:sidebar.item>
+                    @endif
+
                     <flux:sidebar.item
                         icon="document-text"
                         :href="route('invoices.index')"
@@ -99,6 +129,13 @@
                         :current="request()->routeIs('promotions.*')"
                         wire:navigate
                     >{{ __('Promotions') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="trophy"
+                        :href="route('membership-rewards.index')"
+                        :current="request()->routeIs('membership-rewards.*')"
+                        wire:navigate
+                    >{{ __('Member Rewards') }}</flux:sidebar.item>
                     @endif
                 </flux:sidebar.group>
 
@@ -169,6 +206,52 @@
                         :current="request()->routeIs('reports.accounts')"
                         wire:navigate
                     >{{ __('Account Report') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="calendar-days"
+                        :href="route('reports.expiry')"
+                        :current="request()->routeIs('reports.expiry')"
+                        wire:navigate
+                    >{{ __('Expiry Report') }}</flux:sidebar.item>
+
+                    @if(auth()->user()->hasRole(['admin', 'manager']))
+                    <flux:sidebar.item
+                        icon="presentation-chart-line"
+                        :href="route('reports.profit-loss')"
+                        :current="request()->routeIs('reports.profit-loss')"
+                        wire:navigate
+                    >{{ __('Profit & Loss') }}</flux:sidebar.item>
+                    @endif
+                </flux:sidebar.group>
+                @endif
+
+                {{-- Finance & Marketing --}}
+                @if(auth()->user()->hasRole(['admin', 'manager']))
+                <flux:sidebar.group :heading="__('Finance')" expandable icon="wallet"
+                    :expanded="request()->routeIs('expenses.*')">
+                    <flux:sidebar.item
+                        icon="receipt-refund"
+                        :href="route('expenses.index')"
+                        :current="request()->routeIs('expenses.*')"
+                        wire:navigate
+                    >{{ __('Expenses') }}</flux:sidebar.item>
+                </flux:sidebar.group>
+
+                <flux:sidebar.group :heading="__('Marketing')" expandable icon="megaphone"
+                    :expanded="request()->routeIs('marketing.*')">
+                    <flux:sidebar.item
+                        icon="chat-bubble-left-right"
+                        :href="route('marketing.sms')"
+                        :current="request()->routeIs('marketing.sms')"
+                        wire:navigate
+                    >{{ __('SMS to Members') }}</flux:sidebar.item>
+
+                    <flux:sidebar.item
+                        icon="inbox-stack"
+                        :href="route('marketing.sms-log')"
+                        :current="request()->routeIs('marketing.sms-log')"
+                        wire:navigate
+                    >{{ __('SMS Log') }}</flux:sidebar.item>
                 </flux:sidebar.group>
                 @endif
 

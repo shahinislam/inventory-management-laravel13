@@ -109,6 +109,50 @@
     html {
         font-size: 17px;
     }
+
+    /* Tailwind v4 resets buttons to the default arrow. Everything clickable gets
+       the hand. This is in the base layer, so a cursor-* utility on an element
+       still wins. */
+    a[href],
+    button,
+    [role='button'],
+    [role='tab'],
+    [role='option'],
+    [role='menuitem'],
+    [role='switch'],
+    [role='checkbox'],
+    [role='radio'],
+    [type='button'],
+    [type='submit'],
+    [type='reset'],
+    [type='checkbox'],
+    [type='radio'],
+    [type='file'],
+    ::file-selector-button,
+    select,
+    summary,
+    label:has(input[type='checkbox'], input[type='radio']),
+    [wire\:click],
+    [x-on\:click],
+    [data-flux-button],
+    [data-flux-select-button],
+    [data-flux-menu-item],
+    [data-flux-sidebar-item],
+    [data-flux-navlist-item],
+    [data-flux-tab],
+    [data-flux-checkbox],
+    [data-flux-radio],
+    [data-flux-switch] {
+        cursor: pointer;
+    }
+
+    /* ...except when it can't be used. */
+    :disabled,
+    [disabled],
+    [aria-disabled='true'],
+    :disabled::file-selector-button {
+        cursor: not-allowed;
+    }
 }
 
 [data-flux-field]:not(ui-radio, ui-checkbox) {
@@ -233,47 +277,104 @@ select:focus[data-flux-control] {
    deepest value and step the size up so the nav is legible at a glance.
    ========================================================================== */
 
-/* Item labels. The link itself carries the colour; [data-content] carries the
-   size. Both need overriding, and :not(:hover) leaves Flux's hover state alone. */
-[data-flux-sidebar-item]:not([data-current]) {
-    @apply text-zinc-950 dark:text-white/90;
-}
-
-/* Active nav item: accent text on a tinted pill, so the current page is the
-   most obvious thing in the sidebar rather than just another dark label. */
-[data-flux-sidebar-item][data-current] {
-    @apply bg-primary-50 font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
-}
-
+/* Shared layout (all styles). Items inside an expanded group: the sidebar
+   width is fixed, so claw back room for the label — a shallower indent than
+   Flux's ps-7, tighter icon gap and padding, and a slightly smaller label. */
 [data-flux-sidebar-item] [data-content] {
     @apply text-sm font-semibold;
 }
 
-/* Items inside an expanded group: the sidebar width is fixed, so claw back
-   room for the label — a shallower indent than Flux's ps-7, tighter icon gap
-   and padding, and a slightly smaller label — so names like "Account Report"
-   fit instead of truncating. */
 [data-flux-sidebar-group] > div[data-open],
 [data-flux-sidebar-group] > div.ps-7 {
     padding-inline-start: 0.75rem;
 }
 
-[data-flux-sidebar-group] [data-flux-sidebar-item] {
+[data-flux-sidebar-group] > div.ps-7 [data-flux-sidebar-item] {
     @apply gap-2 px-2;
 }
 
-[data-flux-sidebar-group] [data-flux-sidebar-item] [data-content] {
+[data-flux-sidebar-group] > div.ps-7 [data-flux-sidebar-item] [data-content] {
     @apply text-[0.8125rem];
-}
-
-/* Group headings ("Inventory", "Settings", …) — the disclosure buttons and the
-   plain heading variant. */
-[data-flux-sidebar] .group\/disclosure-button {
-    @apply text-zinc-950 dark:text-white/90;
 }
 
 [data-flux-sidebar] .group\/disclosure-button span {
     @apply text-sm font-semibold;
+}
+
+/* Items in the collapsed-desktop flyout live in a light Flux menu whatever the
+   sidebar style, so they keep dark text and a tinted active pill. */
+[data-flux-menu] [data-flux-sidebar-item][data-current] {
+    @apply bg-primary-50 font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
+}
+
+/* --- Light (default) ------------------------------------------------------ */
+[data-sidebar-style='light'] {
+    @apply border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900;
+}
+
+[data-sidebar-style='light'] [data-flux-sidebar-item]:not([data-current]) {
+    @apply text-zinc-950 dark:text-white/90;
+}
+
+[data-sidebar-style='light'] [data-flux-sidebar-item][data-current] {
+    @apply bg-primary-50 font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
+}
+
+[data-sidebar-style='light'] .group\/disclosure-button {
+    @apply text-zinc-950 dark:text-white/90;
+}
+
+[data-sidebar-style='light'] [data-flux-sidebar-group]:has([data-flux-sidebar-item][data-current]) > button,
+[data-sidebar-style='light'] [data-flux-sidebar-group-dropdown]:has([data-flux-sidebar-item][data-current]) > button {
+    @apply bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300;
+}
+
+/* --- Dark and Brand: white text on a coloured panel ------------------------ */
+[data-sidebar-style='dark'] {
+    @apply border-zinc-800 bg-zinc-900;
+}
+
+[data-sidebar-style='brand'] {
+    @apply border-primary-950 bg-primary-900;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) [data-flux-sidebar-item]:not([data-current]):not([data-flux-menu] *),
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) .group\/disclosure-button:not([data-flux-menu] *) {
+    @apply text-white/85 hover:bg-white/10 hover:text-white;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) [data-flux-sidebar-item] [data-flux-icon]:not([data-flux-menu] *) {
+    @apply text-current;
+}
+
+[data-sidebar-style='dark'] [data-flux-sidebar-item][data-current]:not([data-flux-menu] *) {
+    @apply border-transparent bg-primary-600 font-bold text-white;
+}
+
+[data-sidebar-style='brand'] [data-flux-sidebar-item][data-current]:not([data-flux-menu] *) {
+    @apply border-transparent bg-white font-bold text-primary-800;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) [data-flux-sidebar-group]:has([data-flux-sidebar-item][data-current]) > button,
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) [data-flux-sidebar-group-dropdown]:has([data-flux-sidebar-item][data-current]) > button {
+    @apply bg-white/15 text-white;
+}
+
+/* Indent guide line, logo, collapse button and the user menu at the bottom. */
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) [data-flux-sidebar-group] > div > div.absolute {
+    @apply bg-white/25;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) :is([data-flux-sidebar-brand], [data-flux-sidebar-collapse], [data-flux-sidebar-profile]) {
+    @apply text-white;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) :is([data-flux-sidebar-brand], [data-flux-sidebar-profile]) * {
+    @apply text-white!;
+}
+
+:is([data-sidebar-style='dark'], [data-sidebar-style='brand']) > div.border-t {
+    @apply border-white/15;
 }
 
 /* Semantic amounts (red due / green paid) must survive the rule above, which
@@ -434,9 +535,11 @@ select:focus[data-flux-control] {
     }
 }
 
+
 /* ---------------------------------------------------------------------------
-   Gradient auth layout (layouts/auth/gradient). Colours come from the brand
-   ramps so the page follows Settings → Theme.
+   Auth pages (layouts/auth/gradient, panel, focus). Colours come from the
+   brand ramps so the pages follow Settings → Theme. No rectangular cards:
+   a curved sheet (login) and glass pills directly on the gradient (others).
    ------------------------------------------------------------------------- */
 .auth-gradient {
     background:
@@ -478,11 +581,43 @@ select:focus[data-flux-control] {
     animation: auth-shimmer 8s linear infinite;
 }
 
-.auth-card { animation: auth-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.auth-float { animation: auth-float 7s ease-in-out infinite; }
-.auth-float-delay { animation-delay: -3.5s; }
-.auth-bar { transform-origin: bottom; animation: auth-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.auth-progress { width: 82%; animation: auth-fill 1.6s cubic-bezier(0.22, 1, 0.36, 1) both 0.3s; }
+.auth-rise { animation: auth-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Login showcase: stock ring with icon bubbles orbiting it. The bubbles are
+   placed with top/left (not transform) so the counter-rotation keeps them upright. */
+.auth-ring {
+    background: conic-gradient(#fff 0 82%, rgb(255 255 255 / 0.18) 82% 100%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
+}
+.auth-orbit { animation: auth-spin 40s linear infinite; }
+.auth-orbit .auth-bubble { animation: auth-spin 40s linear infinite reverse; }
+
+/* Login sheet: pill-shaped Flux inputs. */
+.auth-pill input[data-flux-control] { border-radius: 9999px; }
+
+/* Glass pages (register, forgot, reset): Flux fields as frosted pills on the gradient. */
+.auth-glass [data-flux-label] { color: rgb(255 255 255 / 0.9); }
+.auth-glass input[data-flux-control] {
+    border-radius: 9999px;
+    border-color: rgb(255 255 255 / 0.22);
+    background: rgb(255 255 255 / 0.1);
+    color: #fff;
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+}
+.auth-glass input[data-flux-control]::placeholder { color: rgb(255 255 255 / 0.5); }
+.auth-glass input[data-flux-control]:focus {
+    border-color: rgb(255 255 255 / 0.65);
+    background: rgb(255 255 255 / 0.16);
+    outline: none;
+}
+.auth-glass input[data-flux-control]:-webkit-autofill {
+    -webkit-text-fill-color: #fff;
+    transition: background-color 9999s;
+}
+.auth-glass [data-flux-input] svg,
+.auth-glass [data-flux-input] button { color: rgb(255 255 255 / 0.7); }
+.auth-glass [data-flux-error] { color: #fecdd3; }
 
 @keyframes auth-pan { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
 @keyframes auth-drift {
@@ -491,12 +626,10 @@ select:focus[data-flux-control] {
     100% { transform: translate(-2rem, 5rem) scale(0.95); }
 }
 @keyframes auth-shimmer { to { background-position: 300% 0; } }
-@keyframes auth-rise { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
-@keyframes auth-float { 50% { transform: translateY(-10px); } }
-@keyframes auth-grow { from { transform: scaleY(0); } }
-@keyframes auth-fill { from { width: 0; } }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(16px); } }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-    .auth-gradient, .auth-blob, .auth-shimmer, .auth-card,
-    .auth-float, .auth-bar, .auth-progress { animation: none; }
+    .auth-gradient, .auth-blob, .auth-shimmer, .auth-rise,
+    .auth-orbit, .auth-orbit .auth-bubble { animation: none; }
 }

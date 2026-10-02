@@ -67,9 +67,7 @@
                         <flux:table.cell>
                             <div>
                                 <flux:text class="font-medium">{{ $customer->name }}</flux:text>
-                                @if($customer->city)
-                                    <flux:text class="text-xs text-zinc-400">{{ $customer->city }}</flux:text>
-                                @endif
+                                <flux:text class="font-mono text-xs text-zinc-400">{{ $customer->member_no }}{{ $customer->city ? ' · '.$customer->city : '' }}</flux:text>
                             </div>
                         </flux:table.cell>
 

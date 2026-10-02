@@ -12,6 +12,7 @@ beforeEach(function () {
     $this->user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     $this->warehouse = Warehouse::factory()->default()->create();
     $this->actingAs($this->user);
+    openShift();
 });
 
 it('adds the courier charge to the POS cart total', function () {

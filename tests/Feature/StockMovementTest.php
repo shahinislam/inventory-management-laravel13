@@ -31,12 +31,12 @@ it('increases stock on an add adjustment', function () {
         ->set('reason', 'restock')
         ->call('save');
 
-    expect($product->fresh()->quantity)->toBe(15);
+    expect($product->fresh()->quantity)->toBe(15.0);
 
     $movement = StockMovement::sole();
     expect($movement->type)->toBe('adjustment')
-        ->and($movement->before_quantity)->toBe(10)
-        ->and($movement->after_quantity)->toBe(15);
+        ->and($movement->before_quantity)->toBe(10.0)
+        ->and($movement->after_quantity)->toBe(15.0);
 });
 
 it('decreases stock on a remove adjustment', function () {
@@ -49,7 +49,7 @@ it('decreases stock on a remove adjustment', function () {
         ->set('reason', 'damaged')
         ->call('save');
 
-    expect($product->fresh()->quantity)->toBe(6);
+    expect($product->fresh()->quantity)->toBe(6.0);
 });
 
 it('sets an absolute quantity on a set adjustment', function () {
@@ -62,7 +62,7 @@ it('sets an absolute quantity on a set adjustment', function () {
         ->set('reason', 'stock count')
         ->call('save');
 
-    expect($product->fresh()->quantity)->toBe(42);
+    expect($product->fresh()->quantity)->toBe(42.0);
 });
 
 it('never drives stock below zero on a remove adjustment', function () {
@@ -75,7 +75,7 @@ it('never drives stock below zero on a remove adjustment', function () {
         ->set('reason', 'damaged')
         ->call('save');
 
-    expect($product->fresh()->quantity)->toBe(0);
+    expect($product->fresh()->quantity)->toBe(0.0);
 });
 
 it('rejects an adjustment that changes nothing', function () {
@@ -99,8 +99,8 @@ it('moves stock from one warehouse to the other without changing the total', fun
     $inventory = app(InventoryService::class);
 
     // All 20 start in the default (source) warehouse.
-    expect($inventory->stockIn($product->id, $this->from->id))->toBe(20)
-        ->and($inventory->stockIn($product->id, $this->to->id))->toBe(0);
+    expect($inventory->stockIn($product->id, $this->from->id))->toBe(20.0)
+        ->and($inventory->stockIn($product->id, $this->to->id))->toBe(0.0);
 
     Livewire::test(StockTransfer::class)
         ->call('selectProduct', $product->id)
@@ -109,10 +109,10 @@ it('moves stock from one warehouse to the other without changing the total', fun
         ->set('quantity', '5')
         ->call('save');
 
-    expect($inventory->stockIn($product->id, $this->from->id))->toBe(15)
-        ->and($inventory->stockIn($product->id, $this->to->id))->toBe(5)
+    expect($inventory->stockIn($product->id, $this->from->id))->toBe(15.0)
+        ->and($inventory->stockIn($product->id, $this->to->id))->toBe(5.0)
         // The cached total is unchanged — the stock only moved.
-        ->and($product->fresh()->quantity)->toBe(20);
+        ->and($product->fresh()->quantity)->toBe(20.0);
 });
 
 it('writes a matching out and in movement pair for a transfer', function () {
@@ -130,11 +130,11 @@ it('writes a matching out and in movement pair for a transfer', function () {
 
     // before/after now describe the level in each warehouse, not the global total.
     expect($out->warehouse_id)->toBe($this->from->id)
-        ->and($out->before_quantity)->toBe(20)
-        ->and($out->after_quantity)->toBe(15)
+        ->and($out->before_quantity)->toBe(20.0)
+        ->and($out->after_quantity)->toBe(15.0)
         ->and($in->warehouse_id)->toBe($this->to->id)
-        ->and($in->before_quantity)->toBe(0)
-        ->and($in->after_quantity)->toBe(5);
+        ->and($in->before_quantity)->toBe(0.0)
+        ->and($in->after_quantity)->toBe(5.0);
 });
 
 it('refuses to transfer more than is on hand', function () {
@@ -149,7 +149,7 @@ it('refuses to transfer more than is on hand', function () {
         ->assertHasErrors('quantity');
 
     expect(StockMovement::count())->toBe(0)
-        ->and($product->fresh()->quantity)->toBe(3);
+        ->and($product->fresh()->quantity)->toBe(3.0);
 });
 
 it('refuses a transfer to the same warehouse', function () {
@@ -198,12 +198,12 @@ it('adds received quantity to stock', function () {
         ->call('openReceiveModal')
         ->call('receiveStock');
 
-    expect($product->fresh()->quantity)->toBe(15);
+    expect($product->fresh()->quantity)->toBe(15.0);
 
     $movement = StockMovement::where('type', 'purchase')->sole();
-    expect($movement->quantity)->toBe(10)
-        ->and($movement->before_quantity)->toBe(5)
-        ->and($movement->after_quantity)->toBe(15);
+    expect($movement->quantity)->toBe(10.0)
+        ->and($movement->before_quantity)->toBe(5.0)
+        ->and($movement->after_quantity)->toBe(15.0);
 });
 
 it('marks the order received when everything arrives', function () {
@@ -227,7 +227,7 @@ it('keeps the order open on a partial receipt', function () {
         ->set("receiveQuantities.{$itemId}", '4')
         ->call('receiveStock');
 
-    expect($product->fresh()->quantity)->toBe(4)
+    expect($product->fresh()->quantity)->toBe(4.0)
         ->and($order->fresh()->status)->toBe('ordered');
 });
 
@@ -239,6 +239,6 @@ it('refuses to receive stock against a draft order', function () {
     Livewire::test(PurchaseForm::class, ['order' => $order])
         ->call('receiveStock');
 
-    expect($product->fresh()->quantity)->toBe(5)
+    expect($product->fresh()->quantity)->toBe(5.0)
         ->and(StockMovement::count())->toBe(0);
 });

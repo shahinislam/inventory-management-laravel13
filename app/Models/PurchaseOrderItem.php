@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
     'quantity', 'received_quantity',
     'unit_cost', 'tax_rate', 'discount',
     'subtotal', 'batch_number', 'expiry_date', 'notes',
+    'unit_label', 'unit_factor', 'parent_item_id',
 ])]
 class PurchaseOrderItem extends Model
 {
@@ -19,8 +20,8 @@ class PurchaseOrderItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
-            'received_quantity' => 'integer',
+            'quantity' => 'float',
+            'received_quantity' => 'float',
             'unit_cost' => 'decimal:2',
             'tax_rate' => 'decimal:2',
             'discount' => 'decimal:2',
@@ -39,14 +40,30 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function getRemainingQuantityAttribute(): int
+    public function getRemainingQuantityAttribute(): float
     {
-        return $this->quantity - $this->received_quantity;
+        return max(0, round($this->quantity - $this->received_quantity, 3));
     }
 
     public function isFullyReceived(): bool
     {
-        return $this->received_quantity >= $this->quantity;
+        return $this->received_quantity >= $this->quantity - 0.0005;
+    }
+
+    public function parentItem()
+    {
+        return $this->belongsTo(self::class, 'parent_item_id');
+    }
+
+    public function returnItems()
+    {
+        return $this->hasMany(self::class, 'parent_item_id');
+    }
+
+    /** Base units (pcs) per ordered unit: 24 when the line was ordered by the carton. */
+    public function getFactorAttribute(): float
+    {
+        return max(1.0, (float) ($this->unit_factor ?: 1));
     }
 
     public function calculateSubtotal(): float

@@ -14,6 +14,7 @@ use App\Models\Promotion;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
 use App\Services\PricingService;
+use App\Services\ShiftService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -45,9 +46,15 @@ class InvoiceForm extends Component
 
     public ?int $payment_account_id = null;
 
+    /** bKash / Nagad transaction ID when paid that way. */
+    public string $payment_reference = '';
+
     public string $tax = '0';
 
     public string $discount = '0';
+
+    /** Member reward given at the POS; kept as-is when the invoice is edited here. */
+    public float $membershipDiscount = 0;
 
     public bool $hasCourier = false;
 
@@ -68,6 +75,13 @@ class InvoiceForm extends Component
         $this->invoice_date = now()->format('Y-m-d');
         $this->warehouse_id = Warehouse::getDefault()?->id;
 
+        // Return notes and parked POS sales are not edited here.
+        if ($invoice?->exists && ($invoice->isReturn() || $invoice->is_held)) {
+            $this->redirect(route('invoices.show', $invoice), navigate: true);
+
+            return;
+        }
+
         if ($invoice?->exists) {
             $this->invoice = $invoice->load('items.product');
             $this->customer_id = $invoice->customer_id;
@@ -82,6 +96,7 @@ class InvoiceForm extends Component
             // See PurchaseForm::mount() — string-typed properties, nullable columns.
             $this->tax = (string) ($invoice->tax ?? '0');
             $this->discount = (string) ($invoice->discount ?? '0');
+            $this->membershipDiscount = (float) $invoice->membership_discount;
             $this->courierCharge = (string) ($invoice->courier_charge ?? '0');
             $this->courierCost = (string) ($invoice->courier_cost ?? '0');
             $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
@@ -91,10 +106,13 @@ class InvoiceForm extends Component
                 'product_id' => $item->product_id,
                 'name' => $item->product_name,
                 'sku' => $item->product_sku,
+                'unit' => $item->product?->unit,
+                'loose' => (bool) $item->product?->isLoose(),
                 'quantity' => (string) $item->quantity,
                 'unit_price' => (string) $item->unit_price,
                 'tax_rate' => (string) $item->tax_rate,
                 'discount' => (string) $item->discount,
+                'is_gift' => (bool) $item->is_gift,
             ])->toArray();
         }
     }
@@ -105,10 +123,12 @@ class InvoiceForm extends Component
             return collect();
         }
 
+        $phone = Customer::normalizePhone($this->customerSearch) ?? $this->customerSearch;
+
         return Customer::active()
             ->where(fn ($q) => $q
                 ->where('name', 'like', "%{$this->customerSearch}%")
-                ->orWhere('phone', 'like', "%{$this->customerSearch}%")
+                ->orWhere('phone', 'like', "%{$phone}%")
             )->limit(6)->get();
     }
 
@@ -169,7 +189,7 @@ class InvoiceForm extends Component
             ->where('warehouse_id', $this->warehouse_id)
             ->whereIn('product_id', $ids)
             ->pluck('quantity', 'product_id')
-            ->map(fn ($qty) => (int) $qty)
+            ->map(fn ($qty) => round((float) $qty, 3))
             ->all();
     }
 
@@ -191,7 +211,7 @@ class InvoiceForm extends Component
         $shortages = [];
 
         foreach ($this->items as $item) {
-            $requested = (int) ($item['quantity'] ?: 0);
+            $requested = round((float) ($item['quantity'] ?: 0), 3);
             $available = $levels[$item['product_id']] ?? 0;
 
             if ($requested > $available) {
@@ -224,7 +244,7 @@ class InvoiceForm extends Component
 
         foreach ($this->items as $i => $item) {
             if ($item['product_id'] === $id) {
-                $this->items[$i]['quantity'] = (string) ((int) $item['quantity'] + 1);
+                $this->items[$i]['quantity'] = (string) round((float) $item['quantity'] + 1, 3);
                 $this->productSearch = '';
 
                 return;
@@ -237,6 +257,8 @@ class InvoiceForm extends Component
             'product_id' => $product->id,
             'name' => $product->name,
             'sku' => $product->sku,
+            'unit' => $product->unit,
+            'loose' => $product->isLoose(),
             'quantity' => '1',
             'unit_price' => (string) $product->selling_price,
             'tax_rate' => (string) $product->tax_rate,
@@ -316,7 +338,7 @@ class InvoiceForm extends Component
 
     public function getTotalProperty(): float
     {
-        return max(0, $this->subtotal - (float) ($this->discount ?: 0) + $this->taxTotal + $this->courierChargeValue);
+        return max(0, $this->subtotal - (float) ($this->discount ?: 0) - $this->membershipDiscount + $this->taxTotal + $this->courierChargeValue);
     }
 
     protected function rules(): array
@@ -324,7 +346,7 @@ class InvoiceForm extends Component
         return [
             'customer_name' => 'required|string|max:200',
             'customer_email' => 'nullable|email',
-            'customer_phone' => 'nullable|string|max:20',
+            'customer_phone' => 'nullable|required_with:customer_id|string|max:20',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date',
@@ -335,8 +357,20 @@ class InvoiceForm extends Component
             'courierCost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.001',
+            // Counted goods (pcs, box) are sold whole; only loose goods take fractions.
+            ...collect($this->items)
+                ->reject(fn ($item) => ! empty($item['loose']))
+                ->mapWithKeys(fn ($item, $i) => ["items.{$i}.quantity" => 'required|numeric|integer|min:1'])
+                ->all(),
             'items.*.unit_price' => 'required|numeric|min:0',
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'customer_phone.required_with' => 'A member sale needs the customer\'s phone number.',
         ];
     }
 
@@ -369,8 +403,15 @@ class InvoiceForm extends Component
         }
 
         $this->validate(
-            ['payment_account_id' => PaymentAccount::rule($this->payment_method)],
-            ['payment_account_id.required' => 'Select the account or card this was paid to.'],
+            [
+                'payment_method' => Payment::methodRule(),
+                'payment_account_id' => PaymentAccount::rule($this->payment_method),
+                'payment_reference' => Payment::needsReference($this->payment_method) ? 'required|string|max:100' : 'nullable|string|max:100',
+            ],
+            [
+                'payment_account_id.required' => 'Select the account or card this was paid to.',
+                'payment_reference.required' => 'Enter the bKash / Nagad transaction ID.',
+            ],
         );
 
         // The payment row is written inside persist()'s transaction, so a failure
@@ -403,6 +444,7 @@ class InvoiceForm extends Component
                 'subtotal' => $this->subtotal,
                 'tax' => $this->taxTotal,
                 'discount' => (float) ($this->discount ?: 0),
+                'membership_discount' => $this->customer_id ? $this->membershipDiscount : 0,
                 'courier_charge' => $this->courierChargeValue,
                 'courier_cost' => $this->courierCostValue,
                 'total' => $this->total,
@@ -429,7 +471,21 @@ class InvoiceForm extends Component
                 $disc = (float) $item['discount'] * (float) $item['quantity'];
                 $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
 
+                // Deduct stock only on the transition into "paid"; that also
+                // tells us what the goods cost (earliest-expiry batch first).
+                $unitCost = (float) (Product::find($item['product_id'])?->cost_price ?? 0);
+                if ($shouldCommitStock) {
+                    $unitCost = $inventory->remove(
+                        productId: (int) $item['product_id'],
+                        warehouseId: (int) $this->warehouse_id,
+                        quantity: (float) $item['quantity'],
+                        type: 'sale',
+                        extra: ['reference' => $invoice],
+                    )['unit_cost'];
+                }
+
                 InvoiceItem::create([
+                    'unit_cost' => $unitCost,
                     'invoice_id' => $invoice->id,
                     'product_id' => $item['product_id'],
                     'product_name' => $item['name'],
@@ -439,6 +495,7 @@ class InvoiceForm extends Component
                     'tax_rate' => $item['tax_rate'],
                     'discount' => $item['discount'],
                     'subtotal' => $line - $disc + $tax,
+                    'is_gift' => ! empty($item['is_gift']),
                 ]);
 
                 if (! empty($item['promotion_id']) && $status !== 'draft' && ! $wasAlreadyPaid) {
@@ -447,17 +504,6 @@ class InvoiceForm extends Component
                             ->whereNull('usage_limit')
                             ->orWhereColumn('used_count', '<', 'usage_limit'))
                         ->increment('used_count');
-                }
-
-                // Deduct stock only on the transition into "paid".
-                if ($shouldCommitStock) {
-                    $inventory->remove(
-                        productId: (int) $item['product_id'],
-                        warehouseId: (int) $this->warehouse_id,
-                        quantity: (int) $item['quantity'],
-                        type: 'sale',
-                        extra: ['reference' => $invoice],
-                    );
                 }
             }
 
@@ -469,6 +515,8 @@ class InvoiceForm extends Component
                     'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
                     'amount' => $this->total,
                     'method' => $this->payment_method,
+                    'reference' => $this->payment_reference ?: null,
+                    'shift_id' => app(ShiftService::class)->currentFor(auth()->user())?->id,
                     'status' => 'completed',
                     'payment_date' => now(),
                 ]);

@@ -100,7 +100,12 @@
                             @endif
                         </flux:table.cell>
 
-                        <flux:table.cell align="end" class="tabular-nums">{{ money($row->total) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums">
+                            {{ money($row->total) }}
+                            @if ($isSupplier && $row->returned_amount > 0)
+                                <flux:text class="text-xs text-amber-600">Returned {{ money($row->returned_amount) }}</flux:text>
+                            @endif
+                        </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums text-green-600 dark:text-green-400">{{ money($row->paid_amount) }}</flux:table.cell>
                         <flux:table.cell align="end" class="font-semibold tabular-nums text-red-600 dark:text-red-400">
                             {{ money($row->due_amount) }}

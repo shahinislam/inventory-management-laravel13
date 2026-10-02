@@ -56,7 +56,7 @@ class CustomerList extends Component
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
                 ->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%")
-                ->orWhere('phone', 'like', "%{$this->search}%")
+                ->orWhere('phone', 'like', '%'.(Customer::normalizePhone($this->search) ?? $this->search).'%')
             ))
             ->when($this->statusFilter !== '', fn ($q) => $q->where('is_active', $this->statusFilter === 'active'))
             ->latest()

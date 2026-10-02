@@ -23,9 +23,14 @@ return new class extends Migration
             $table->decimal('tax_rate', 5, 2)->default(0);
             $table->decimal('discount', 5, 2)->default(0);
             $table->enum('discount_type', ['percentage', 'fixed'])->default('percentage');
-            $table->unsignedInteger('quantity')->default(0);
-            $table->unsignedInteger('min_stock_level')->default(0);
+            $table->decimal('quantity', 12, 3)->default(0);
+            $table->decimal('min_stock_level', 12, 3)->default(0);
             $table->string('unit', 50)->default('pcs');
+            // Bought in a bigger unit, e.g. carton of 24. Stock is always kept in `unit`.
+            $table->string('purchase_unit', 50)->nullable();
+            $table->decimal('purchase_unit_factor', 12, 3)->default(1);
+            // Require batch / expiry on receipt and sell earliest expiry first.
+            $table->boolean('track_expiry')->default(false);
             $table->decimal('weight', 8, 2)->nullable();
             $table->string('dimensions', 100)->nullable();
             $table->enum('status', ['active', 'inactive', 'draft'])->default('active')->index();

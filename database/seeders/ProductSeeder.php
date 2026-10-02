@@ -164,6 +164,49 @@ class ProductSeeder extends Seeder
                 'min_stock_level' => 25,
                 'unit' => 'pcs',
             ],
+            // Loose goods, sold by weight: the POS asks for the kg on the scale.
+            [
+                'name' => 'Miniket Rice (loose)',
+                'sku' => 'RICE-MINIKET-KG',
+                'barcode' => '2000000000015',
+                'category_id' => $grocery->id,
+                'cost_price' => 68.00,
+                'selling_price' => 76.00,
+                'tax_rate' => 0,
+                'discount' => 0,
+                'discount_type' => 'percentage',
+                'quantity' => 250.5,
+                'min_stock_level' => 50,
+                'unit' => 'kg',
+            ],
+            [
+                'name' => 'Potato (loose)',
+                'sku' => 'VEG-POTATO-KG',
+                'barcode' => '2000000000022',
+                'category_id' => $grocery->id,
+                'cost_price' => 38.00,
+                'selling_price' => 45.00,
+                'tax_rate' => 0,
+                'discount' => 0,
+                'discount_type' => 'percentage',
+                'quantity' => 120,
+                'min_stock_level' => 20,
+                'unit' => 'kg',
+            ],
+            [
+                'name' => 'Mustard Oil (loose)',
+                'sku' => 'OIL-MUSTARD-LTR',
+                'barcode' => '2000000000039',
+                'category_id' => $grocery->id,
+                'cost_price' => 230.00,
+                'selling_price' => 260.00,
+                'tax_rate' => 0,
+                'discount' => 0,
+                'discount_type' => 'percentage',
+                'quantity' => 40,
+                'min_stock_level' => 10,
+                'unit' => 'ltr',
+            ],
         ];
 
         // Stock lives in product_warehouse, not on products.quantity — the POS
@@ -195,7 +238,7 @@ class ProductSeeder extends Seeder
 
             // Re-running the seeder must not keep stacking stock on top.
             $onHand = $inventory->stockIn($record->id, $warehouse->id);
-            $shortfall = (int) $product['quantity'] - $onHand;
+            $shortfall = round((float) $product['quantity'] - $onHand, 3);
 
             if ($shortfall > 0) {
                 $inventory->add(

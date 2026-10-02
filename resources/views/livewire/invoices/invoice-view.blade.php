@@ -31,7 +31,11 @@
                 <div class="flex items-center gap-2">
                     <flux:heading size="xl" class="font-mono tracking-tight">{{ $invoice->invoice_number }}
                     </flux:heading>
+                    @if ($invoice->isReturn())
+                        <flux:badge size="sm" color="orange" icon="arrow-uturn-left">Return</flux:badge>
+                    @endif
                     <flux:badge size="sm" :color="match ($invoice->status) {
+                        'returned' => 'orange',
                         'paid' => 'green',
                         'partial' => 'yellow',
                         'overdue' => 'red',
@@ -48,14 +52,26 @@
                 </div>
                 <flux:text class="mt-0.5 text-sm text-zinc-500">
                     {{ $invoice->invoice_date->format('d M Y') }} · {{ $invoice->customer_name }}
+                    @if ($invoice->parent)
+                        · return of <a href="{{ route('invoices.show', $invoice->parent) }}" wire:navigate class="font-mono underline">{{ $invoice->parent->invoice_number }}</a>
+                    @endif
                 </flux:text>
             </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
-            @if ($invoice->due_amount > 0 && $invoice->status !== 'cancelled')
+            @if ($invoice->due_amount > 0 && ! in_array($invoice->status, ['cancelled', 'draft'], true) && ! $invoice->isReturn())
                 <flux:button icon="banknotes" variant="primary" wire:click="openPaymentModal">Record Payment
                 </flux:button>
+            @endif
+            @if (! $invoice->isReturn() && ! $invoice->is_held && ! in_array($invoice->status, ['draft', 'cancelled', 'returned'], true)
+                && auth()->user()->hasRole(['admin', 'manager', 'staff']))
+                <flux:button icon="arrow-uturn-left" variant="outline" :href="route('returns.create', ['invoice' => $invoice->id])" wire:navigate>
+                    Return items</flux:button>
+            @endif
+            @if (App\Models\Setting::bool('tax.mushak_enabled'))
+                <flux:button icon="document-check" variant="outline" href="{{ route('invoices.mushak', $invoice) }}" target="_blank">
+                    Mushak 6.3</flux:button>
             @endif
             <flux:button icon="receipt-percent" variant="outline" href="{{ route('invoices.receipt', $invoice) }}"
                 target="_blank">Receipt</flux:button>
@@ -168,6 +184,9 @@
                 <div class="mt-2 font-medium text-zinc-900 dark:text-white print:text-black">
                     {{ $invoice->customer_name }}</div>
                 <div class="mt-0.5 space-y-0.5 text-sm text-zinc-500">
+                    @if ($invoice->member_no)
+                        <div>Member {{ $invoice->member_no }}</div>
+                    @endif
                     @if ($invoice->customer_phone)
                         <div>{{ $invoice->customer_phone }}</div>
                     @endif
@@ -218,10 +237,14 @@
                             <td class="px-2 py-3 tabular-nums text-zinc-400">{{ $i + 1 }}</td>
                             <td class="px-2 py-3">
                                 <div class="font-medium text-zinc-900 dark:text-white print:text-black">
-                                    {{ $item->product_name }}</div>
+                                    {{ $item->product_name }}
+                                    @if ($item->is_gift)
+                                        <span class="ml-1 text-xs font-semibold uppercase text-pink-600">Member gift</span>
+                                    @endif
+                                </div>
                                 <div class="mt-0.5 font-mono text-xs text-zinc-400">{{ $item->product_sku }}</div>
                             </td>
-                            <td class="px-2 py-3 text-right tabular-nums">{{ $item->quantity }}</td>
+                            <td class="px-2 py-3 text-right tabular-nums">{{ format_qty($item->quantity, $item->product?->isLoose() ? $item->product->unit : null) }}</td>
                             <td class="px-2 py-3 text-right tabular-nums text-zinc-500">{{ money($item->unit_price) }}
                             </td>
                             <td class="px-2 py-3 text-right tabular-nums text-zinc-500">
@@ -254,6 +277,13 @@
                                 −{{ money($invoice->discount) }}</span>
                         </div>
                     @endif
+                    @if ($invoice->membership_discount > 0)
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Member reward</span>
+                            <span class="font-medium tabular-nums text-green-600 dark:text-green-400">
+                                −{{ money($invoice->membership_discount) }}</span>
+                        </div>
+                    @endif
                     @if ($invoice->tax > 0)
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Tax</span>
@@ -266,6 +296,12 @@
                             <span class="text-zinc-500">Courier</span>
                             <span class="font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
                                 {{ money($invoice->courier_charge) }}</span>
+                        </div>
+                    @endif
+                    @if ($invoice->returned_amount > 0)
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Returned</span>
+                            <span class="font-medium tabular-nums text-orange-600">−{{ money($invoice->returned_amount) }}</span>
                         </div>
                     @endif
                 </div>
@@ -324,7 +360,10 @@
                             <tr class="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
                                 <td class="py-2 pr-3 font-mono text-xs text-zinc-500">{{ $payment->payment_number }}</td>
                                 <td class="py-2 pr-3">
-                                    {{ ucfirst(str_replace('_', ' ', $payment->method)) }}
+                                    {{ App\Models\Payment::methodLabel($payment->method) }}
+                                    @if ($payment->status === 'refunded')
+                                        <flux:badge size="sm" color="orange">Refund</flux:badge>
+                                    @endif
                                     @if ($payment->paymentAccount)
                                         <span class="text-zinc-400">· {{ $payment->paymentAccount->display_name }}</span>
                                     @endif
@@ -337,6 +376,25 @@
                                 <td
                                     class="py-2 text-right font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
                                     {{ money($payment->amount) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        {{-- Returns raised against this sale --}}
+        @if ($invoice->returns->count() > 0)
+            <div class="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800 print:hidden">
+                <div class="text-[0.6875rem] font-semibold uppercase tracking-wider text-zinc-400">Returns</div>
+                <table class="mt-3 w-full text-sm">
+                    <tbody>
+                        @foreach ($invoice->returns as $ret)
+                            <tr class="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
+                                <td class="py-2 pr-3"><a href="{{ route('invoices.show', $ret) }}" wire:navigate class="font-mono text-xs underline">{{ $ret->invoice_number }}</a></td>
+                                <td class="py-2 pr-3 text-zinc-500">{{ $ret->invoice_date->format('d M Y') }}</td>
+                                <td class="py-2 pr-3 text-zinc-500">{{ $ret->payment_method ? 'Refunded by '.App\Models\Payment::methodLabel($ret->payment_method) : 'Taken off due' }}</td>
+                                <td class="py-2 text-right font-medium tabular-nums text-orange-600">−{{ money($ret->total) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -385,18 +443,16 @@
                 <flux:field>
                     <flux:label>Payment Method</flux:label>
                     <flux:select wire:model.live="payment_method">
-                        <flux:select.option value="cash">Cash</flux:select.option>
-                        <flux:select.option value="card">Card</flux:select.option>
-                        <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
-                        <flux:select.option value="cheque">Cheque</flux:select.option>
-                        <flux:select.option value="other">Other</flux:select.option>
+                        @foreach (App\Models\Payment::METHODS as $value => $label)
+                            <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                        @endforeach
                     </flux:select>
                     <flux:error name="payment_method" />
                 </flux:field>
 
                 @if (App\Models\PaymentAccount::requiredFor($payment_method))
                     <flux:field>
-                        <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                        <flux:label>{{ match ($payment_method) { 'card' => 'Card', 'mobile_banking' => 'Wallet', default => 'Account' } }}</flux:label>
                         <flux:select wire:model="payment_account_id" placeholder="Select account...">
                             @foreach ($paymentAccounts as $account)
                                 <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
@@ -407,7 +463,9 @@
                 @endif
 
                 <flux:field>
-                    <flux:label>Reference <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
+                    <flux:label>{{ App\Models\Payment::needsReference($payment_method) ? 'Transaction ID' : 'Reference' }}
+                        @unless (App\Models\Payment::needsReference($payment_method))<flux:text class="text-xs text-zinc-400">(optional)</flux:text>@endunless
+                    </flux:label>
                     <flux:input wire:model="payment_reference" placeholder="Transaction ID / cheque number" />
                     <flux:error name="payment_reference" />
                 </flux:field>

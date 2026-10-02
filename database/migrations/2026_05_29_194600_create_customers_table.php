@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name', 200);
             $table->string('email', 150)->nullable()->unique();
-            $table->string('phone', 20)->nullable();
+            // Every customer is a member, identified at the counter by phone.
+            $table->string('phone', 20)->unique();
             $table->string('alternative_phone', 20)->nullable();
             $table->date('date_of_birth')->nullable();
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
@@ -37,7 +38,6 @@ return new class extends Migration
 
             // Indexes
             $table->index('name');
-            $table->index('phone');
             $table->index('city');
             $table->index('country');
             $table->index(['name', 'is_active']);

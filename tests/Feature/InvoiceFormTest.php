@@ -76,7 +76,7 @@ it('does not touch stock for a draft invoice', function () {
 
     invoiceWith($product, 3)->call('saveDraft');
 
-    expect($product->fresh()->quantity)->toBe(10)
+    expect($product->fresh()->quantity)->toBe(10.0)
         ->and(StockMovement::count())->toBe(0);
 });
 
@@ -85,7 +85,7 @@ it('deducts stock when saved as paid', function () {
 
     invoiceWith($product, 3)->call('saveAsPaid');
 
-    expect($product->fresh()->quantity)->toBe(7)
+    expect($product->fresh()->quantity)->toBe(7.0)
         ->and(StockMovement::where('type', 'sale')->count())->toBe(1);
 });
 
@@ -102,7 +102,7 @@ it('does not deduct stock twice when a paid invoice is re-saved', function () {
     $product = Product::factory()->create(['selling_price' => 100, 'quantity' => 10]);
 
     invoiceWith($product, 3)->call('saveAsPaid');
-    expect($product->fresh()->quantity)->toBe(7);
+    expect($product->fresh()->quantity)->toBe(7.0);
 
     // Re-open the saved invoice and save it again.
     $invoice = Invoice::sole();
@@ -111,7 +111,7 @@ it('does not deduct stock twice when a paid invoice is re-saved', function () {
         ->call('saveAsPaid');
 
     // Still 7 — the second save must not deduct again.
-    expect($product->fresh()->quantity)->toBe(7)
+    expect($product->fresh()->quantity)->toBe(7.0)
         ->and(StockMovement::where('type', 'sale')->count())->toBe(1)
         ->and(Payment::count())->toBe(1);
 });

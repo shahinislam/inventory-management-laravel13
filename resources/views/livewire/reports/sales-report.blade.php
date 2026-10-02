@@ -32,7 +32,8 @@
 
     {{-- Summary Cards --}}
     <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <x-stat-tile label="Total Revenue" :value="money($summary['total_sales'])" tone="green" icon="banknotes" />
+        <x-stat-tile label="Net Sales" :value="money($summary['total_sales'])" tone="green" icon="banknotes"
+            :hint="$summary['total_returns'] > 0 ? 'after '.money($summary['total_returns']).' returned' : null" />
         <x-stat-tile label="Total Invoices" :value="$summary['total_invoices']" icon="document-text" />
         <x-stat-tile label="Total Paid" :value="money($summary['total_paid'])" tone="blue" icon="check-circle" />
         <x-stat-tile label="Total Due" :value="money($summary['total_due'])" tone="red" icon="clock" />

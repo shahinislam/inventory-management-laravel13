@@ -17,7 +17,7 @@ class CustomerFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'phone' => fake()->numerify('+8801#########'),
+            'phone' => fake()->unique()->numerify('+8801#########'),
             'total_orders' => 0,
             'total_purchases' => 0,
             'is_active' => true,

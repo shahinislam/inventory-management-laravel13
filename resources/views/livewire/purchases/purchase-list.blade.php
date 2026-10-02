@@ -23,6 +23,16 @@
         </div>
     @endif
 
+    @php $isReturns = $kind === 'returns'; @endphp
+
+    {{-- Purchases | Returns to supplier --}}
+    <div class="mb-4 w-full sm:w-72">
+        <flux:radio.group wire:model.live="kind" variant="segmented">
+            <flux:radio value="purchases" label="Purchases" />
+            <flux:radio value="returns" label="Returns" />
+        </flux:radio.group>
+    </div>
+
     {{-- Search & Filters --}}
     <flux:card class="mb-6 p-4">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
@@ -70,7 +80,11 @@
 
                         <flux:table.cell>
                             <flux:text class="font-medium">{{ $order->order_number }}</flux:text>
-                            <flux:text class="text-xs text-zinc-400">{{ $order->createdBy->name }}</flux:text>
+                            @if($order->isReturn() && $order->parent)
+                                <flux:text class="text-xs text-zinc-400">Against {{ $order->parent->order_number }}</flux:text>
+                            @else
+                                <flux:text class="text-xs text-zinc-400">{{ $order->createdBy->name }}</flux:text>
+                            @endif
                         </flux:table.cell>
 
                         <flux:table.cell>
@@ -87,8 +101,20 @@
 
                         <flux:table.cell>
                             <flux:text class="font-medium">{{ money($order->total) }}</flux:text>
-                            @if($order->paid_amount > 0)
-                                <flux:text class="text-xs text-green-500">Paid: {{ money($order->paid_amount) }}</flux:text>
+                            @if($order->isReturn())
+                                @if($order->paid_amount > 0)
+                                    <flux:text class="text-xs text-green-500">Refunded: {{ money($order->paid_amount) }}</flux:text>
+                                @endif
+                            @else
+                                @if($order->returned_amount > 0)
+                                    <flux:text class="text-xs text-amber-600">Returned: {{ money($order->returned_amount) }}</flux:text>
+                                @endif
+                                @if($order->paid_amount > 0)
+                                    <flux:text class="text-xs text-green-500">Paid: {{ money($order->paid_amount) }}</flux:text>
+                                @endif
+                                @if(!in_array($order->status, ['draft', 'cancelled']) && $order->due_amount > 0)
+                                    <flux:text class="text-xs text-red-500">Due: {{ money($order->due_amount) }}</flux:text>
+                                @endif
                             @endif
                         </flux:table.cell>
 
@@ -118,9 +144,13 @@
                             <flux:dropdown align="end">
                                 <flux:button icon="ellipsis-horizontal" variant="ghost" size="sm" square />
                                 <flux:menu>
-                                    <flux:menu.item icon="eye" :href="route('purchases.edit', $order)" wire:navigate>
-                                        {{ $order->isDraft() ? 'Edit' : 'View' }}
-                                    </flux:menu.item>
+                                    @if($order->isReturn())
+                                        <flux:menu.item icon="eye" :href="route('purchases.returns.show', $order)" wire:navigate>View</flux:menu.item>
+                                    @else
+                                        <flux:menu.item icon="eye" :href="route('purchases.edit', $order)" wire:navigate>
+                                            {{ $order->isDraft() ? 'Edit' : 'View' }}
+                                        </flux:menu.item>
+                                    @endif
                                     @if($order->isDraft())
                                         <flux:menu.separator />
                                         <flux:menu.item icon="trash" variant="danger" wire:click="confirmDelete({{ $order->id }})">Delete</flux:menu.item>
@@ -135,10 +165,12 @@
                         <flux:table.cell colspan="8" class="py-12 text-center">
                             <div class="flex flex-col items-center gap-2">
                                 <flux:icon name="clipboard-document-list" class="size-10 text-zinc-300" />
-                                <flux:text class="text-zinc-400">No purchase orders found</flux:text>
-                                <flux:button size="sm" href="{{ route('purchases.create') }}" wire:navigate>
-                                    Create your first order
-                                </flux:button>
+                                <flux:text class="text-zinc-400">{{ $isReturns ? 'No returns to suppliers yet' : 'No purchase orders found' }}</flux:text>
+                                @unless($isReturns)
+                                    <flux:button size="sm" href="{{ route('purchases.create') }}" wire:navigate>
+                                        Create your first order
+                                    </flux:button>
+                                @endunless
                             </div>
                         </flux:table.cell>
                     </flux:table.row>

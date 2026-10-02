@@ -11,6 +11,9 @@ return new class extends Migration
         Schema::create('purchase_orders', function (Blueprint $table) {
             $table->id();
             $table->string('order_number', 100)->unique();
+            // 'return' rows send goods back to the supplier against parent_order_id.
+            $table->enum('type', ['purchase', 'return'])->default('purchase')->index();
+            $table->foreignId('parent_order_id')->nullable()->constrained('purchase_orders')->nullOnDelete();
             $table->foreignId('supplier_id')->constrained('suppliers')->cascadeOnDelete();
             $table->foreignId('warehouse_id')->nullable()->constrained('warehouses')->nullOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
@@ -32,6 +35,8 @@ return new class extends Migration
             $table->decimal('courier_cost', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->default(0);
             $table->decimal('paid_amount', 12, 2)->default(0);
+            // On a purchase: value of goods sent back since. Due = total - returned - paid.
+            $table->decimal('returned_amount', 12, 2)->default(0);
             $table->date('order_date');
             $table->date('expected_date')->nullable();
             $table->date('payment_due_date')->nullable()->index();

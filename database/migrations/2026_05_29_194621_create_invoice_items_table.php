@@ -14,11 +14,18 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->string('product_name', 200);
             $table->string('product_sku', 100);
-            $table->unsignedInteger('quantity');
+            $table->decimal('quantity', 12, 3);
             $table->decimal('unit_price', 12, 2);
             $table->decimal('tax_rate', 5, 2)->default(0);
             $table->decimal('discount', 5, 2)->default(0);
             $table->decimal('subtotal', 12, 2);
+            // A free member reward: billed at zero, still taken out of stock.
+            $table->boolean('is_gift')->default(false);
+            // Cost per unit when sold, for profit reporting.
+            $table->decimal('unit_cost', 12, 2)->default(0);
+            // On a return invoice: the sold line coming back, and whether it went back on the shelf.
+            $table->foreignId('parent_item_id')->nullable()->constrained('invoice_items')->nullOnDelete();
+            $table->boolean('restock')->default(true);
             $table->text('notes')->nullable();
             $table->timestamps();
 

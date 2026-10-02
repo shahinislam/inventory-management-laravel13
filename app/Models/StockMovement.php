@@ -19,9 +19,9 @@ class StockMovement extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
-            'before_quantity' => 'integer',
-            'after_quantity' => 'integer',
+            'quantity' => 'float',
+            'before_quantity' => 'float',
+            'after_quantity' => 'float',
             'unit_cost' => 'decimal:2',
             'expiry_date' => 'date',
         ];
@@ -75,11 +75,16 @@ class StockMovement extends Model
 
     public function isInbound(): bool
     {
-        return in_array($this->type, ['purchase', 'return', 'transfer_in', 'adjustment']);
+        // An adjustment can go either way: read the direction off the stock level.
+        if ($this->type === 'adjustment') {
+            return $this->after_quantity >= $this->before_quantity;
+        }
+
+        return in_array($this->type, ['purchase', 'return', 'transfer_in']);
     }
 
     public function isOutbound(): bool
     {
-        return in_array($this->type, ['sale', 'transfer_out', 'damaged', 'expired']);
+        return ! $this->isInbound();
     }
 }

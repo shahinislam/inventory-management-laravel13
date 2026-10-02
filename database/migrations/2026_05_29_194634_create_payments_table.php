@@ -16,12 +16,14 @@ return new class extends Migration
             $table->string('payment_number', 100)->unique();
             $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('shift_id')->nullable()->constrained('cash_shifts')->nullOnDelete();
             $table->foreignId('payment_account_id')->nullable()->constrained('payment_accounts')->nullOnDelete();
             $table->decimal('amount', 12, 2);
             $table->enum('method', [
                 'cash',
                 'card',
                 'bank_transfer',
+                'mobile_banking',
                 'cheque',
                 'other',
             ])->index();

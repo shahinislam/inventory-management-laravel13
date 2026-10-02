@@ -38,7 +38,7 @@ class StockTransfer extends Component
             'product_id' => 'required|exists:products,id',
             'from_warehouse_id' => 'required|exists:warehouses,id|different:to_warehouse_id',
             'to_warehouse_id' => 'required|exists:warehouses,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => $this->selectedProduct?->isLoose() ? 'required|numeric|min:0.001' : 'required|integer|min:1',
             'notes' => 'nullable|string',
         ];
     }
@@ -99,13 +99,13 @@ class StockTransfer extends Component
         $this->validate();
 
         $product = Product::findOrFail($this->product_id);
-        $qty = (int) $this->quantity;
+        $qty = round((float) $this->quantity, 3);
         $inventory = app(InventoryService::class);
 
         $available = $inventory->stockIn($this->product_id, $this->from_warehouse_id);
 
         if ($qty > $available) {
-            $this->addError('quantity', "Only {$available} {$product->unit} available in the source warehouse.");
+            $this->addError('quantity', 'Only '.format_qty($available, $product->unit).' available in the source warehouse.');
 
             return;
         }

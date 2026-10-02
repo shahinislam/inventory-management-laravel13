@@ -24,6 +24,7 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     $this->warehouse = Warehouse::factory()->default()->create();
     $this->actingAs($this->admin);
+    openShift();
 
     $this->card = PaymentAccount::create(['name' => 'Company Visa', 'type' => 'card', 'account_number' => '4111111111111234']);
     $this->bank = PaymentAccount::create(['name' => 'City Bank', 'type' => 'bank', 'bank_name' => 'City Bank']);

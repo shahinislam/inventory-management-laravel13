@@ -16,6 +16,7 @@ beforeEach(function () {
     $this->user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     $this->warehouse = Warehouse::factory()->default()->create();
     $this->actingAs($this->user);
+    openShift();
 });
 
 it('adds a product to the cart with its resolved price and discount', function () {
@@ -104,13 +105,13 @@ it('deducts stock and records a movement on checkout', function () {
         ->call('openPaymentModal')
         ->call('completeSale');
 
-    expect($product->fresh()->quantity)->toBe(7);
+    expect($product->fresh()->quantity)->toBe(7.0);
 
     $movement = StockMovement::where('product_id', $product->id)->sole();
     expect($movement->type)->toBe('sale')
-        ->and($movement->quantity)->toBe(3)
-        ->and($movement->before_quantity)->toBe(10)
-        ->and($movement->after_quantity)->toBe(7);
+        ->and($movement->quantity)->toBe(3.0)
+        ->and($movement->before_quantity)->toBe(10.0)
+        ->and($movement->after_quantity)->toBe(7.0);
 });
 
 it('creates an invoice with the tax actually charged', function () {
@@ -149,7 +150,7 @@ it('completes a cash sale over 1000 where the total needs a thousands separator'
 
     expect(Invoice::count())->toBe(1)
         ->and((float) Invoice::sole()->total)->toBe(1500.0)
-        ->and($product->fresh()->quantity)->toBe(9);
+        ->and($product->fresh()->quantity)->toBe(9.0);
 });
 
 it('accepts a hand-typed amount containing a thousands separator', function () {
@@ -196,7 +197,7 @@ it('blocks a cash sale when the amount received is short', function () {
         ->call('completeSale');
 
     expect(Invoice::count())->toBe(0)
-        ->and($product->fresh()->quantity)->toBe(10);
+        ->and($product->fresh()->quantity)->toBe(10.0);
 });
 
 it('rolls the whole sale back when stock ran out mid-checkout', function () {
@@ -222,7 +223,7 @@ it('rolls the whole sale back when stock ran out mid-checkout', function () {
     expect(Invoice::count())->toBe(0)
         ->and(Payment::count())->toBe(0)
         ->and(StockMovement::where('type', 'sale')->count())->toBe(1)
-        ->and($product->fresh()->quantity)->toBe(2);
+        ->and($product->fresh()->quantity)->toBe(2.0);
 });
 
 it('consumes a promotion usage on checkout', function () {

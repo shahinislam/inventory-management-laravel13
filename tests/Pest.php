@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\CashShift;
+use App\Models\Warehouse;
+use App\Services\ShiftService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +47,10 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * The POS sells only inside an open cash shift. Opens one for the signed-in user.
+ */
+function openShift(float $openingCash = 0): CashShift
 {
-    // ..
+    return app(ShiftService::class)->open(auth()->user(), Warehouse::getDefault()?->id, $openingCash);
 }

@@ -4,6 +4,7 @@ namespace App\Livewire\Customers;
 
 use App\Models\Customer;
 use App\Models\Media;
+use App\Services\MembershipService;
 use Livewire\Component;
 
 class CustomerForm extends Component
@@ -51,7 +52,8 @@ class CustomerForm extends Component
         return [
             'name' => 'required|string|max:200',
             'email' => 'nullable|email|max:150|unique:customers,email,'.($this->customer?->id ?? 'NULL'),
-            'phone' => 'nullable|string|max:20',
+            // Every customer is a member, found at the counter by phone.
+            'phone' => 'required|string|max:20|unique:customers,phone,'.($this->customer?->id ?? 'NULL'),
             'alternative_phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
@@ -91,12 +93,22 @@ class CustomerForm extends Component
         }
     }
 
+    protected function messages(): array
+    {
+        return [
+            'phone.required' => 'Phone number is required — it identifies the member at checkout.',
+            'phone.unique' => 'This phone number already belongs to another customer.',
+        ];
+    }
+
     public function save(): void
     {
+        // Normalise first so "01712-345 678" is checked as "01712345678".
+        $this->phone = Customer::normalizePhone($this->phone) ?? '';
+
         $data = $this->validate();
 
         $data['email'] = $data['email'] ?: null;
-        $data['phone'] = $data['phone'] ?: null;
         $data['alternative_phone'] = $data['alternative_phone'] ?: null;
         $data['date_of_birth'] = $data['date_of_birth'] ?: null;
         $data['gender'] = $data['gender'] ?: null;
@@ -136,7 +148,23 @@ class CustomerForm extends Component
     {
         $media = $this->media_id ? Media::find($this->media_id) : null;
 
-        return view('livewire.customers.customer-form', compact('media'))
+        // Membership summary for an existing customer.
+        $membership = null;
+        if ($this->customer?->exists) {
+            $service = app(MembershipService::class);
+            $membership = [
+                'spend' => $service->customerSpend($this->customer->id),
+                'purchases' => $service->purchaseCount($this->customer->id),
+                'next' => $service->nextReward($this->customer),
+                'redemptions' => $this->customer->rewardRedemptions()
+                    ->with(['invoice', 'giftProduct'])->latest()->limit(10)->get(),
+                'invoices' => $this->customer->invoices()->sales()
+                    ->whereNotIn('status', ['draft', 'cancelled'])
+                    ->latest('invoice_date')->latest('id')->limit(10)->get(),
+            ];
+        }
+
+        return view('livewire.customers.customer-form', compact('media', 'membership'))
             ->layout('layouts.app', ['title' => $this->customer?->exists ? 'Edit Customer' : 'Add Customer']);
     }
 }

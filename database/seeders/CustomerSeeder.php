@@ -9,16 +9,18 @@ class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
+        // Every customer is a member, identified by a unique phone number.
         $customers = [
-            ['name' => "Muhammad Mus'ab", 'gender' => 'male'],
-            ['name' => 'Zayan', 'gender' => 'male'],
-            ['name' => 'Zareef', 'gender' => 'male'],
+            ['name' => "Muhammad Mus'ab", 'gender' => 'male', 'phone' => '01711000001'],
+            ['name' => 'Zayan', 'gender' => 'male', 'phone' => '01811000002'],
+            ['name' => 'Zareef', 'gender' => 'male', 'phone' => '01911000003'],
         ];
 
         foreach ($customers as $customer) {
             Customer::updateOrCreate(
-                ['name' => $customer['name']],
+                ['phone' => $customer['phone']],
                 [
+                    'name' => $customer['name'],
                     'gender' => $customer['gender'],
                     'city' => 'Dhaka',
                     'country' => 'Bangladesh',

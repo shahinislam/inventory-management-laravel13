@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\CashShift;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\MembershipReward;
 use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\Promotion;
@@ -58,6 +61,9 @@ class AppServiceProvider extends ServiceProvider
             PaymentAccount::class,
             Promotion::class,
             User::class,
+            CashShift::class,
+            Expense::class,
+            MembershipReward::class,
         ];
 
         foreach ($auditable as $model) {

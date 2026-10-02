@@ -48,6 +48,33 @@ class Customer extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Strip spaces, dashes, dots and brackets so "01712-345 678" and
+     * "01712345678" are the same member. A leading + is kept.
+     */
+    public static function normalizePhone(?string $phone): ?string
+    {
+        $phone = preg_replace('/[\s\-\.\(\)]/', '', (string) $phone);
+
+        return $phone === '' ? null : $phone;
+    }
+
+    public function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = static::normalizePhone($value);
+    }
+
+    public function rewardRedemptions()
+    {
+        return $this->hasMany(MembershipRewardRedemption::class);
+    }
+
+    /** Every customer is a member; the number is derived from the id. */
+    public function getMemberNoAttribute(): string
+    {
+        return 'MEM-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
+
     public function scopeActive($q)
     {
         return $q->where('is_active', true);

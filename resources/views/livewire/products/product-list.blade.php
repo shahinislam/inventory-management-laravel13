@@ -127,7 +127,7 @@
                             <flux:badge
                                 size="sm"
                                 :color="$product->isOutOfStock() ? 'red' : ($product->isLowStock() ? 'yellow' : 'green')"
-                            >{{ $product->quantity }} {{ $product->unit }}</flux:badge>
+                            >{{ format_qty($product->quantity, $product->unit) }}</flux:badge>
                         </flux:table.cell>
 
                         <flux:table.cell>

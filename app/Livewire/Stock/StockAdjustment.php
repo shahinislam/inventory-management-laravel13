@@ -40,7 +40,8 @@ class StockAdjustment extends Component
             'product_id' => 'required|exists:products,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'adjustment_type' => 'required|in:add,remove,set',
-            'quantity' => 'required|integer|min:0',
+            // Loose goods (kg, ltr) may be adjusted by a fraction; counted goods stay whole.
+            'quantity' => $this->selectedProduct?->isLoose() ? 'required|numeric|min:0' : 'required|integer|min:0',
             'reason' => 'required|string|max:200',
             'notes' => 'nullable|string',
         ];
@@ -93,7 +94,7 @@ class StockAdjustment extends Component
     {
         $this->validate();
 
-        $qty = (int) $this->quantity;
+        $qty = round((float) $this->quantity, 3);
         $inventory = app(InventoryService::class);
 
         $product = Product::findOrFail($this->product_id);
@@ -101,18 +102,27 @@ class StockAdjustment extends Component
 
         $notes = $this->reason.($this->notes ? " - {$this->notes}" : '');
 
+        // Damaged and expired write-offs get their own movement type so the
+        // movement log and the expiry report can tell them apart.
+        $outType = match ($this->reason) {
+            'Damaged goods' => 'damaged',
+            'Expired products' => 'expired',
+            default => 'adjustment',
+        };
+
         // Adjustments always target one warehouse — "how much is in this room".
         match ($this->adjustment_type) {
             'add' => $inventory->add($this->product_id, $this->warehouse_id, $qty, 'adjustment', ['notes' => $notes]),
-            'remove' => $inventory->remove($this->product_id, $this->warehouse_id, min($qty, $before), 'adjustment', ['notes' => $notes]),
-            'set' => $inventory->setTo($this->product_id, $this->warehouse_id, $qty, ['notes' => $notes]),
+            'remove' => $inventory->remove($this->product_id, $this->warehouse_id, min($qty, $before), $outType, ['notes' => $notes]),
+            'set' => $inventory->setTo($this->product_id, $this->warehouse_id, $qty, ['notes' => $notes]
+                + ($qty < $before ? ['type' => $outType] : [])),
         };
 
         $after = $inventory->stockIn($this->product_id, $this->warehouse_id);
 
         DashboardIndex::flushCache();
 
-        session()->flash('success', "Stock adjusted: {$product->name} from {$before} to {$after}");
+        session()->flash('success', "Stock adjusted: {$product->name} from ".format_qty($before, $product->unit).' to '.format_qty($after, $product->unit));
         $this->reset(['product_id', 'quantity', 'reason', 'notes', 'search', 'selectedProduct']);
         $this->adjustment_type = 'add';
     }

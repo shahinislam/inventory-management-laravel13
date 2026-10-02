@@ -35,7 +35,11 @@
 
                             <flux:field>
                                 <flux:label>Barcode <flux:badge color="zinc" size="sm">Optional</flux:badge></flux:label>
-                                <flux:input wire:model="barcode" placeholder="Scan or enter barcode" />
+                                <flux:input.group>
+                                    <flux:input wire:model="barcode" placeholder="Scan or enter barcode" />
+                                    <flux:button icon="sparkles" wire:click="generateBarcode" type="button"
+                                        title="No barcode on the pack? Make one to print on a label.">Generate</flux:button>
+                                </flux:input.group>
                                 <flux:error name="barcode" />
                             </flux:field>
                         </div>
@@ -102,22 +106,35 @@
                 <flux:card class="p-6">
                     <flux:heading class="mb-4">Stock Management</flux:heading>
 
+                    @php $loose = App\Models\Product::isLooseUnit($unit); @endphp
                     <div class="grid grid-cols-2 gap-4">
-                        <flux:field>
-                            <flux:label>Current Quantity <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                            <flux:input wire:model="quantity" type="number" min="0" placeholder="0" />
-                            <flux:error name="quantity" />
-                        </flux:field>
+                        @if ($this->product?->exists)
+                            <flux:field>
+                                <flux:label>Current Quantity</flux:label>
+                                <flux:input :value="format_qty($this->product->quantity, $unit)" readonly />
+                                <flux:description>
+                                    Change stock through <a href="{{ route('stock.adjust') }}" class="underline" wire:navigate>Stock Adjustment</a>, purchases or a stock count.
+                                </flux:description>
+                            </flux:field>
+                        @else
+                            <flux:field>
+                                <flux:label>Opening Stock <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
+                                <flux:input wire:model="quantity" type="number" min="0" :step="$loose ? '0.001' : '1'" placeholder="0" />
+                                <flux:description>Placed in the default warehouse.</flux:description>
+                                <flux:error name="quantity" />
+                            </flux:field>
+                        @endif
 
                         <flux:field>
                             <flux:label>Min Stock Level <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                            <flux:input wire:model="min_stock_level" type="number" min="0" placeholder="0" />
+                            <flux:input wire:model="min_stock_level" type="number" min="0" :step="$loose ? '0.001' : '1'" placeholder="0" />
+                            <flux:description>Warn when stock falls to this.</flux:description>
                             <flux:error name="min_stock_level" />
                         </flux:field>
 
                         <flux:field class="col-span-full">
                             <flux:label>Unit</flux:label>
-                            <flux:select wire:model="unit">
+                            <flux:select wire:model.live="unit">
                                 <flux:select.option value="pcs">Pieces (pcs)</flux:select.option>
                                 <flux:select.option value="kg">Kilogram (kg)</flux:select.option>
                                 <flux:select.option value="g">Gram (g)</flux:select.option>
@@ -128,7 +145,33 @@
                                 <flux:select.option value="pair">Pair</flux:select.option>
                                 <flux:select.option value="set">Set</flux:select.option>
                             </flux:select>
+                            <flux:description>
+                                {{ $loose ? 'Sold by weight/volume: the POS asks for the weight, e.g. 0.750 '.$unit.'.' : 'Sold in whole units.' }}
+                            </flux:description>
                             <flux:error name="unit" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Bought in (optional)</flux:label>
+                            <flux:input wire:model="purchase_unit" placeholder="e.g. carton" />
+                            <flux:description>Leave empty if bought in the same unit.</flux:description>
+                            <flux:error name="purchase_unit" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>{{ $unit }} per {{ $purchase_unit ?: 'bought unit' }}</flux:label>
+                            <flux:input wire:model="purchase_unit_factor" type="number" min="1" step="0.001" placeholder="e.g. 24" />
+                            <flux:error name="purchase_unit_factor" />
+                        </flux:field>
+
+                        <flux:field class="col-span-full">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <flux:label>Track expiry dates</flux:label>
+                                    <flux:description>Asks for batch &amp; expiry when receiving, sells the earliest expiry first and warns before it expires.</flux:description>
+                                </div>
+                                <flux:switch wire:model="track_expiry" />
+                            </div>
                         </flux:field>
                     </div>
                 </flux:card>

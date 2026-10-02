@@ -21,6 +21,7 @@ return new class extends Migration
         'tax',
         'email',
         'theme',
+        'sms',
     ];
 
     public function up(): void

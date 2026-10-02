@@ -12,6 +12,9 @@ class PurchaseList extends Component
 {
     use AuthorizesDestructiveActions, WithPagination;
 
+    /** purchases | returns */
+    public string $kind = 'purchases';
+
     public string $search = '';
 
     public string $statusFilter = '';
@@ -21,10 +24,16 @@ class PurchaseList extends Component
     public ?int $deleteId = null;
 
     protected $queryString = [
+        'kind' => ['except' => 'purchases'],
         'search' => ['except' => ''],
         'statusFilter' => ['except' => ''],
         'supplierFilter' => ['except' => ''],
     ];
+
+    public function updatingKind(): void
+    {
+        $this->resetPage();
+    }
 
     public function updatingSearch(): void
     {
@@ -69,6 +78,7 @@ class PurchaseList extends Component
     public function render()
     {
         $orders = PurchaseOrder::query()
+            ->when($this->kind === 'returns', fn ($q) => $q->returns()->with('parent'), fn ($q) => $q->purchases())
             ->with(['supplier', 'warehouse', 'createdBy'])
             ->withCount('items')
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s

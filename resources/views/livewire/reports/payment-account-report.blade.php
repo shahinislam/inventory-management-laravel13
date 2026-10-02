@@ -100,25 +100,29 @@
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($transactions as $tx)
-                    <flux:table.row wire:key="tx-{{ $tx->direction }}-{{ $tx->id }}">
+                    <flux:table.row wire:key="tx-{{ $tx->doc_type }}-{{ $tx->direction }}-{{ $tx->id }}">
                         <flux:table.cell>
                             <flux:text class="text-sm">{{ \Carbon\Carbon::parse($tx->payment_date)->format('d M Y') }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="font-mono text-xs">{{ $tx->payment_number }}</flux:text>
                             <flux:text class="text-xs text-zinc-400">
-                                {{ ucfirst(str_replace('_', ' ', $tx->method)) }}@if ($tx->reference) · {{ $tx->reference }}@endif
+                                {{ App\Models\Payment::methodLabel($tx->method) }}@if ($tx->reference) · {{ $tx->reference }}@endif
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="text-sm">{{ $accountNames[$tx->payment_account_id] ?? '—' }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            @if ($tx->direction === 'in')
-                                <a href="{{ route('invoices.show', $tx->doc_id) }}" wire:navigate class="font-mono text-sm hover:underline">{{ $tx->doc_number }}</a>
-                            @else
-                                <a href="{{ route('purchases.edit', $tx->doc_id) }}" wire:navigate class="font-mono text-sm hover:underline">{{ $tx->doc_number }}</a>
-                            @endif
+                            @php
+                                $docUrl = match ($tx->doc_type) {
+                                    'invoice' => route('invoices.show', $tx->doc_id),
+                                    'purchase_return' => route('purchases.returns.show', $tx->doc_id),
+                                    'expense' => route('expenses.edit', $tx->doc_id),
+                                    default => route('purchases.edit', $tx->doc_id),
+                                };
+                            @endphp
+                            <a href="{{ $docUrl }}" wire:navigate class="font-mono text-sm hover:underline">{{ $tx->doc_number }}</a>
                             <flux:text class="text-xs text-zinc-400">{{ $tx->party ?? '—' }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums text-green-600 dark:text-green-400">

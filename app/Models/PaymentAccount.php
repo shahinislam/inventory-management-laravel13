@@ -31,7 +31,8 @@ class PaymentAccount extends Model
     /** Which account types each payment method may be paid through. */
     private const METHOD_TYPES = [
         'card' => ['card'],
-        'bank_transfer' => ['bank', 'mobile_wallet'],
+        'bank_transfer' => ['bank'],
+        'mobile_banking' => ['mobile_wallet'],
     ];
 
     protected function casts(): array

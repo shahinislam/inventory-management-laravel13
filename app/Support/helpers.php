@@ -26,3 +26,18 @@ if (! function_exists('money')) {
             : $symbol.$formatted;
     }
 }
+
+if (! function_exists('format_qty')) {
+    /**
+     * A stock or sale quantity for display: "12", "0.75 kg", "1.5 ltr".
+     *
+     * Quantities are stored with 3 decimals so loose goods can be weighed;
+     * trailing zeros are dropped so whole-unit items still read as integers.
+     */
+    function format_qty(mixed $quantity, ?string $unit = null): string
+    {
+        $formatted = rtrim(rtrim(number_format((float) $quantity, 3, '.', ','), '0'), '.');
+
+        return $unit ? $formatted.' '.$unit : $formatted;
+    }
+}

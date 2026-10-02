@@ -4,9 +4,11 @@ namespace App\Livewire\Purchases;
 
 use App\Concerns\HandlesBarcodeScans;
 use App\Livewire\Dashboard\Index as DashboardIndex;
+use App\Models\Payment;
 use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\PurchasePayment;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -18,6 +20,8 @@ use Livewire\Component;
 class PurchaseForm extends Component
 {
     use HandlesBarcodeScans;
+
+    private const RELATIONS = ['items.product', 'payments.paymentAccount', 'returns'];
 
     public ?PurchaseOrder $order = null;
 
@@ -46,7 +50,11 @@ class PurchaseForm extends Component
     /** Freight paid separately to a courier, outside the supplier invoice. */
     public string $courierCost = '0';
 
-    // Line items
+    /**
+     * Line items. Quantity and unit_cost are in the line's chosen unit: the
+     * product's base unit (pcs) or its purchase unit (carton), whose size in
+     * base units is unit_factor.
+     */
     public array $items = [];
 
     // Product search
@@ -56,6 +64,12 @@ class PurchaseForm extends Component
     public bool $showReceiveModal = false;
 
     public array $receiveQuantities = [];
+
+    /** Batch number per order item id, entered while receiving. */
+    public array $receiveBatches = [];
+
+    /** Expiry date per order item id; required for products that track expiry. */
+    public array $receiveExpiry = [];
 
     // Record payment modal
     public bool $showPaymentModal = false;
@@ -72,8 +86,15 @@ class PurchaseForm extends Component
     {
         $this->order_date = now()->format('Y-m-d');
 
+        // Returns to the supplier live in the same table but have their own screen.
+        if ($order?->exists && $order->isReturn()) {
+            $this->redirect(route('purchases.returns.show', $order), navigate: true);
+
+            return;
+        }
+
         if ($order?->exists) {
-            $this->order = $order->load(['items.product', 'payments.paymentAccount']);
+            $this->order = $order->load(self::RELATIONS);
             $this->supplier_id = $order->supplier_id;
             $this->warehouse_id = $order->warehouse_id;
             $this->order_date = $order->order_date->format('Y-m-d');
@@ -88,23 +109,85 @@ class PurchaseForm extends Component
             $this->courierCost = (string) ($order->courier_cost ?? '0');
             $this->hasCourier = (float) $this->courierCharge > 0 || (float) $this->courierCost > 0;
 
-            $this->items = $order->items->map(fn ($item) => [
-                'product_id' => $item->product_id,
-                'name' => $item->product->name,
-                'sku' => $item->product->sku,
-                'unit' => $item->product->unit,
-                'quantity' => (string) $item->quantity,
+            $this->items = $order->items->map(fn (PurchaseOrderItem $item) => $this->lineFor($item->product, [
+                'unit_label' => $item->unit_label ?: $item->product->unit,
+                'unit_factor' => $item->factor,
+                'quantity' => self::qtyString($item->quantity),
                 'unit_cost' => (string) $item->unit_cost,
                 'received' => $item->received_quantity,
-            ])->toArray();
+            ]))->toArray();
         } else {
             $this->warehouse_id = Warehouse::getDefault()?->id;
         }
     }
 
+    /** A quantity as an input value: "2", "1.25" (no thousands separator). */
+    private static function qtyString(float|int|string|null $qty): string
+    {
+        return rtrim(rtrim(number_format((float) $qty, 3, '.', ''), '0'), '.') ?: '0';
+    }
+
+    /** One line of the items array, defaulting to one base unit at cost price. */
+    private function lineFor(Product $product, array $overrides = []): array
+    {
+        $factor = (float) ($product->purchase_unit_factor ?: 1);
+
+        return array_merge([
+            'product_id' => $product->id,
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'unit' => $product->unit,
+            'loose' => $product->isLoose(),
+            // Only offered when a carton actually holds more than one piece.
+            'purchase_unit' => $product->purchase_unit && $factor > 1 ? $product->purchase_unit : null,
+            'purchase_factor' => $factor > 1 ? $factor : 1.0,
+            'unit_label' => $product->unit,
+            'unit_factor' => 1.0,
+            'quantity' => '1',
+            'unit_cost' => (string) $product->cost_price,
+            'received' => 0,
+        ], $overrides);
+    }
+
+    /** Fractions are allowed only for loose goods ordered in their base unit. */
+    private static function allowsFraction(array $item): bool
+    {
+        return ! empty($item['loose']) && (float) ($item['unit_factor'] ?? 1) <= 1;
+    }
+
+    /**
+     * Switch a line between base units ('base') and the purchase unit
+     * ('purchase'). The unit cost is converted so the price per piece holds.
+     */
+    public function setLineUnit(int $index, string $unit): void
+    {
+        $item = $this->items[$index] ?? null;
+
+        if (! $item || ($this->order?->exists && ! $this->order->isDraft())) {
+            return;
+        }
+
+        $toPurchase = $unit === 'purchase' && ! empty($item['purchase_unit']);
+        $newFactor = $toPurchase ? (float) $item['purchase_factor'] : 1.0;
+        $oldFactor = max(1.0, (float) ($item['unit_factor'] ?? 1));
+
+        if (abs($newFactor - $oldFactor) < 0.0005) {
+            return;
+        }
+
+        $perPiece = (float) ($item['unit_cost'] ?: 0) / $oldFactor;
+        $this->items[$index]['unit_factor'] = $newFactor;
+        $this->items[$index]['unit_label'] = $toPurchase ? $item['purchase_unit'] : $item['unit'];
+        $this->items[$index]['unit_cost'] = (string) round($perPiece * $newFactor, 2);
+
+        if (! self::allowsFraction($this->items[$index])) {
+            $this->items[$index]['quantity'] = (string) max(1, (int) round((float) $item['quantity']));
+        }
+    }
+
     protected function rules(): array
     {
-        return [
+        $rules = [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'nullable|exists:warehouses,id',
             'order_date' => 'required|date',
@@ -117,8 +200,22 @@ class PurchaseForm extends Component
             'courierCost' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|numeric|min:1',
             'items.*.unit_cost' => 'required|numeric|min:0',
+        ];
+
+        foreach ($this->items as $i => $item) {
+            $rules["items.{$i}.quantity"] = self::allowsFraction($item)
+                ? 'required|numeric|min:0.001'
+                : 'required|numeric|integer|min:1';
+        }
+
+        return $rules;
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'items.*.quantity.integer' => 'Whole numbers only for this product.',
         ];
     }
 
@@ -160,15 +257,7 @@ class PurchaseForm extends Component
             }
         }
 
-        $this->items[] = [
-            'product_id' => $product->id,
-            'name' => $product->name,
-            'sku' => $product->sku,
-            'unit' => $product->unit,
-            'quantity' => '1',
-            'unit_cost' => (string) $product->cost_price,
-            'received' => 0,
-        ];
+        $this->items[] = $this->lineFor($product);
 
         $this->productSearch = '';
     }
@@ -228,9 +317,11 @@ class PurchaseForm extends Component
 
             return [
                 'product_id' => $item['product_id'],
-                'quantity' => $qty,
+                'quantity' => round($qty, 3),
                 'unit_cost' => $cost,
-                'subtotal' => $qty * $cost,
+                'unit_label' => $item['unit_label'] ?? $item['unit'] ?? null,
+                'unit_factor' => max(1.0, (float) ($item['unit_factor'] ?? 1)),
+                'subtotal' => round($qty * $cost, 2),
             ];
         }, $this->items);
     }
@@ -394,12 +485,15 @@ class PurchaseForm extends Component
 
         $this->validate([
             'payment_amount' => 'required|numeric|min:0.01|max:'.$this->order->due_amount,
-            'payment_method' => 'required|in:cash,card,bank_transfer,cheque,other',
-            'payment_reference' => 'nullable|string|max:100',
+            'payment_method' => Payment::methodRule(),
+            'payment_reference' => Payment::needsReference($this->payment_method)
+                ? 'required|string|max:100'
+                : 'nullable|string|max:100',
             'payment_account_id' => PaymentAccount::rule($this->payment_method),
         ], [
             'payment_account_id.required' => 'Select the account or card this was paid from.',
             'payment_amount.max' => 'Amount cannot be more than the balance due.',
+            'payment_reference.required' => 'Enter the transaction ID for this payment.',
         ]);
 
         $amount = (float) $this->payment_amount;
@@ -429,7 +523,7 @@ class PurchaseForm extends Component
             $order->increment('paid_amount', $amount);
         });
 
-        $this->order->refresh()->load(['items.product', 'payments.paymentAccount']);
+        $this->order->refresh()->load(self::RELATIONS);
         $this->showPaymentModal = false;
         session()->flash('success', 'Payment recorded successfully!');
     }
@@ -446,10 +540,14 @@ class PurchaseForm extends Component
             return;
         }
 
+        $this->resetErrorBag();
         $this->receiveQuantities = [];
+        $this->receiveBatches = [];
+        $this->receiveExpiry = [];
         foreach ($this->order->items as $item) {
-            $remaining = $item->quantity - $item->received_quantity;
-            $this->receiveQuantities[$item->id] = $remaining > 0 ? (string) $remaining : '0';
+            $this->receiveQuantities[$item->id] = self::qtyString($item->remaining_quantity);
+            $this->receiveBatches[$item->id] = (string) ($item->batch_number ?? '');
+            $this->receiveExpiry[$item->id] = $item->expiry_date?->format('Y-m-d') ?? '';
         }
         $this->showReceiveModal = true;
     }
@@ -460,7 +558,8 @@ class PurchaseForm extends Component
      */
     private function canReceiveStock(): bool
     {
-        return in_array($this->order?->status, ['pending', 'approved', 'ordered'], true);
+        return ! $this->order?->isReturn()
+            && in_array($this->order?->status, ['pending', 'approved', 'ordered'], true);
     }
 
     public function receiveStock(): void
@@ -477,39 +576,57 @@ class PurchaseForm extends Component
             return;
         }
 
+        $this->validateReceipt();
+
         DB::transaction(function () {
             $allReceived = true;
 
             foreach ($this->order->items as $item) {
-                $qtyToReceive = (int) ($this->receiveQuantities[$item->id] ?? 0);
+                $qtyToReceive = round((float) ($this->receiveQuantities[$item->id] ?? 0), 3);
                 if ($qtyToReceive <= 0) {
-                    if ($item->received_quantity < $item->quantity) {
+                    if (! $item->isFullyReceived()) {
                         $allReceived = false;
                     }
 
                     continue;
                 }
 
-                $newReceived = min($item->quantity, $item->received_quantity + $qtyToReceive);
-                $actualQty = $newReceived - $item->received_quantity;
+                // received_quantity stays in the ordered unit (e.g. cartons).
+                $newReceived = round(min($item->quantity, $item->received_quantity + $qtyToReceive), 3);
+                $actualQty = round($newReceived - $item->received_quantity, 3);
 
-                $item->update(['received_quantity' => $newReceived]);
+                if ($actualQty <= 0) {
+                    continue;
+                }
 
-                if ($newReceived < $item->quantity) {
+                $batch = trim((string) ($this->receiveBatches[$item->id] ?? '')) ?: null;
+                $expiry = ($this->receiveExpiry[$item->id] ?? '') ?: null;
+
+                $item->update([
+                    'received_quantity' => $newReceived,
+                    'batch_number' => $batch ?? $item->batch_number,
+                    'expiry_date' => $expiry ?? $item->expiry_date,
+                ]);
+
+                if (! $item->isFullyReceived()) {
                     $allReceived = false;
                 }
+
+                // Stock is kept in base units: 2 cartons of 24 add 48 pcs,
+                // each costing a 24th of the carton price.
+                $factor = $item->factor;
 
                 // Stock arrives in the warehouse the order was raised against.
                 app(InventoryService::class)->add(
                     productId: $item->product_id,
                     warehouseId: $this->order->warehouse_id,
-                    quantity: $actualQty,
+                    quantity: round($actualQty * $factor, 3),
                     type: 'purchase',
                     extra: [
                         'reference' => $this->order,
-                        'unit_cost' => $item->unit_cost,
-                        'batch_number' => $item->batch_number,
-                        'expiry_date' => $item->expiry_date,
+                        'unit_cost' => (float) $item->unit_cost / $factor,
+                        'batch_number' => $batch,
+                        'expiry_date' => $expiry,
                     ],
                 );
             }
@@ -523,8 +640,49 @@ class PurchaseForm extends Component
         DashboardIndex::flushCache();
 
         $this->showReceiveModal = false;
-        $this->order->refresh()->load(['items.product', 'payments.paymentAccount']);
+        $this->order->refresh()->load(self::RELATIONS);
         session()->flash('success', 'Stock received and inventory updated!');
+    }
+
+    /**
+     * Quantities must fit the product (whole units unless loose and ordered by
+     * the base unit), and expiry is required for products that track it.
+     */
+    private function validateReceipt(): void
+    {
+        $rules = [];
+        $messages = [];
+        $attributes = [];
+
+        foreach ($this->order->items as $item) {
+            $id = $item->id;
+            $name = $item->product->name;
+            $qty = (float) ($this->receiveQuantities[$id] ?? 0);
+            $fraction = $item->product->isLoose() && $item->factor <= 1;
+
+            $rules["receiveQuantities.{$id}"] = 'nullable|numeric|min:0'.($fraction ? '' : '|integer');
+            $rules["receiveBatches.{$id}"] = 'nullable|string|max:100';
+            $rules["receiveExpiry.{$id}"] = ($qty > 0 && $item->product->track_expiry ? 'required' : 'nullable').'|date';
+
+            $attributes["receiveQuantities.{$id}"] = "quantity for {$name}";
+            $attributes["receiveExpiry.{$id}"] = "expiry date for {$name}";
+            $messages["receiveExpiry.{$id}.required"] = "{$name} tracks expiry, so enter its expiry date.";
+            $messages["receiveQuantities.{$id}.integer"] = "Whole numbers only for {$name}.";
+        }
+
+        $this->validate($rules, $messages, $attributes);
+    }
+
+    /** Received or partially received purchases can be sent back to the supplier. */
+    public function getCanReturnProperty(): bool
+    {
+        if (! $this->order?->exists || $this->order->isReturn()) {
+            return false;
+        }
+
+        return $this->order->status === 'received'
+            || (! in_array($this->order->status, ['draft', 'cancelled'], true)
+                && $this->order->items->contains(fn ($i) => $i->received_quantity > 0));
     }
 
     protected function handleScan(string $code): bool
@@ -544,7 +702,7 @@ class PurchaseForm extends Component
         // Scanning a product already on the order adds one more.
         foreach ($this->items as $i => $item) {
             if ($item['product_id'] === $product->id) {
-                $this->items[$i]['quantity'] = (string) ((int) $item['quantity'] + 1);
+                $this->items[$i]['quantity'] = self::qtyString((float) $item['quantity'] + 1);
 
                 return true;
             }

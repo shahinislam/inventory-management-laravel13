@@ -51,6 +51,31 @@ class SettingsSeeder extends Seeder
             ['key' => 'purchase_payment.prefix',      'value' => 'PP',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
             ['key' => 'purchase_payment.next_number', 'value' => '1',    'group' => 'invoice', 'type' => 'number', 'is_public' => false],
 
+            // Other document numbers
+            ['key' => 'sales_return.prefix',          'value' => 'SR',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+            ['key' => 'purchase_return.prefix',       'value' => 'PR',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+            ['key' => 'shift.prefix',                 'value' => 'SH',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+            ['key' => 'expense.prefix',               'value' => 'EXP',  'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+            ['key' => 'stock_count.prefix',           'value' => 'SC',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
+
+            // VAT (Bangladesh): Business Identification Number and the Mushak 6.3 tax invoice
+            ['key' => 'company.bin',            'value' => null,               'group' => 'company',      'type' => 'text',    'is_public' => false],
+            ['key' => 'tax.mushak_enabled',     'value' => 'false',            'group' => 'tax',          'type' => 'boolean', 'is_public' => false],
+
+            // SMS — a generic HTTP gateway. Until enabled and configured, messages are only logged.
+            ['key' => 'sms.enabled',            'value' => 'false',            'group' => 'sms',          'type' => 'boolean', 'is_public' => false],
+            ['key' => 'sms.gateway_url',        'value' => null,               'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.http_method',        'value' => 'POST',             'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.api_key',            'value' => null,               'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.sender_id',          'value' => null,               'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.param_to',           'value' => 'number',           'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.param_message',      'value' => 'message',          'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.param_key',          'value' => 'api_key',          'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.param_sender',       'value' => 'senderid',         'group' => 'sms',          'type' => 'text',    'is_public' => false],
+            ['key' => 'sms.send_receipt',       'value' => 'false',            'group' => 'sms',          'type' => 'boolean', 'is_public' => false],
+            ['key' => 'sms.receipt_template',   'value' => 'Thank you {name}! Bill {invoice}: {total}. Total spent {spent}. - {shop}', 'group' => 'sms', 'type' => 'text', 'is_public' => false],
+            ['key' => 'sms.reward_template',    'value' => 'Congrats {name}! You received {reward} on bill {invoice}. - {shop}', 'group' => 'sms', 'type' => 'text', 'is_public' => false],
+
             // Notification
             ['key' => 'notification.low_stock', 'value' => 'true',             'group' => 'notification', 'type' => 'boolean', 'is_public' => false],
             ['key' => 'notification.expiry',    'value' => 'true',             'group' => 'notification', 'type' => 'boolean', 'is_public' => false],
@@ -65,6 +90,7 @@ class SettingsSeeder extends Seeder
             // properties at render time, so changing one repaints the whole UI.
             ['key' => 'theme.primary',          'value' => '#4f46e5',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
             ['key' => 'theme.secondary',        'value' => '#0d9488',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
+            ['key' => 'theme.sidebar',          'value' => 'light',            'group' => 'theme',        'type' => 'text',    'is_public' => true],
             ['key' => 'theme.tertiary',         'value' => '#d97706',          'group' => 'theme',        'type' => 'text',    'is_public' => true],
         ];
 

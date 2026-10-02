@@ -36,14 +36,14 @@ class Index extends Component
                 default => today(),
             };
 
-            $totalSales = Invoice::where('status', 'paid')->whereDate('invoice_date', '>=', $dateFilter)->sum('total');
-            $totalInvoices = Invoice::whereDate('invoice_date', '>=', $dateFilter)->count();
+            $totalSales = Invoice::sales()->where('status', 'paid')->whereDate('invoice_date', '>=', $dateFilter)->sum('total');
+            $totalInvoices = Invoice::sales()->whereDate('invoice_date', '>=', $dateFilter)->count();
             $totalProducts = Product::active()->count();
             $lowStock = Product::lowStock()->count();
             $totalCustomers = Customer::active()->count();
             $totalSuppliers = Supplier::active()->count();
             $pendingOrders = PurchaseOrder::pending()->count();
-            $totalRevenue = Invoice::where('status', 'paid')->sum('total');
+            $totalRevenue = Invoice::sales()->where('status', 'paid')->sum('total');
 
             return compact(
                 'totalSales', 'totalInvoices', 'totalProducts',
@@ -55,7 +55,7 @@ class Index extends Component
 
     private function getRecentInvoices()
     {
-        return Invoice::with(['customer', 'createdBy'])
+        return Invoice::where('is_held', false)->with(['customer', 'createdBy'])
             ->latest()
             ->take(5)
             ->get();
@@ -82,7 +82,7 @@ class Index extends Component
     {
         return Cache::remember('dashboard_sales_chart', 300, function () {
             // One grouped query for the whole week rather than a sum() per day.
-            $totals = Invoice::where('status', 'paid')
+            $totals = Invoice::sales()->where('status', 'paid')
                 ->whereDate('invoice_date', '>=', now()->subDays(6)->startOfDay())
                 ->selectRaw('DATE(invoice_date) as day, SUM(total) as sales')
                 ->groupBy('day')

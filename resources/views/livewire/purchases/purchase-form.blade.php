@@ -42,6 +42,9 @@
     @php
         $isDraft   = !$order || $order->isDraft();
         $isEditable = $isDraft;
+        // "2 carton (=48 pcs)" — the ordered unit, plus base units when they differ.
+        $qtyLabel = fn ($qty, $label, $factor, $unit) => format_qty($qty, $label)
+            . ((float) $factor > 1 ? ' (=' . format_qty((float) $qty * (float) $factor, $unit) . ')' : '');
     @endphp
 
     {{-- Header --}}
@@ -80,6 +83,9 @@
                 @if($order->canReceive())
                     <flux:button variant="primary" icon="inbox-arrow-down" wire:click="openReceiveModal">Receive Stock
                     </flux:button>
+                @endif
+                @if($this->canReturn)
+                    <flux:button icon="arrow-uturn-left" href="{{ route('purchases.return', $order) }}" wire:navigate>Return to supplier</flux:button>
                 @endif
                 @if(!in_array($order->status, ['received', 'cancelled']))
                     <flux:button icon="x-circle" variant="ghost" wire:click="cancel" wire:confirm="Cancel this purchase order?">Cancel Order</flux:button>
@@ -213,11 +219,31 @@
                                         <div class="font-medium text-zinc-900 dark:text-white">{{ $item['name'] }}</div>
                                         <div class="mt-0.5 font-mono text-xs text-zinc-500">{{ $item['sku'] }}</div>
                                     </td>
+                                    @php
+                                        $factor = (float) ($item['unit_factor'] ?? 1);
+                                        $label = $item['unit_label'] ?? $item['unit'];
+                                        $fraction = !empty($item['loose']) && $factor <= 1;
+                                    @endphp
                                     <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model="items.{{ $index }}.quantity" type="number" min="1" size="sm" class="text-right tabular-nums" />
+                                            <flux:input wire:model="items.{{ $index }}.quantity" type="number"
+                                                min="{{ $fraction ? '0.001' : '1' }}" step="{{ $fraction ? '0.001' : '1' }}"
+                                                size="sm" class="text-right tabular-nums" />
+                                            @if(!empty($item['purchase_unit']))
+                                                {{-- Order by the piece or by the carton. --}}
+                                                <div class="mt-1 inline-flex overflow-hidden rounded-md border border-zinc-200 text-xs dark:border-zinc-700">
+                                                    <button type="button" wire:click="setLineUnit({{ $index }}, 'base')"
+                                                        @class(['px-2 py-0.5', 'bg-zinc-800 text-white dark:bg-white dark:text-zinc-900' => $factor <= 1, 'text-zinc-600 dark:text-zinc-300' => $factor > 1])>{{ $item['unit'] }}</button>
+                                                    <button type="button" wire:click="setLineUnit({{ $index }}, 'purchase')"
+                                                        @class(['px-2 py-0.5', 'bg-zinc-800 text-white dark:bg-white dark:text-zinc-900' => $factor > 1, 'text-zinc-600 dark:text-zinc-300' => $factor <= 1])>{{ $item['purchase_unit'] }} ({{ format_qty($item['purchase_factor']) }})</button>
+                                                </div>
+                                            @endif
+                                            @if($factor > 1)
+                                                <div class="mt-0.5 text-xs text-zinc-500">{{ $label }} = {{ format_qty($factor, $item['unit']) }}</div>
+                                            @endif
+                                            @error("items.$index.quantity") <div class="mt-0.5 text-xs text-red-500">{{ $message }}</div> @enderror
                                         @else
-                                            <span class="tabular-nums">{{ $item['quantity'] }}</span> {{ $item['unit'] }}
+                                            <span class="tabular-nums">{{ $qtyLabel($item['quantity'], $label, $factor, $item['unit']) }}</span>
                                         @endif
                                     </td>
                                     <td class="px-2 py-3 text-right">
@@ -226,6 +252,7 @@
                                         @else
                                             <span class="tabular-nums">{{ money($item['unit_cost']) }}</span>
                                         @endif
+                                        <div class="mt-0.5 text-xs text-zinc-500">per {{ $label }}</div>
                                     </td>
                                     <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white"
                                         x-text="money(lineTotal({{ $index }}))">
@@ -233,8 +260,8 @@
                                     </td>
                                     @if($order?->exists)
                                         <td class="px-2 py-3 text-right">
-                                            <flux:badge size="sm" :color="$item['received'] >= $item['quantity'] ? 'green' : ($item['received'] > 0 ? 'yellow' : 'zinc')">
-                                                {{ $item['received'] }} / {{ $item['quantity'] }}
+                                            <flux:badge size="sm" :color="(float) $item['received'] >= (float) $item['quantity'] - 0.0005 ? 'green' : ($item['received'] > 0 ? 'yellow' : 'zinc')">
+                                                {{ format_qty($item['received']) }} / {{ format_qty($item['quantity']) }}
                                             </flux:badge>
                                         </td>
                                     @endif
@@ -361,6 +388,12 @@
                             <flux:text class="text-zinc-500">Paid</flux:text>
                             <flux:text class="text-green-500">{{ money($order->paid_amount) }}</flux:text>
                         </div>
+                        @if($order->returned_amount > 0)
+                            <div class="flex justify-between text-sm">
+                                <flux:text class="text-zinc-500">Returned</flux:text>
+                                <flux:text class="text-amber-600">{{ money($order->returned_amount) }}</flux:text>
+                            </div>
+                        @endif
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Due</flux:text>
                             <flux:text @class(['text-red-500' => $order->due_amount > 0, 'text-zinc-500' => $order->due_amount <= 0])>{{ money($order->due_amount) }}</flux:text>
@@ -368,6 +401,25 @@
                     @endif
                 </div>
             </flux:card>
+
+            {{-- Returns to supplier against this order --}}
+            @if($order?->exists && $order->returns->isNotEmpty())
+            <flux:card class="p-6">
+                <flux:heading class="mb-4">Returns</flux:heading>
+                <div class="space-y-3">
+                    @foreach($order->returns as $return)
+                        <a href="{{ route('purchases.returns.show', $return) }}" wire:navigate wire:key="ret-{{ $return->id }}"
+                            class="flex items-start justify-between gap-2 text-sm hover:underline">
+                            <div class="min-w-0">
+                                <div class="font-medium text-zinc-900 dark:text-white">{{ $return->order_number }}</div>
+                                <div class="text-xs text-zinc-500">{{ $return->order_date->format('d M Y') }}</div>
+                            </div>
+                            <span class="shrink-0 font-medium tabular-nums">{{ money($return->total) }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </flux:card>
+            @endif
 
             {{-- Payment History --}}
             @if($order?->exists && $order->payments->isNotEmpty())
@@ -378,7 +430,7 @@
                         <div class="flex items-start justify-between gap-2 text-sm" wire:key="pp-{{ $payment->id }}">
                             <div class="min-w-0">
                                 <div class="font-medium text-zinc-900 dark:text-white">
-                                    {{ ucfirst(str_replace('_', ' ', $payment->method)) }}
+                                    {{ App\Models\Payment::methodLabel($payment->method) }}
                                 </div>
                                 <div class="truncate text-xs text-zinc-500">
                                     {{ $payment->payment_date->format('d M Y') }}
@@ -415,27 +467,52 @@
 
     {{-- Receive Stock Modal --}}
     @if($order?->exists)
-    <flux:modal wire:model="showReceiveModal" class="max-w-lg">
+    <flux:modal wire:model="showReceiveModal" class="w-full max-w-2xl">
         <div class="p-6">
             <flux:heading class="mb-4">Receive Stock</flux:heading>
             <flux:text class="mb-4 text-sm text-zinc-500">Enter quantities being received now. This will update product stock levels.</flux:text>
 
             <div class="space-y-3">
                 @foreach($order->items as $item)
-                    @php $remaining = $item->quantity - $item->received_quantity; @endphp
-                    <div class="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                        <div class="min-w-0 flex-1">
-                            <flux:text class="truncate text-sm font-medium">{{ $item->product->name }}</flux:text>
-                            <flux:text class="text-xs text-zinc-400">Ordered: {{ $item->quantity }} · Received: {{ $item->received_quantity }} · Remaining: {{ $remaining }}</flux:text>
+                    @php
+                        $remaining = $item->remaining_quantity;
+                        $rLabel = $item->unit_label ?: $item->product->unit;
+                        $rFraction = $item->product->isLoose() && $item->factor <= 1;
+                    @endphp
+                    <div class="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800" wire:key="recv-{{ $item->id }}">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <flux:text class="truncate text-sm font-medium">{{ $item->product->name }}</flux:text>
+                                <flux:text class="text-xs text-zinc-400">
+                                    Ordered: {{ $qtyLabel($item->quantity, $rLabel, $item->factor, $item->product->unit) }}
+                                    · Received: {{ format_qty($item->received_quantity) }}
+                                    · Remaining: {{ format_qty($remaining, $rLabel) }}
+                                </flux:text>
+                            </div>
+                            <flux:input
+                                wire:model="receiveQuantities.{{ $item->id }}"
+                                type="number"
+                                min="0"
+                                step="{{ $rFraction ? '0.001' : '1' }}"
+                                max="{{ $remaining }}"
+                                class="w-24 shrink-0 text-right tabular-nums"
+                                :disabled="$remaining <= 0"
+                            />
                         </div>
-                        <flux:input
-                            wire:model="receiveQuantities.{{ $item->id }}"
-                            type="number"
-                            min="0"
-                            max="{{ $remaining }}"
-                            class="w-24 shrink-0 text-right tabular-nums"
-                            :disabled="$remaining <= 0"
-                        />
+                        @if($remaining > 0)
+                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                <flux:input wire:model="receiveBatches.{{ $item->id }}" size="sm" placeholder="Batch no. (optional)" />
+                                <flux:input wire:model="receiveExpiry.{{ $item->id }}" type="date" size="sm"
+                                    :placeholder="$item->product->track_expiry ? 'Expiry (required)' : 'Expiry (optional)'"
+                                    :aria-label="$item->product->track_expiry ? 'Expiry date (required)' : 'Expiry date'" />
+                            </div>
+                            @if($item->product->track_expiry)
+                                <flux:text class="mt-1 text-xs text-zinc-500">Expiry date required for this product.</flux:text>
+                            @endif
+                        @endif
+                        @error("receiveQuantities.{$item->id}") <flux:text class="mt-1 text-xs text-red-500">{{ $message }}</flux:text> @enderror
+                        @error("receiveExpiry.{$item->id}") <flux:text class="mt-1 text-xs text-red-500">{{ $message }}</flux:text> @enderror
+                        @error("receiveBatches.{$item->id}") <flux:text class="mt-1 text-xs text-red-500">{{ $message }}</flux:text> @enderror
                     </div>
                 @endforeach
             </div>
@@ -466,18 +543,16 @@
                 <flux:field>
                     <flux:label>Payment Method</flux:label>
                     <flux:select wire:model.live="payment_method">
-                        <flux:select.option value="cash">Cash</flux:select.option>
-                        <flux:select.option value="card">Card</flux:select.option>
-                        <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
-                        <flux:select.option value="cheque">Cheque</flux:select.option>
-                        <flux:select.option value="other">Other</flux:select.option>
+                        @foreach(App\Models\Payment::METHODS as $value => $label)
+                            <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                        @endforeach
                     </flux:select>
                     <flux:error name="payment_method" />
                 </flux:field>
 
                 @if (App\Models\PaymentAccount::requiredFor($payment_method))
                     <flux:field>
-                        <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                        <flux:label>{{ match($payment_method) { 'card' => 'Card', 'mobile_banking' => 'Wallet', default => 'Account' } }}</flux:label>
                         <flux:select wire:model="payment_account_id" placeholder="Select account...">
                             @foreach ($paymentAccounts as $account)
                                 <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
@@ -488,7 +563,11 @@
                 @endif
 
                 <flux:field>
-                    <flux:label>Reference <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
+                    @if(App\Models\Payment::needsReference($payment_method))
+                        <flux:label badge="Required">Transaction ID</flux:label>
+                    @else
+                        <flux:label>Reference <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
+                    @endif
                     <flux:input wire:model="payment_reference" placeholder="Transaction ID / cheque number" />
                     <flux:error name="payment_reference" />
                 </flux:field>

@@ -1,14 +1,14 @@
 <x-layouts::auth.focus :title="__('Reset password')" icon="lock-closed" step="2">
-    <div class="flex flex-col gap-5 short:gap-4">
-        <div class="text-center">
-            <h1 class="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">{{ __('Set a new password') }}</h1>
-            <p class="mt-1 text-sm text-zinc-500 short:hidden dark:text-zinc-400">{{ __('Choose something strong you haven\'t used before.') }}</p>
+    <div class="flex flex-col gap-5 text-center short:gap-4">
+        <div>
+            <h1 class="text-3xl font-semibold tracking-tight short:text-2xl">{{ __('Set a new password') }}</h1>
+            <p class="mt-2 text-sm text-white/70 [@media(max-height:760px)]:hidden">{{ __('Choose something strong you haven\'t used before.') }}</p>
         </div>
 
         <!-- Session Status -->
-        <x-auth-session-status class="rounded-xl bg-green-50 px-4 py-3 text-center dark:bg-green-500/10" :status="session('status')" />
+        <x-auth-session-status class="rounded-full bg-emerald-400/15 px-4 py-2 text-emerald-100! ring-1 ring-emerald-300/30" :status="session('status')" />
 
-        <form method="POST" action="{{ route('password.update') }}" class="flex flex-col gap-4 short:gap-3">
+        <form method="POST" action="{{ route('password.update') }}" class="flex flex-col gap-4 text-start short:gap-3">
             @csrf
             <!-- Token -->
             <input type="hidden" name="token" value="{{ request()->route('token') }}">
@@ -16,7 +16,7 @@
             <!-- Email Address -->
             <flux:input
                 name="email"
-                value="{{ request('email') }}"
+                :value="old('email', request('email'))"
                 :label="__('Email')"
                 type="email"
                 icon="envelope"
@@ -50,7 +50,7 @@
                 viewable
             />
 
-            <x-auth-button data-test="reset-password-button">{{ __('Reset password') }}</x-auth-button>
+            <x-auth-button variant="light" class="mt-1" data-test="reset-password-button">{{ __('Reset password') }}</x-auth-button>
         </form>
     </div>
 </x-layouts::auth.focus>

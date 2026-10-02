@@ -63,8 +63,8 @@
                             <flux:text class="text-sm">{{ $product->supplier?->name ?? '-' }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="tabular-nums {{ $product->quantity === 0 ? 'font-bold text-red-600 dark:text-red-400' : 'font-medium text-yellow-600 dark:text-yellow-400' }}">
-                                {{ $product->quantity }} {{ $product->unit }}
+                            <flux:text class="tabular-nums {{ $product->quantity <= 0 ? 'font-bold text-red-600 dark:text-red-400' : 'font-medium text-yellow-600 dark:text-yellow-400' }}">
+                                {{ format_qty($product->quantity, $product->unit) }}
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
@@ -76,8 +76,8 @@
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" :color="$product->quantity === 0 ? 'red' : 'yellow'">
-                                {{ $product->quantity === 0 ? 'Out of Stock' : 'Low Stock' }}
+                            <flux:badge size="sm" :color="$product->quantity <= 0 ? 'red' : 'yellow'">
+                                {{ $product->quantity <= 0 ? 'Out of Stock' : 'Low Stock' }}
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell class="text-right">

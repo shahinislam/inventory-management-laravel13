@@ -46,7 +46,7 @@
             tax,
             courier,
             courierCost,
-            total: Math.max(0, subtotal - this.num(this.$wire.discount) + tax + courier),
+            total: Math.max(0, subtotal - this.num(this.$wire.discount) - this.num(this.$wire.membershipDiscount) + tax + courier),
         };
     },
 }">
@@ -75,10 +75,12 @@
                     placeholder="Search existing customer..."
                     :show="$this->customerResults->count() > 0"
                     :selected="$customer_id ? $customerSearch : null"
-                    selected-hint="Customer" clear="clearCustomer">
+                    :selected-hint="$customer_id ? 'Member · MEM-' . str_pad($customer_id, 6, '0', STR_PAD_LEFT) : 'Customer'"
+                    clear="clearCustomer">
                     @foreach ($this->customerResults as $i => $cust)
                         <x-search-select.option :index="$i" wire:click="selectCustomer({{ $cust->id }})"
-                            wire:key="cust-{{ $cust->id }}" :label="$cust->name" :description="$cust->phone" />
+                            wire:key="cust-{{ $cust->id }}" :label="$cust->name"
+                            :description="$cust->phone . ' · ' . $cust->member_no" />
                     @endforeach
                 </x-search-select>
 
@@ -92,6 +94,7 @@
                     <flux:field>
                         <flux:label>Phone</flux:label>
                         <flux:input wire:model="customer_phone" placeholder="Phone number" />
+                        <flux:error name="customer_phone" />
                     </flux:field>
 
                     <flux:field>
@@ -223,7 +226,10 @@
                                     </td>
                                     <td class="px-2 py-3">
                                         <flux:input wire:model="items.{{ $index }}.quantity" type="number"
-                                            min="1" size="sm" class="text-right tabular-nums" />
+                                            :step="! empty($item['loose']) ? '0.001' : '1'" :min="! empty($item['loose']) ? '0.001' : '1'"
+                                            :suffix="! empty($item['loose']) ? ($item['unit'] ?? null) : null"
+                                            size="sm" class="text-right tabular-nums" />
+                                        <flux:error name="items.{{ $index }}.quantity" />
                                     </td>
                                     <td class="px-2 py-3">
                                         <flux:input wire:model="items.{{ $index }}.unit_price" type="number"
@@ -304,15 +310,24 @@
                     <flux:field>
                         <flux:label>Payment Method</flux:label>
                         <flux:select wire:model.live="payment_method">
-                            <flux:select.option value="cash">Cash</flux:select.option>
-                            <flux:select.option value="card">Card</flux:select.option>
-                            <flux:select.option value="bank_transfer">Bank Transfer</flux:select.option>
+                            @foreach (['cash', 'card', 'mobile_banking', 'bank_transfer'] as $m)
+                                <flux:select.option value="{{ $m }}">{{ App\Models\Payment::methodLabel($m) }}</flux:select.option>
+                            @endforeach
                         </flux:select>
                     </flux:field>
 
+                    @if (App\Models\Payment::needsReference($payment_method))
+                        <flux:field>
+                            <flux:label>Transaction ID</flux:label>
+                            <flux:input wire:model="payment_reference" placeholder="bKash / Nagad TrxID" />
+                            <flux:description>Required when marking the invoice paid.</flux:description>
+                            <flux:error name="payment_reference" />
+                        </flux:field>
+                    @endif
+
                     @if (App\Models\PaymentAccount::requiredFor($payment_method))
                         <flux:field>
-                            <flux:label>{{ $payment_method === 'card' ? 'Card' : 'Account' }}</flux:label>
+                            <flux:label>{{ match ($payment_method) { 'card' => 'Card', 'mobile_banking' => 'Wallet', default => 'Account' } }}</flux:label>
                             <flux:select wire:model="payment_account_id" placeholder="Select account...">
                                 @foreach ($paymentAccounts as $account)
                                     <flux:select.option value="{{ $account->id }}">{{ $account->display_name }}</flux:select.option>
@@ -349,6 +364,13 @@
                                 class="tabular-nums" />
                         </flux:field>
                     </div>
+
+                    @if ($membershipDiscount > 0)
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Member reward <span class="text-xs">(given at POS)</span></span>
+                            <span class="font-medium tabular-nums text-pink-600 dark:text-pink-400">−{{ money($membershipDiscount) }}</span>
+                        </div>
+                    @endif
 
                     {{-- Courier. The charge is billed to the customer; the cost is
                          what we pay the courier and stays internal. --}}

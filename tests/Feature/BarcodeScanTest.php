@@ -13,6 +13,7 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'admin', 'is_active' => true]));
+    openShift();
     Warehouse::factory()->default()->create();
     $this->product = Product::factory()->create(['barcode' => '8901234', 'sku' => 'SKU-1', 'quantity' => 20]);
 });

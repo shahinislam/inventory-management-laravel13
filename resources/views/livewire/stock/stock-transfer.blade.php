@@ -41,7 +41,7 @@
                                         wire:key="prod-{{ $product->id }}"
                                         :label="$product->name"
                                         :description="$product->sku"
-                                        :value="$product->quantity . ' ' . $product->unit" />
+                                        :value="format_qty($product->quantity, $product->unit)" />
                                 @endforeach
                             </x-search-select>
                             <flux:error name="product_id" />
@@ -51,7 +51,7 @@
                         @if($selectedProduct)
                             <div class="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
                                 <flux:text class="text-sm text-zinc-500">Available Stock</flux:text>
-                                <flux:heading size="lg">{{ $selectedProduct->quantity }} {{ $selectedProduct->unit }}</flux:heading>
+                                <flux:heading size="lg">{{ format_qty($selectedProduct->quantity, $selectedProduct->unit) }}</flux:heading>
                             </div>
                         @endif
 
@@ -90,7 +90,7 @@
                                 wire:model="quantity"
                                 type="number"
                                 min="1"
-                                max="{{ $selectedProduct?->quantity }}"
+                                max="{{ $selectedProduct && $from_warehouse_id ? $selectedProduct->stockIn($from_warehouse_id) : '' }}" step="{{ $selectedProduct?->isLoose() ? '0.001' : '1' }}"
                                 placeholder="0"
                             />
                             <flux:error name="quantity" />

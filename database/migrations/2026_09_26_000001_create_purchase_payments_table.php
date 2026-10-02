@@ -22,6 +22,7 @@ return new class extends Migration
                 'cash',
                 'card',
                 'bank_transfer',
+                'mobile_banking',
                 'cheque',
                 'other',
             ])->index();

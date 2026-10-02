@@ -13,11 +13,15 @@ use Illuminate\Support\Str;
     'category_id', 'supplier_id', 'media_id',
     'cost_price', 'selling_price', 'tax_rate', 'discount',
     'quantity', 'min_stock_level', 'unit',
+    'purchase_unit', 'purchase_unit_factor', 'track_expiry',
     'weight', 'dimensions', 'discount_type', 'status',
 ])]
 class Product extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /** Units sold by weight or volume, in any fraction. */
+    public const LOOSE_UNITS = ['kg', 'g', 'ltr', 'ml'];
 
     protected function casts(): array
     {
@@ -27,9 +31,34 @@ class Product extends Model
             'tax_rate' => 'decimal:2',
             'discount' => 'decimal:2',
             'weight' => 'decimal:2',
-            'quantity' => 'integer',
-            'min_stock_level' => 'integer',
+            // Floats, not decimal:N — that cast returns strings, which break comparisons.
+            'quantity' => 'float',
+            'min_stock_level' => 'float',
+            'purchase_unit_factor' => 'float',
+            'track_expiry' => 'boolean',
         ];
+    }
+
+    /** Sold by weight/volume (rice by kg), so quantities may be fractional. */
+    public function isLoose(): bool
+    {
+        return static::isLooseUnit($this->unit);
+    }
+
+    public static function isLooseUnit(?string $unit): bool
+    {
+        return in_array(strtolower((string) $unit), self::LOOSE_UNITS, true);
+    }
+
+    /** Validation for a quantity of this product: fractions only for loose units. */
+    public function quantityRule(float $min = 0.001): string
+    {
+        return $this->isLoose() ? "numeric|min:{$min}" : 'numeric|integer|min:'.max(1, (int) ceil($min));
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(StockBatch::class);
     }
 
     protected static function boot()
@@ -92,15 +121,15 @@ class Product extends Model
     /**
      * How much of this product is in one specific warehouse.
      */
-    public function stockIn(?int $warehouseId): int
+    public function stockIn(?int $warehouseId): float
     {
         if (! $warehouseId) {
-            return 0;
+            return 0.0;
         }
 
-        return (int) $this->warehouses()
+        return round((float) $this->warehouses()
             ->where('warehouses.id', $warehouseId)
-            ->first()?->pivot->quantity;
+            ->first()?->pivot->quantity, 3);
     }
 
     public function scopeActive($q)
@@ -125,7 +154,7 @@ class Product extends Model
 
     public function isOutOfStock(): bool
     {
-        return $this->quantity === 0;
+        return $this->quantity <= 0;
     }
 
     public function getPriceAfterDiscountAttribute(): float

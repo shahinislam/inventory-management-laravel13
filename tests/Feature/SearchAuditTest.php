@@ -32,6 +32,7 @@ beforeEach(function () {
     $this->user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     $this->warehouse = Warehouse::factory()->default()->create();
     $this->actingAs($this->user);
+    openShift();
 
     $this->product = Product::factory()->create([
         'name' => 'Teer Soyabean Oil',

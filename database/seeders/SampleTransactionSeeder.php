@@ -60,7 +60,7 @@ class SampleTransactionSeeder extends Seeder
 
         // Part paid by bKash, rest overdue.
         $this->sale($customers[2 % $customers->count()], [[$products[0], 4], [$products[3], 2]], daysAgo: 20,
-            payments: [['bank_transfer', $account('bKash Merchant'), 0.4]], dueInDays: -5);
+            payments: [['mobile_banking', $account('bKash Merchant'), 0.4]], dueInDays: -5);
 
         // Nothing paid yet, due next week.
         $this->sale($customers[0], [[$products[1], 6]], daysAgo: 3,
@@ -115,6 +115,14 @@ class SampleTransactionSeeder extends Seeder
         ]);
 
         foreach ($lines as [$product, $qty]) {
+            $taken = app(InventoryService::class)->remove(
+                productId: $product->id,
+                warehouseId: $this->warehouse->id,
+                quantity: $qty,
+                type: 'sale',
+                extra: ['reference' => $invoice],
+            );
+
             InvoiceItem::create([
                 'invoice_id' => $invoice->id,
                 'product_id' => $product->id,
@@ -122,16 +130,9 @@ class SampleTransactionSeeder extends Seeder
                 'product_sku' => $product->sku,
                 'quantity' => $qty,
                 'unit_price' => $product->selling_price,
+                'unit_cost' => $taken['unit_cost'],
                 'subtotal' => (float) $product->selling_price * $qty,
             ]);
-
-            app(InventoryService::class)->remove(
-                productId: $product->id,
-                warehouseId: $this->warehouse->id,
-                quantity: $qty,
-                type: 'sale',
-                extra: ['reference' => $invoice],
-            );
         }
 
         foreach ($payments as [$method, $accountId, $amount]) {
@@ -141,6 +142,7 @@ class SampleTransactionSeeder extends Seeder
                 'payment_account_id' => $accountId,
                 'amount' => round($total * ($amount ?? 1), 2),
                 'method' => $method,
+                'reference' => $method === 'mobile_banking' ? 'TRX'.strtoupper(substr(md5((string) $invoice->id), 0, 8)) : null,
                 'status' => 'completed',
                 'payment_date' => $date,
             ]);

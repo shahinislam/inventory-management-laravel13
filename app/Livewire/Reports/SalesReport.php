@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -44,22 +45,25 @@ class SalesReport extends Component
 
     public function render()
     {
-        $query = Invoice::query()
-            ->whereIn('status', ['paid', 'partial'])
+        // Real sales only (no return notes or parked POS sales); a fully
+        // returned sale still counts, at its net value of zero.
+        $query = Invoice::sales()
+            ->whereIn('status', ['paid', 'partial', 'returned'])
             ->when($this->dateFrom, fn ($q) => $q->whereDate('invoice_date', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('invoice_date', '<=', $this->dateTo));
 
         $summary = [
-            'total_sales' => (clone $query)->sum('total'),
+            'total_sales' => (clone $query)->sum(DB::raw('total - returned_amount')),
+            'total_returns' => (clone $query)->sum('returned_amount'),
             'total_invoices' => (clone $query)->count(),
             'total_paid' => (clone $query)->sum('paid_amount'),
             'total_due' => (clone $query)->sum('due_amount'),
-            'avg_invoice' => (clone $query)->avg('total') ?? 0,
+            'avg_invoice' => (clone $query)->avg(DB::raw('total - returned_amount')) ?? 0,
         ];
 
         // Daily breakdown
         $dailySales = (clone $query)
-            ->selectRaw('DATE(invoice_date) as date, COUNT(*) as count, SUM(total) as total, SUM(paid_amount) as paid')
+            ->selectRaw('DATE(invoice_date) as date, COUNT(*) as count, SUM(total - returned_amount) as total, SUM(paid_amount) as paid')
             ->groupBy('date')
             ->orderBy('date', 'desc')
             ->get();
@@ -67,7 +71,9 @@ class SalesReport extends Component
         // Top products
         $topProducts = InvoiceItem::query()
             ->join('invoices', 'invoice_items.invoice_id', '=', 'invoices.id')
-            ->whereIn('invoices.status', ['paid', 'partial'])
+            ->where('invoices.type', 'sale')
+            ->where('invoices.is_held', false)
+            ->whereIn('invoices.status', ['paid', 'partial', 'returned'])
             ->when($this->dateFrom, fn ($q) => $q->whereDate('invoices.invoice_date', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('invoices.invoice_date', '<=', $this->dateTo))
             ->selectRaw('product_name, product_sku, SUM(invoice_items.quantity) as total_qty, SUM(invoice_items.subtotal) as total_revenue')

@@ -24,6 +24,7 @@ return new class extends Migration
                 'currency',
                 'tax',
                 'email',
+                'sms',
             ])->default('general')->index();
             $table->enum('type', [
                 'text',

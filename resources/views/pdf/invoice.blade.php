@@ -305,6 +305,9 @@
             <td>
                 <div class="label">Billed To</div>
                 <div class="bold">{{ $invoice->customer_name }}</div>
+                @if ($invoice->member_no)
+                    <div class="muted">Member {{ $invoice->member_no }}</div>
+                @endif
                 @if ($invoice->customer_phone)
                     <div class="muted">{{ $invoice->customer_phone }}</div>
                 @endif
@@ -351,9 +354,12 @@
                     <td class="faint">{{ $i + 1 }}</td>
                     <td>
                         <span class="bold">{{ $item->product_name }}</span>
+                        @if ($item->is_gift)
+                            <span class="muted">(Member gift)</span>
+                        @endif
                         <div class="sku">{{ $item->product_sku }}</div>
                     </td>
-                    <td class="r">{{ $item->quantity }}</td>
+                    <td class="r">{{ format_qty($item->quantity) }}</td>
                     <td class="r muted">{{ money($item->unit_price) }}</td>
                     <td class="r muted">{{ $item->discount > 0 ? '−' . money($item->discount) : '—' }}</td>
                     <td class="r muted">
@@ -379,6 +385,12 @@
                         <tr>
                             <td class="muted">Discount</td>
                             <td class="green">−{{ money($invoice->discount) }}</td>
+                        </tr>
+                    @endif
+                    @if ($invoice->membership_discount > 0)
+                        <tr>
+                            <td class="muted">Member reward</td>
+                            <td class="green">−{{ money($invoice->membership_discount) }}</td>
                         </tr>
                     @endif
                     @if ($invoice->tax > 0)

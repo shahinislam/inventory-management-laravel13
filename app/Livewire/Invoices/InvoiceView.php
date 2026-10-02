@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentAccount;
 use App\Models\Setting;
+use App\Services\ShiftService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,7 @@ class InvoiceView extends Component
 
     public function mount(Invoice $invoice): void
     {
-        $this->invoice = $invoice->load(['items.product', 'customer', 'warehouse', 'createdBy', 'payments.paymentAccount']);
+        $this->invoice = $invoice->load(['items.product', 'items.returnItems', 'customer', 'warehouse', 'createdBy', 'payments.paymentAccount', 'parent', 'returns']);
     }
 
     public function openPaymentModal(): void
@@ -46,16 +47,20 @@ class InvoiceView extends Component
 
         $this->validate([
             'payment_amount' => 'required|numeric|min:0.01|max:'.$this->invoice->due_amount,
-            'payment_method' => 'required|in:cash,card,bank_transfer,cheque,other',
-            'payment_reference' => 'nullable|string|max:100',
+            'payment_method' => Payment::methodRule(),
+            'payment_reference' => Payment::needsReference($this->payment_method) ? 'required|string|max:100' : 'nullable|string|max:100',
             'payment_account_id' => PaymentAccount::rule($this->payment_method),
         ], [
             'payment_account_id.required' => 'Select the account or card this was paid to.',
+            'payment_reference.required' => 'Enter the bKash / Nagad transaction ID.',
         ]);
+
+        // A due paid at the counter goes into the cashier's drawer count.
+        $shift = app(ShiftService::class)->currentFor(auth()->user());
 
         $amount = (float) $this->payment_amount;
 
-        DB::transaction(function () use ($amount) {
+        DB::transaction(function () use ($amount, $shift) {
             // Lock the invoice before reading its balance: two payments recorded
             // at once would otherwise both read the old paid_amount and one
             // would be silently overwritten.
@@ -73,6 +78,7 @@ class InvoiceView extends Component
             Payment::create([
                 'invoice_id' => $invoice->id,
                 'created_by' => auth()->id(),
+                'shift_id' => $shift?->id,
                 'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
                 'amount' => $amount,
                 'method' => $this->payment_method,
@@ -82,7 +88,7 @@ class InvoiceView extends Component
             ]);
 
             $newPaid = $invoice->paid_amount + $amount;
-            $newDue = max(0, $invoice->total - $newPaid);
+            $newDue = max(0, $invoice->total - $invoice->returned_amount - $newPaid);
 
             $invoice->update([
                 'paid_amount' => $newPaid,

@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             ProductSeeder::class,
             CustomerSeeder::class,
+            MembershipRewardSeeder::class,
             SupplierSeeder::class,
             PartnerSeeder::class,
             PaymentAccountSeeder::class,

@@ -5,6 +5,9 @@
         <flux:text class="mt-1">Configure your shop & application preferences</flux:text>
     </div>
 
+    @if(session('error'))
+        <div class="mb-4 rounded-lg bg-red-100 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-400">{{ session('error') }}</div>
+    @endif
     @if(session('success'))
         <div class="mb-4 rounded-lg bg-green-100 p-4 text-green-800 dark:bg-green-900/30 dark:text-green-400">{{ session('success') }}</div>
     @endif
@@ -44,6 +47,13 @@
                         <flux:field>
                             <flux:label>Tax / VAT Number</flux:label>
                             <flux:input wire:model="company_tax_number" placeholder="Tax registration number" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>VAT BIN</flux:label>
+                            <flux:input wire:model="company_bin" placeholder="e.g. 000123456-0101" />
+                            <flux:description>Business Identification Number, printed on the Mushak 6.3 invoice.</flux:description>
+                            <flux:error name="company_bin" />
                         </flux:field>
                     </div>
                 </flux:card>
@@ -91,6 +101,15 @@
                                 <flux:switch wire:model="tax_inclusive" />
                             </div>
                         </flux:field>
+                        <flux:field class="sm:col-span-2">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <flux:label>Mushak 6.3 VAT invoice</flux:label>
+                                    <flux:description>Adds a “Mushak 6.3” print button to invoices and the POS. Set the VAT BIN above.</flux:description>
+                                </div>
+                                <flux:switch wire:model="mushak_enabled" />
+                            </div>
+                        </flux:field>
                     </div>
                 </flux:card>
 
@@ -134,6 +153,71 @@
                             <flux:label>Expiry Warning Days Before</flux:label>
                             <flux:input wire:model="notification_days" type="number" min="1" suffix="days" />
                         </flux:field>
+                    </div>
+                </flux:card>
+
+                {{-- SMS --}}
+                <flux:card class="p-6">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                            <flux:heading>SMS</flux:heading>
+                            <flux:text class="text-sm">Works with most SMS gateways (BulkSMSBD, SSL Wireless, Alpha SMS…). Copy the URL and parameter names from your gateway's API page. While off, messages are only logged.</flux:text>
+                        </div>
+                        <flux:switch wire:model.live="sms_enabled" />
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_8rem]">
+                        <flux:field>
+                            <flux:label>Gateway URL</flux:label>
+                            <flux:input wire:model="sms_gateway_url" placeholder="https://bulksmsbd.net/api/smsapi" />
+                            <flux:error name="sms_gateway_url" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Method</flux:label>
+                            <flux:select wire:model="sms_http_method">
+                                <flux:select.option value="POST">POST</flux:select.option>
+                                <flux:select.option value="GET">GET</flux:select.option>
+                            </flux:select>
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>API key</flux:label>
+                            <flux:input wire:model="sms_api_key" type="password" viewable />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Sender ID</flux:label>
+                            <flux:input wire:model="sms_sender_id" placeholder="e.g. 8809617..." />
+                        </flux:field>
+                    </div>
+                    <details class="mt-4">
+                        <summary class="text-sm text-zinc-500">Parameter names (change only if your gateway uses different ones)</summary>
+                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <flux:input wire:model="sms_param_to" label="Phone" size="sm" />
+                            <flux:input wire:model="sms_param_message" label="Message" size="sm" />
+                            <flux:input wire:model="sms_param_key" label="API key" size="sm" />
+                            <flux:input wire:model="sms_param_sender" label="Sender" size="sm" />
+                        </div>
+                    </details>
+                    <div class="mt-4 space-y-3">
+                        <flux:field>
+                            <div class="flex items-center justify-between">
+                                <flux:label>Send a thank-you SMS after each member sale</flux:label>
+                                <flux:switch wire:model="sms_send_receipt" />
+                            </div>
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Sale message</flux:label>
+                            <flux:textarea wire:model="sms_receipt_template" rows="2" />
+                            <flux:description>Placeholders: {name} {invoice} {total} {spent} {shop}</flux:description>
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Reward message</flux:label>
+                            <flux:textarea wire:model="sms_reward_template" rows="2" />
+                            <flux:description>Placeholders: {name} {reward} {invoice} {shop}</flux:description>
+                        </flux:field>
+                        <div class="flex items-end gap-2">
+                            <flux:input wire:model="sms_test_phone" label="Send a test to" placeholder="01XXXXXXXXX" class="flex-1" />
+                            <flux:button wire:click="sendTestSms" type="button" icon="paper-airplane">Send test</flux:button>
+                        </div>
+                        <flux:error name="sms_test_phone" />
                     </div>
                 </flux:card>
 
@@ -183,6 +267,32 @@
                                 Save to apply across the app.
                             </flux:text>
                         </div>
+
+                        {{-- Sidebar style --}}
+                        <flux:field>
+                            <flux:label>Sidebar style</flux:label>
+                            <flux:text class="text-xs text-zinc-500">Colour of the left menu — applies as soon as you pick one. Brand uses your primary colour.</flux:text>
+                            <div class="mt-2 grid grid-cols-3 gap-3">
+                                @foreach ([
+                                    'light' => ['Light', 'background-color:#fafafa', '#18181b', 'background-color:'.$theme_primary.'22;color:'.$theme_primary],
+                                    'dark' => ['Dark', 'background-color:#18181b', '#ffffffcc', 'background-color:'.$theme_primary.';color:#fff'],
+                                    'brand' => ['Brand', 'background-color:color-mix(in oklch, '.$theme_primary.' 70%, black)', '#ffffffd9', 'background-color:#fff;color:'.$theme_primary],
+                                ] as $style => [$label, $bg, $text, $pill])
+                                    <label wire:key="sidebar-style-{{ $style }}"
+                                        class="cursor-pointer rounded-lg border-2 p-2 transition {{ $theme_sidebar === $style ? 'border-primary-600' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700' }}">
+                                        <input type="radio" wire:model.live="theme_sidebar" value="{{ $style }}" class="sr-only" />
+                                        <div class="space-y-1 rounded-md p-2" style="{{ $bg }}">
+                                            <div class="h-1.5 w-3/4 rounded" style="background-color: {{ $text }}"></div>
+                                            <div class="h-3 rounded px-1 text-[8px] font-bold leading-3" style="{{ $pill }}">Active</div>
+                                            <div class="h-1.5 w-2/3 rounded" style="background-color: {{ $text }}"></div>
+                                            <div class="h-1.5 w-1/2 rounded" style="background-color: {{ $text }}"></div>
+                                        </div>
+                                        <div class="mt-1.5 text-center text-sm font-semibold">{{ $label }}</div>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <flux:error name="theme_sidebar" />
+                        </flux:field>
                     </div>
                 </flux:card>
 

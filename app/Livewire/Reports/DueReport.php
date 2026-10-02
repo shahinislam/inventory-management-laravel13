@@ -37,7 +37,7 @@ class DueReport extends Component
 
     private function customerDues()
     {
-        return Invoice::query()
+        return Invoice::sales()
             ->withDue()
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
                 ->where('customer_name', 'like', "%{$this->search}%")
@@ -67,14 +67,14 @@ class DueReport extends Component
         $summary = [
             'receivable' => (float) Invoice::withDue()->sum('due_amount'),
             'receivable_overdue' => (float) Invoice::withDue()->whereDate('due_date', '<', today())->sum('due_amount'),
-            'payable' => (float) PurchaseOrder::withDue()->selectRaw('COALESCE(SUM(total - paid_amount), 0) as due')->value('due'),
+            'payable' => (float) PurchaseOrder::withDue()->selectRaw('COALESCE(SUM(total - returned_amount - paid_amount), 0) as due')->value('due'),
             'payable_overdue' => (float) PurchaseOrder::withDue()->whereDate('payment_due_date', '<', today())
-                ->selectRaw('COALESCE(SUM(total - paid_amount), 0) as due')->value('due'),
+                ->selectRaw('COALESCE(SUM(total - returned_amount - paid_amount), 0) as due')->value('due'),
         ];
 
         if ($this->tab === 'suppliers') {
             $query = $this->supplierDues();
-            $filteredTotal = (float) (clone $query)->selectRaw('COALESCE(SUM(total - paid_amount), 0) as due')->value('due');
+            $filteredTotal = (float) (clone $query)->selectRaw('COALESCE(SUM(total - returned_amount - paid_amount), 0) as due')->value('due');
             $rows = $query
                 ->orderByRaw('payment_due_date IS NULL, payment_due_date')
                 ->orderBy('order_date')

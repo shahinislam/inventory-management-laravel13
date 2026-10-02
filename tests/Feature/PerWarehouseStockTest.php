@@ -18,16 +18,17 @@ beforeEach(function () {
     $this->ctg = Warehouse::factory()->create(['name' => 'Chittagong']);
     $this->inventory = app(InventoryService::class);
     $this->actingAs($this->user);
+    openShift();
 });
 
 /** products.quantity must always equal the sum of its warehouse rows. */
 function invariantHolds(Product $product): bool
 {
-    $sum = (int) DB::table('product_warehouse')
+    $sum = (float) DB::table('product_warehouse')
         ->where('product_id', $product->id)
         ->sum('quantity');
 
-    return $product->fresh()->quantity === $sum;
+    return abs($product->fresh()->quantity - $sum) < 0.0005;
 }
 
 it('tracks stock separately per warehouse', function () {
@@ -36,9 +37,9 @@ it('tracks stock separately per warehouse', function () {
     $this->inventory->add($product->id, $this->dhaka->id, 30, 'purchase');
     $this->inventory->add($product->id, $this->ctg->id, 70, 'purchase');
 
-    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(30)
-        ->and($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(70)
-        ->and($product->fresh()->quantity)->toBe(100)
+    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(30.0)
+        ->and($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(70.0)
+        ->and($product->fresh()->quantity)->toBe(100.0)
         ->and(invariantHolds($product))->toBeTrue();
 });
 
@@ -53,7 +54,7 @@ it('keeps products.quantity in step with the warehouse rows', function () {
 
     $this->inventory->transfer($product->id, $this->dhaka->id, $this->ctg->id, 10);
     expect(invariantHolds($product))->toBeTrue()
-        ->and($product->fresh()->quantity)->toBe(30);
+        ->and($product->fresh()->quantity)->toBe(30.0);
 });
 
 it('refuses to remove more than a warehouse holds', function () {
@@ -64,7 +65,7 @@ it('refuses to remove more than a warehouse holds', function () {
         ->toThrow(ValidationException::class);
 
     // Nothing changed.
-    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(5);
+    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(5.0);
 });
 
 it('will not sell stock that is in another warehouse', function () {
@@ -93,9 +94,9 @@ it('sells from the warehouse the terminal is set to', function () {
         ->call('completeSale');
 
     // Only Chittagong was drawn down.
-    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(6)
-        ->and($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(10)
-        ->and($product->fresh()->quantity)->toBe(16);
+    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(6.0)
+        ->and($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(10.0)
+        ->and($product->fresh()->quantity)->toBe(16.0);
 });
 
 it('caps the cart at what the selected warehouse holds', function () {
@@ -131,8 +132,8 @@ it('records movements against the warehouse the stock moved in', function () {
     $movement = StockMovement::sole();
 
     expect($movement->warehouse_id)->toBe($this->ctg->id)
-        ->and($movement->before_quantity)->toBe(0)
-        ->and($movement->after_quantity)->toBe(10);
+        ->and($movement->before_quantity)->toBe(0.0)
+        ->and($movement->after_quantity)->toBe(10.0);
 });
 
 it('creates the warehouse stock row on first use', function () {
@@ -145,15 +146,15 @@ it('creates the warehouse stock row on first use', function () {
 
     $this->inventory->add($product->id, $this->ctg->id, 7, 'purchase');
 
-    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(7);
+    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(7.0);
 });
 
 it('reports zero for a warehouse holding none of the product', function () {
     $product = Product::factory()->create(['quantity' => 0]);
     $this->inventory->add($product->id, $this->dhaka->id, 10, 'purchase');
 
-    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(0)
-        ->and($this->inventory->stockIn($product->id, null))->toBe(0);
+    expect($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(0.0)
+        ->and($this->inventory->stockIn($product->id, null))->toBe(0.0);
 });
 
 it('adjusts one warehouse without touching the other', function () {
@@ -163,17 +164,17 @@ it('adjusts one warehouse without touching the other', function () {
 
     $this->inventory->setTo($product->id, $this->dhaka->id, 3);
 
-    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(3)
-        ->and($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(10)
-        ->and($product->fresh()->quantity)->toBe(13);
+    expect($this->inventory->stockIn($product->id, $this->dhaka->id))->toBe(3.0)
+        ->and($this->inventory->stockIn($product->id, $this->ctg->id))->toBe(10.0)
+        ->and($product->fresh()->quantity)->toBe(13.0);
 });
 
 it('exposes per-warehouse quantities through the relationship', function () {
     $product = Product::factory()->create(['quantity' => 0]);
     $this->inventory->add($product->id, $this->dhaka->id, 8, 'purchase');
 
-    expect($product->stockIn($this->dhaka->id))->toBe(8)
-        ->and($product->stockIn($this->ctg->id))->toBe(0)
+    expect($product->stockIn($this->dhaka->id))->toBe(8.0)
+        ->and($product->stockIn($this->ctg->id))->toBe(0.0)
         ->and($this->dhaka->products()->count())->toBe(1);
 });
 

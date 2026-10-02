@@ -20,6 +20,17 @@ class Setting extends Model
         return static::all_cached()[$key] ?? $default;
     }
 
+    /**
+     * A switch setting. A row created by set() is typed 'text', so its value
+     * comes back as the string "false" — truthy — unless parsed like this.
+     */
+    public static function bool(string $key, bool $default = false): bool
+    {
+        $value = static::get($key, $default);
+
+        return is_bool($value) ? $value : filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
     public static function set(string $key, mixed $value): void
     {
         // Derive the group from the key prefix when creating a row. Without this
@@ -74,7 +85,7 @@ class Setting extends Model
      */
     private const GROUPS = [
         'general', 'company', 'invoice', 'pos',
-        'notification', 'currency', 'tax', 'email', 'theme',
+        'notification', 'currency', 'tax', 'email', 'theme', 'sms',
     ];
 
     public static function flushCache(): void

@@ -15,8 +15,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_order_id')->constrained('purchase_orders')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
-            $table->unsignedInteger('quantity');
-            $table->unsignedInteger('received_quantity')->default(0);
+            $table->decimal('quantity', 12, 3);
+            $table->decimal('received_quantity', 12, 3)->default(0);
+            // Unit the line was ordered in, e.g. carton = 24. Stock is kept in base units.
+            $table->string('unit_label', 50)->nullable();
+            $table->decimal('unit_factor', 12, 3)->default(1);
+            // On a return order: the purchase line being returned.
+            $table->foreignId('parent_item_id')->nullable()->constrained('purchase_order_items')->nullOnDelete();
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('tax_rate', 5, 2)->default(0);
             $table->decimal('discount', 5, 2)->default(0);

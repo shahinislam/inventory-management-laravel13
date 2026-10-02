@@ -105,3 +105,25 @@ window.addEventListener('scan-result', (e) => {
         toast(message);
     }
 });
+
+/*
+ * Sidebar accordion: opening one menu group closes the others.
+ * Runs in the capture phase, before Flux toggles the clicked group.
+ */
+document.addEventListener(
+    "click",
+    (e) => {
+        const button = e.target.closest("[data-flux-sidebar] ui-disclosure > button");
+        if (!button) {
+            return;
+        }
+
+        document.querySelectorAll("[data-flux-sidebar] ui-disclosure > button").forEach((other) => {
+            const panel = other.nextElementSibling;
+            if (other !== button && panel && panel.offsetParent !== null) {
+                other.click();
+            }
+        });
+    },
+    true,
+);

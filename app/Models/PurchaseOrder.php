@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'created_by', 'approved_by', 'status',
     'subtotal', 'tax', 'discount', 'courier_charge', 'courier_cost', 'total', 'paid_amount',
     'order_date', 'expected_date', 'payment_due_date', 'received_date', 'notes',
+    'type', 'parent_order_id', 'returned_amount',
 ])]
 class PurchaseOrder extends Model
 {
@@ -28,6 +29,7 @@ class PurchaseOrder extends Model
             'courier_cost' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
+            'returned_amount' => 'decimal:2',
             'order_date' => 'date',
             'expected_date' => 'date',
             'payment_due_date' => 'date',
@@ -38,7 +40,9 @@ class PurchaseOrder extends Model
     protected static function boot()
     {
         parent::boot();
-        static::creating(fn ($m) => $m->order_number ??= NumberGeneratorService::generate('purchase'));
+        static::creating(fn ($m) => $m->order_number ??= NumberGeneratorService::generate(
+            $m->type === 'return' ? 'purchase_return' : 'purchase'
+        ));
     }
 
     public function supplier()
@@ -71,11 +75,41 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchasePayment::class);
     }
 
+    // ============ KINDS ============
+    // Returns to the supplier are stored here too (type=return, parent_order_id).
+    // Anything that means "purchases" must use scopePurchases().
+
+    public function scopePurchases($q)
+    {
+        return $q->where('purchase_orders.type', 'purchase');
+    }
+
+    public function scopeReturns($q)
+    {
+        return $q->where('purchase_orders.type', 'return');
+    }
+
+    public function isReturn(): bool
+    {
+        return $this->type === 'return';
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(self::class, 'parent_order_id');
+    }
+
+    public function returns()
+    {
+        return $this->hasMany(self::class, 'parent_order_id')->where('type', 'return');
+    }
+
     /** Placed orders that still owe the supplier money. */
     public function scopeWithDue($q)
     {
-        return $q->whereNotIn('status', ['draft', 'cancelled'])
-            ->whereColumn('paid_amount', '<', 'total');
+        return $q->purchases()
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereRaw('paid_amount + returned_amount < total');
     }
 
     public function scopePending($q)
@@ -93,14 +127,15 @@ class PurchaseOrder extends Model
         return $q->where('status', 'received');
     }
 
+    /** Owed to the supplier: the order less goods sent back and payments made. */
     public function getDueAmountAttribute(): float
     {
-        return $this->total - $this->paid_amount;
+        return max(0, round((float) $this->total - (float) $this->returned_amount - (float) $this->paid_amount, 2));
     }
 
     public function isPaid(): bool
     {
-        return $this->paid_amount >= $this->total;
+        return $this->due_amount <= 0;
     }
 
     /** Payments can be made once the order is placed, until it is fully paid. */

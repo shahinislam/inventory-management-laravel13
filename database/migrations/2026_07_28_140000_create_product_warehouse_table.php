@@ -24,7 +24,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->foreignId('warehouse_id')->constrained('warehouses')->cascadeOnDelete();
-            $table->unsignedInteger('quantity')->default(0);
+            $table->decimal('quantity', 12, 3)->default(0);
             $table->timestamps();
 
             // One stock row per product per warehouse.

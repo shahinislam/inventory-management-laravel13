@@ -54,46 +54,63 @@ class PaymentAccountReport extends Component
         };
     }
 
-    /** Completed sale payments tagged with an account, as "in" movements. */
-    private function moneyIn()
+    /**
+     * Every account-tagged money movement in the range, one row each:
+     *   in  — sale payments, and refunds a supplier paid back on a return
+     *   out — supplier payments, refunds to customers, and expenses
+     * Cash (no account) is excluded: it is counted per shift instead.
+     */
+    private function movements()
     {
-        return DB::table('payments')
-            ->join('invoices', 'invoices.id', '=', 'payments.invoice_id')
-            ->whereNotNull('payments.payment_account_id')
-            ->where('payments.status', 'completed')
-            ->when($this->dateFrom, fn ($q) => $q->whereDate('payments.payment_date', '>=', $this->dateFrom))
-            ->when($this->dateTo, fn ($q) => $q->whereDate('payments.payment_date', '<=', $this->dateTo))
-            ->when($this->accountId, fn ($q) => $q->where('payments.payment_account_id', $this->accountId));
-    }
+        $range = fn ($q, string $col, string $accountCol) => $q
+            ->whereNotNull($accountCol)
+            ->when($this->dateFrom, fn ($q) => $q->whereDate($col, '>=', $this->dateFrom))
+            ->when($this->dateTo, fn ($q) => $q->whereDate($col, '<=', $this->dateTo))
+            ->when($this->accountId, fn ($q) => $q->where($accountCol, $this->accountId));
 
-    /** Supplier payments tagged with an account, as "out" movements. */
-    private function moneyOut()
-    {
-        return DB::table('purchase_payments')
+        $salePayments = fn (string $status, string $direction) => $range(DB::table('payments')
+            ->join('invoices', 'invoices.id', '=', 'payments.invoice_id')
+            ->where('payments.status', $status), 'payments.payment_date', 'payments.payment_account_id')
+            ->selectRaw('? as direction, ? as doc_type, payments.id, payments.payment_number, payments.payment_date,
+                payments.payment_account_id, payments.method, payments.amount, payments.reference,
+                invoices.id as doc_id, invoices.invoice_number as doc_number, invoices.customer_name as party', [$direction, 'invoice']);
+
+        $supplierPayments = fn (string $type, string $direction) => $range(DB::table('purchase_payments')
             ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_payments.purchase_order_id')
-            ->whereNotNull('purchase_payments.payment_account_id')
-            ->when($this->dateFrom, fn ($q) => $q->whereDate('purchase_payments.payment_date', '>=', $this->dateFrom))
-            ->when($this->dateTo, fn ($q) => $q->whereDate('purchase_payments.payment_date', '<=', $this->dateTo))
-            ->when($this->accountId, fn ($q) => $q->where('purchase_payments.payment_account_id', $this->accountId));
+            ->leftJoin('suppliers', 'suppliers.id', '=', 'purchase_orders.supplier_id')
+            ->where('purchase_orders.type', $type), 'purchase_payments.payment_date', 'purchase_payments.payment_account_id')
+            ->selectRaw('? as direction, ? as doc_type, purchase_payments.id, purchase_payments.payment_number, purchase_payments.payment_date,
+                purchase_payments.payment_account_id, purchase_payments.method, purchase_payments.amount, purchase_payments.reference,
+                purchase_orders.id as doc_id, purchase_orders.order_number as doc_number, suppliers.name as party', [$direction, $type === 'return' ? 'purchase_return' : 'purchase']);
+
+        $expenses = $range(DB::table('expenses')->whereNull('expenses.deleted_at')->where('expenses.type', 'expense'),
+            'expenses.expense_date', 'expenses.payment_account_id')
+            ->selectRaw('? as direction, ? as doc_type, expenses.id, expenses.expense_number as payment_number, expenses.expense_date as payment_date,
+                expenses.payment_account_id, expenses.method, expenses.amount, expenses.reference,
+                expenses.id as doc_id, expenses.expense_number as doc_number, COALESCE(expenses.paid_to, expenses.category) as party', ['out', 'expense']);
+
+        return $salePayments('completed', 'in')
+            ->unionAll($supplierPayments('return', 'in'))
+            ->unionAll($supplierPayments('purchase', 'out'))
+            ->unionAll($salePayments('refunded', 'out'))
+            ->unionAll($expenses);
     }
 
     public function render()
     {
-        $in = $this->moneyIn()
-            ->selectRaw('payments.payment_account_id as account_id, SUM(payments.amount) as total, COUNT(*) as count')
-            ->groupBy('payments.payment_account_id')
-            ->get()->keyBy('account_id');
+        $totals = DB::query()->fromSub($this->movements(), 'm')
+            ->selectRaw('payment_account_id as account_id, direction, SUM(amount) as total, COUNT(*) as count')
+            ->groupBy('payment_account_id', 'direction')
+            ->get();
 
-        $out = $this->moneyOut()
-            ->selectRaw('purchase_payments.payment_account_id as account_id, SUM(purchase_payments.amount) as total, COUNT(*) as count')
-            ->groupBy('purchase_payments.payment_account_id')
-            ->get()->keyBy('account_id');
+        $in = $totals->where('direction', 'in')->keyBy('account_id');
+        $out = $totals->where('direction', 'out')->keyBy('account_id');
 
         // Deleted accounts still appear when they have activity in the range.
         $accounts = PaymentAccount::withTrashed()
             ->where(fn ($q) => $q
                 ->whereNull('deleted_at')
-                ->orWhereIn('id', $in->keys()->merge($out->keys())))
+                ->orWhereIn('id', $totals->pluck('account_id')))
             ->when($this->accountId, fn ($q) => $q->whereKey($this->accountId))
             ->orderBy('name')
             ->get()
@@ -111,26 +128,10 @@ class PaymentAccountReport extends Component
         $summary['net'] = $summary['in'] - $summary['out'];
 
         $transactions = DB::query()
-            ->fromSub(
-                $this->moneyIn()->selectRaw("
-                    'in' as direction, payments.id, payments.payment_number, payments.payment_date,
-                    payments.payment_account_id, payments.method, payments.amount, payments.reference,
-                    invoices.id as doc_id, invoices.invoice_number as doc_number, invoices.customer_name as party
-                ")->unionAll(
-                    $this->moneyOut()
-                        ->leftJoin('suppliers', 'suppliers.id', '=', 'purchase_orders.supplier_id')
-                        ->selectRaw("
-                            'out' as direction, purchase_payments.id, purchase_payments.payment_number, purchase_payments.payment_date,
-                            purchase_payments.payment_account_id, purchase_payments.method, purchase_payments.amount, purchase_payments.reference,
-                            purchase_orders.id as doc_id, purchase_orders.order_number as doc_number, suppliers.name as party
-                        ")
-                ),
-                'movements'
-            )
+            ->fromSub($this->movements(), 'movements')
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
             ->paginate(25);
-
         $accountNames = PaymentAccount::withTrashed()->get()->mapWithKeys(fn ($a) => [$a->id => $a->display_name]);
         $accountOptions = PaymentAccount::withTrashed()->orderBy('name')->get();
 

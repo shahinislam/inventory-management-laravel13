@@ -71,13 +71,13 @@
                             // With a warehouse selected, show what is held there;
                             // otherwise the total across all warehouses.
                             $qty = $warehouseFilter
-                                ? (int) $product->warehouses->first()?->pivot->quantity
+                                ? round((float) $product->warehouses->first()?->pivot->quantity, 3)
                                 : $product->quantity;
                         @endphp
                         <flux:table.cell>
-                            <flux:text class="font-medium">{{ $qty }} {{ $product->unit }}</flux:text>
-                            @if($warehouseFilter && $product->quantity !== $qty)
-                                <flux:text class="text-xs text-zinc-400">{{ $product->quantity }} total</flux:text>
+                            <flux:text class="font-medium">{{ format_qty($qty, $product->unit) }}</flux:text>
+                            @if($warehouseFilter && abs($product->quantity - $qty) > 0.0005)
+                                <flux:text class="text-xs text-zinc-400">{{ format_qty($product->quantity) }} total</flux:text>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>

@@ -20,6 +20,16 @@
             icon="exclamation-triangle" />
     </div>
 
+    {{-- Kind: real sales, return notes, or sales parked at the POS --}}
+    <div class="mb-4 flex flex-wrap gap-2">
+        @foreach (['sales' => ['Sales', 'document-text', null], 'returns' => ['Returns', 'arrow-uturn-left', $counts['returns']], 'held' => ['Held at POS', 'pause', $counts['held']]] as $value => [$label, $icon, $count])
+            <flux:button size="sm" :variant="$kind === $value ? 'primary' : 'outline'" :icon="$icon"
+                wire:click="$set('kind', '{{ $value }}')">
+                {{ $label }}@if ($count) <flux:badge size="sm" class="ml-1">{{ $count }}</flux:badge>@endif
+            </flux:button>
+        @endforeach
+    </div>
+
     {{-- Filters --}}
     <flux:card class="mb-6 p-4">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
@@ -61,7 +71,10 @@
                     <flux:table.row wire:key="{{ $invoice->id }}">
 
                         <flux:table.cell>
-                            <flux:text class="font-mono font-medium">{{ $invoice->invoice_number }}</flux:text>
+                            <flux:text class="font-mono font-medium">{{ $invoice->is_held ? $invoice->held_label : $invoice->invoice_number }}</flux:text>
+                            @if ($invoice->parent)
+                                <flux:text class="text-xs text-orange-600">return of {{ $invoice->parent->invoice_number }}</flux:text>
+                            @endif
                             <flux:text class="text-xs text-zinc-400">{{ $invoice->createdBy->name }}</flux:text>
                         </flux:table.cell>
 
@@ -97,6 +110,7 @@
                                 size="sm"
                                 :color="match($invoice->status) {
                                     'paid'      => 'green',
+                                    'returned'  => 'orange',
                                     'partial'   => 'yellow',
                                     'overdue'   => 'red',
                                     'cancelled' => 'zinc',
@@ -111,7 +125,7 @@
                                 <flux:button icon="ellipsis-horizontal" variant="ghost" size="sm" square />
                                 <flux:menu>
                                     <flux:menu.item icon="eye" :href="route('invoices.show', $invoice)" wire:navigate>View / Print</flux:menu.item>
-                                    @if($invoice->status !== 'paid' && $invoice->status !== 'cancelled')
+                                    @if(! $invoice->isReturn() && ! $invoice->is_held && ! in_array($invoice->status, ['paid', 'cancelled', 'returned'], true))
                                         <flux:menu.item icon="pencil" :href="route('invoices.edit', $invoice)" wire:navigate>Edit</flux:menu.item>
                                     @endif
                                 </flux:menu>
