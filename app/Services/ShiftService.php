@@ -92,7 +92,7 @@ class ShiftService
             'cash_out' => $cashOut,
             'cash_expenses' => $cashExpenses,
             'expected_cash' => round((float) $shift->opening_cash + $cashSales - $cashRefunds + $cashIn - $cashOut - $cashExpenses, 2),
-            'by_method' => collect(Payment::METHODS)->map(fn ($label, $method) => [
+            'by_method' => collect(Payment::methods())->map(fn ($label, $method) => [
                 'label' => $label,
                 'total' => (float) ($byMethod[$method]->total ?? 0),
                 'count' => (int) ($byMethod[$method]->count ?? 0),

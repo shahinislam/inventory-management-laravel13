@@ -95,6 +95,9 @@ class GeneralSettings extends Component
     /** Left menu colour: light, dark or brand (filled with the primary colour). */
     public string $theme_sidebar = 'light';
 
+    /** Name shown for mobile-wallet payments (bKash, M-Pesa, PayPal …). */
+    public string $wallet_label = 'Mobile Wallet';
+
     public bool $showMediaPicker = false;
 
     protected $listeners = ['select-media' => 'selectLogo'];
@@ -120,6 +123,7 @@ class GeneralSettings extends Component
         $this->currency_code = Setting::get('currency.code', 'USD');
         $this->currency_position = Setting::get('currency.position', 'before');
         $this->currency_decimals = (string) Setting::get('currency.decimals', 2);
+        $this->wallet_label = wallet_label();
 
         $this->tax_rate = (string) Setting::get('tax.rate', 0);
         $this->tax_inclusive = Setting::get('tax.inclusive', false);
@@ -165,6 +169,7 @@ class GeneralSettings extends Component
             'sms_gateway_url' => $this->sms_enabled ? 'required|url' : 'nullable|url',
             'sms_http_method' => 'required|in:GET,POST',
             'invoice_prefix' => 'required|string|max:10',
+            'wallet_label' => 'nullable|string|max:40',
             // Accept #rgb or #rrggbb; anything else would produce broken CSS.
             'theme_primary' => ['required', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'theme_secondary' => ['required', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
@@ -194,6 +199,7 @@ class GeneralSettings extends Component
         Setting::set('currency.code', $this->currency_code);
         Setting::set('currency.position', $this->currency_position);
         Setting::set('currency.decimals', $this->currency_decimals);
+        Setting::set('pos.wallet_label', trim($this->wallet_label) ?: 'Mobile Wallet');
 
         Setting::set('tax.rate', $this->tax_rate);
         Setting::set('tax.inclusive', $this->tax_inclusive ? 'true' : 'false');

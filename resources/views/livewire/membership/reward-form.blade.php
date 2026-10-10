@@ -55,7 +55,7 @@
                                 {{ $basis === 'cumulative' ? 'Total spend reaches' : 'Bill from' }}
                                 <flux:badge color="red" size="sm">Required</flux:badge>
                             </flux:label>
-                            <flux:input wire:model.live.debounce.400ms="min_amount" type="number" step="0.01" min="0" prefix="৳"
+                            <flux:input wire:model.live.debounce.400ms="min_amount" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                                 placeholder="{{ $basis === 'cumulative' ? 'e.g. 50000' : 'e.g. 5000' }}" />
                             <flux:error name="min_amount" />
                         </flux:field>
@@ -63,7 +63,7 @@
                         @if ($basis === 'single_invoice')
                             <flux:field>
                                 <flux:label>Bill up to</flux:label>
-                                <flux:input wire:model.live.debounce.400ms="max_amount" type="number" step="0.01" min="0" prefix="৳"
+                                <flux:input wire:model.live.debounce.400ms="max_amount" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                                     placeholder="No upper limit" />
                                 <flux:description>Leave empty for “or more”.</flux:description>
                                 <flux:error name="max_amount" />
@@ -105,7 +105,7 @@
                         <flux:field class="max-w-xs">
                             <flux:label>{{ $reward_type === 'percent' ? 'Discount percentage' : 'Discount amount' }} <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
                             <flux:input wire:model.live.debounce.400ms="value" type="number" step="0.01" min="0"
-                                :suffix="$reward_type === 'percent' ? '%' : null" :prefix="$reward_type === 'fixed' ? '৳' : null"
+                                :suffix="$reward_type === 'percent' ? '%' : null" :prefix="$reward_type === 'fixed' ? currency_symbol() : null"
                                 placeholder="{{ $reward_type === 'percent' ? 'e.g. 5' : 'e.g. 200' }}" />
                             <flux:description>Taken off the bill. The cashier can still adjust it at checkout.</flux:description>
                             <flux:error name="value" />

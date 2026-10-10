@@ -319,7 +319,7 @@
                     @if (App\Models\Payment::needsReference($payment_method))
                         <flux:field>
                             <flux:label>Transaction ID</flux:label>
-                            <flux:input wire:model="payment_reference" placeholder="bKash / Nagad TrxID" />
+                            <flux:input wire:model="payment_reference" :placeholder="wallet_label().' transaction ID'" />
                             <flux:description>Required when marking the invoice paid.</flux:description>
                             <flux:error name="payment_reference" />
                         </flux:field>
@@ -356,11 +356,11 @@
                         <flux:field>
                             <flux:label class="text-xs">Discount</flux:label>
                             <flux:input wire:model="discount" type="number" step="0.01" min="0"
-                                prefix="৳" class="tabular-nums" />
+                                :prefix="currency_symbol()" class="tabular-nums" />
                         </flux:field>
                         <flux:field>
                             <flux:label class="text-xs">Additional Tax</flux:label>
-                            <flux:input wire:model="tax" type="number" step="0.01" min="0" prefix="৳"
+                            <flux:input wire:model="tax" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                                 class="tabular-nums" />
                         </flux:field>
                     </div>
@@ -383,13 +383,13 @@
                                     <flux:label class="text-xs">Charge to customer</flux:label>
                                     {{-- Mirrors into the cost until the cost is edited by hand. --}}
                                     <flux:input wire:model="courierCharge" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="if (! costTouched) $wire.courierCost = $event.target.value" />
                                 </flux:field>
                                 <flux:field>
                                     <flux:label class="text-xs">Courier cost</flux:label>
                                     <flux:input wire:model="courierCost" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="costTouched = true" />
                                 </flux:field>
                             </div>

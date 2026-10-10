@@ -52,7 +52,7 @@ class InvoiceView extends Component
             'payment_account_id' => PaymentAccount::rule($this->payment_method),
         ], [
             'payment_account_id.required' => 'Select the account or card this was paid to.',
-            'payment_reference.required' => 'Enter the bKash / Nagad transaction ID.',
+            'payment_reference.required' => 'Enter the '.wallet_label().' transaction ID.',
         ]);
 
         // A due paid at the counter goes into the cashier's drawer count.

@@ -148,7 +148,7 @@
                                 <flux:radio value="in" label="Add cash" icon="arrow-down-tray" />
                                 <flux:radio value="out" label="Take cash" icon="arrow-up-tray" />
                             </flux:radio.group>
-                            <flux:input wire:model="cashAmount" type="number" step="0.01" min="0" prefix="৳" placeholder="Amount" />
+                            <flux:input wire:model="cashAmount" type="number" step="0.01" min="0" :prefix="currency_symbol()" placeholder="Amount" />
                             <flux:error name="cashAmount" />
                             <flux:input wire:model="cashReason" placeholder="Reason" />
                             <flux:error name="cashReason" />
@@ -162,7 +162,7 @@
                         <form wire:submit="closeShift" class="space-y-3">
                             <flux:field>
                                 <flux:label>Cash counted</flux:label>
-                                <flux:input wire:model="countedCash" type="number" step="0.01" min="0" prefix="৳" class="text-lg tabular-nums" />
+                                <flux:input wire:model="countedCash" type="number" step="0.01" min="0" :prefix="currency_symbol()" class="text-lg tabular-nums" />
                                 <flux:error name="countedCash" />
                             </flux:field>
                             <flux:textarea wire:model="closeNotes" rows="2" placeholder="Notes (optional)" />

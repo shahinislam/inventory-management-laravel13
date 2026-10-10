@@ -21,7 +21,7 @@ class Payment extends Model
     public const METHODS = [
         'cash' => 'Cash',
         'card' => 'Card',
-        'mobile_banking' => 'bKash / Nagad',
+        'mobile_banking' => 'Mobile Wallet',
         'bank_transfer' => 'Bank Transfer',
         'cheque' => 'Cheque',
         'other' => 'Other',
@@ -29,10 +29,16 @@ class Payment extends Model
 
     public static function methodLabel(?string $method): string
     {
-        return $method === 'split' ? 'Split' : (self::METHODS[$method] ?? ucfirst(str_replace('_', ' ', (string) $method)));
+        return $method === 'split' ? 'Split' : (self::methods()[$method] ?? ucfirst(str_replace('_', ' ', (string) $method)));
     }
 
-    /** bKash / Nagad payments are traced by the wallet's transaction ID. */
+    /** METHODS with the wallet named as the shop calls it (Settings → Currency). */
+    public static function methods(): array
+    {
+        return array_merge(self::METHODS, ['mobile_banking' => wallet_label()]);
+    }
+
+    /** Mobile-wallet payments are traced by the wallet's transaction ID. */
     public static function needsReference(?string $method): bool
     {
         return $method === 'mobile_banking';

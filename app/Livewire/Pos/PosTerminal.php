@@ -95,10 +95,10 @@ class PosTerminal extends Component
 
     public string $weighQuantity = '';
 
-    /** bKash / Nagad transaction ID, card slip number, etc. */
+    /** Mobile-wallet transaction ID, card slip number, etc. */
     public string $paymentReference = '';
 
-    /** Pay one bill with several methods (part cash, part bKash). */
+    /** Pay one bill with several methods (part cash, part mobile wallet). */
     public bool $splitMode = false;
 
     /** @var array<int, array{method: string, account_id: ?int, amount: string, reference: string}> */
@@ -868,7 +868,7 @@ class PosTerminal extends Component
             } elseif (PaymentAccount::requiredFor($r['method']) && ! PaymentAccount::forMethod($r['method'])->whereKey($r['account_id'])->exists()) {
                 $error = 'Select the account for the '.Payment::methodLabel($r['method']).' part.';
             } elseif (Payment::needsReference($r['method']) && blank($r['reference'])) {
-                $error = 'Enter the transaction ID for the bKash / Nagad part.';
+                $error = 'Enter the transaction ID for the '.wallet_label().' part.';
             }
         }
 
@@ -938,7 +938,7 @@ class PosTerminal extends Component
                     ],
                     [
                         'paymentAccountId.required' => 'Select the account or card this was paid to.',
-                        'paymentReference.required' => 'Enter the bKash / Nagad transaction ID.',
+                        'paymentReference.required' => 'Enter the '.wallet_label().' transaction ID.',
                     ],
                 );
             }

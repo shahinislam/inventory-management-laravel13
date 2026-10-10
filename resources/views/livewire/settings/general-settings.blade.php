@@ -64,17 +64,17 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Symbol</flux:label>
-                            <flux:input wire:model="currency_symbol" placeholder="৳" />
+                            <flux:input wire:model="currency_symbol" placeholder="$" />
                         </flux:field>
                         <flux:field>
                             <flux:label>Currency Code</flux:label>
-                            <flux:input wire:model="currency_code" placeholder="BDT" />
+                            <flux:input wire:model="currency_code" placeholder="USD" />
                         </flux:field>
                         <flux:field>
                             <flux:label>Symbol Position</flux:label>
                             <flux:select wire:model="currency_position">
-                                <flux:select.option value="before">Before amount (৳100)</flux:select.option>
-                                <flux:select.option value="after">After amount (100৳)</flux:select.option>
+                                <flux:select.option value="before">Before amount ($100)</flux:select.option>
+                                <flux:select.option value="after">After amount (100$)</flux:select.option>
                             </flux:select>
                         </flux:field>
                         <flux:field>
@@ -83,6 +83,12 @@
                                 <flux:select.option value="0">0 (100)</flux:select.option>
                                 <flux:select.option value="2">2 (100.00)</flux:select.option>
                             </flux:select>
+                        </flux:field>
+                        <flux:field class="sm:col-span-2">
+                            <flux:label>Mobile wallet name</flux:label>
+                            <flux:input wire:model="wallet_label" placeholder="Mobile Wallet" />
+                            <flux:description>How wallet payments are labelled at the POS and on receipts — e.g. bKash / Nagad, M-Pesa, GCash, PayPal.</flux:description>
+                            <flux:error name="wallet_label" />
                         </flux:field>
                     </div>
                 </flux:card>

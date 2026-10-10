@@ -114,7 +114,7 @@
                 <form wire:submit="openShift" class="mt-5 space-y-4">
                     <flux:field>
                         <flux:label>Cash in drawer now</flux:label>
-                        <flux:input wire:model="openingCash" type="number" step="0.01" min="0" prefix="৳"
+                        <flux:input wire:model="openingCash" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                             placeholder="0.00" autofocus class="text-lg tabular-nums" />
                         <flux:description>Enter 0 if the drawer is empty. At closing you count again and the difference is shown.</flux:description>
                         <flux:error name="openingCash" />
@@ -414,7 +414,7 @@
                                             @if ($applied && $applied['type'] !== 'gift')
                                                 <div class="mt-1.5 flex items-center gap-2">
                                                     <span class="text-xs text-zinc-500">Discount</span>
-                                                    <flux:input size="sm" type="number" step="0.01" min="0" prefix="৳"
+                                                    <flux:input size="sm" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                                                         class="tabular-nums" wire:model.live.blur="appliedRewards.{{ $reward->id }}.amount" />
                                                 </div>
                                             @elseif ($applied)
@@ -463,11 +463,11 @@
                         <flux:field>
                             <flux:label class="text-xs">Extra Discount</flux:label>
                             <flux:input wire:model="discount" type="number" step="0.01" min="0" size="sm"
-                                prefix="৳" class="tabular-nums" />
+                                :prefix="currency_symbol()" class="tabular-nums" />
                         </flux:field>
                         <flux:field>
                             <flux:label class="text-xs">Additional Tax</flux:label>
-                            <flux:input wire:model="tax" type="number" step="0.01" min="0" size="sm" prefix="৳"
+                            <flux:input wire:model="tax" type="number" step="0.01" min="0" size="sm" :prefix="currency_symbol()"
                                 class="tabular-nums" />
                         </flux:field>
                     </div>
@@ -483,13 +483,13 @@
                                     <flux:label class="text-xs">Charge to customer</flux:label>
                                     {{-- Mirrors into the cost until the cost is edited by hand. --}}
                                     <flux:input wire:model="courierCharge" type="number" step="0.01" size="sm"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="if (! costTouched) $wire.courierCost = $event.target.value" />
                                 </flux:field>
                                 <flux:field>
                                     <flux:label class="text-xs">Courier cost</flux:label>
                                     <flux:input wire:model="courierCost" type="number" step="0.01" size="sm"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="costTouched = true" />
                                 </flux:field>
                             </div>
@@ -614,7 +614,7 @@
                     <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Payment Method
                     </flux:label>
                     <div class="grid grid-cols-5 gap-2">
-                        @foreach ([['cash', 'Cash', 'banknotes', 'F6'], ['card', 'Card', 'credit-card', 'F7'], ['mobile_banking', 'bKash/Nagad', 'device-phone-mobile', 'F8'], ['bank_transfer', 'Bank', 'building-library', 'F10']] as [$value, $label, $icon, $key])
+                        @foreach ([['cash', 'Cash', 'banknotes', 'F6'], ['card', 'Card', 'credit-card', 'F7'], ['mobile_banking', wallet_label(), 'device-phone-mobile', 'F8'], ['bank_transfer', 'Bank', 'building-library', 'F10']] as [$value, $label, $icon, $key])
                             <button type="button" wire:click="setPaymentMethod('{{ $value }}')"
                                 @class([
                                     'flex flex-col items-center gap-1.5 rounded-xl border px-1 py-3 transition-colors',
@@ -642,7 +642,7 @@
                 </flux:field>
 
                 @if ($splitMode)
-                    {{-- Split: e.g. part cash, part bKash. Parts must add up to the bill. --}}
+                    {{-- Split: e.g. part cash, part mobile wallet. Parts must add up to the bill. --}}
                     <div class="space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
                         @foreach ($splits as $i => $row)
                             <div wire:key="split-{{ $i }}" class="space-y-1.5 rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800/50">
@@ -653,7 +653,7 @@
                                         @endforeach
                                     </flux:select>
                                     <flux:input wire:model.live.debounce.400ms="splits.{{ $i }}.amount" type="number" step="0.01" min="0"
-                                        size="sm" prefix="৳" class="flex-1 tabular-nums" placeholder="0.00" />
+                                        size="sm" :prefix="currency_symbol()" class="flex-1 tabular-nums" placeholder="0.00" />
                                     <flux:button size="xs" variant="subtle" wire:click="fillSplitRemaining({{ $i }})" type="button" title="Fill the rest">Rest</flux:button>
                                     @if (count($splits) > 2)
                                         <flux:button size="xs" variant="subtle" icon="x-mark" square wire:click="removeSplitRow({{ $i }})" type="button" />
@@ -682,7 +682,7 @@
                     </div>
                 @endif
 
-                {{-- Account / card the money goes to (Card, bKash/Nagad & Bank) --}}
+                {{-- Account / card the money goes to (Card, mobile wallet & Bank) --}}
                 @if (! $splitMode && App\Models\PaymentAccount::requiredFor($paymentMethod))
                     <flux:field>
                         <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -690,7 +690,7 @@
                         </flux:label>
                         @if ($this->paymentAccounts->isEmpty())
                             <flux:text class="text-sm text-amber-600 dark:text-amber-400">
-                                No active {{ match ($paymentMethod) { 'card' => 'cards', 'mobile_banking' => 'bKash / Nagad wallets', default => 'bank accounts' } }}.
+                                No active {{ match ($paymentMethod) { 'card' => 'cards', 'mobile_banking' => wallet_label().' accounts', default => 'bank accounts' } }}.
                                 <a href="{{ route('payment-accounts.index') }}" class="underline" wire:navigate>Add one</a> first.
                             </flux:text>
                         @else
@@ -708,7 +708,7 @@
                     <flux:field>
                         <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Transaction ID</flux:label>
                         <flux:input wire:model="paymentReference" placeholder="e.g. 9BG7KX2LPQ" />
-                        <flux:description>From the customer's bKash / Nagad confirmation SMS.</flux:description>
+                        <flux:description>From the customer's {{ wallet_label() }} payment confirmation.</flux:description>
                         <flux:error name="paymentReference" />
                     </flux:field>
                 @endif
@@ -739,7 +739,7 @@
 
                             <flux:field>
                                 <flux:label class="text-xs">Paying now</flux:label>
-                                <flux:input wire:model="paidNow" type="number" step="0.01" min="0" prefix="৳"
+                                <flux:input wire:model="paidNow" type="number" step="0.01" min="0" :prefix="currency_symbol()"
                                     class="tabular-nums" />
                                 <flux:error name="paidNow" />
                             </flux:field>
@@ -756,22 +756,46 @@
 
                 {{-- Amount Received (Cash only) --}}
                 @if (! $splitMode && $paymentMethod === 'cash' && ! $payLater)
-                    <flux:field>
-                        <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Received
-                        </flux:label>
-                        <flux:input x-ref="amountInput" wire:model.live="amountReceived" type="number" step="0.01"
-                            prefix="৳" autofocus class="h-12 text-lg font-semibold tabular-nums"
-                            x-on:keydown.enter.prevent="$wire.completeSale()" />
-                    </flux:field>
+                    {{-- Change is worked out in the browser as the cashier types — no server round trip. --}}
+                    <div class="space-y-3" wire:key="cash-received-{{ $this->cartTotal }}"
+                        x-on:input="if ($event.target.tagName === 'INPUT') received = $event.target.value"
+                        x-data="{
+                            received: @js((string) $amountReceived),
+                            total: @js((float) $this->cartTotal),
+                            decimals: @js((int) \App\Models\Setting::get('currency.decimals', 2)),
+                            symbol: @js(currency_symbol()),
+                            after: @js(\App\Models\Setting::get('currency.position', 'before') === 'after'),
+                            get value() { return parseFloat(String(this.received).replace(/,/g, '')) || 0 },
+                            get change() { return Math.max(0, Math.round((this.value - this.total) * 100) / 100) },
+                            get short() { return Math.max(0, Math.round((this.total - this.value) * 100) / 100) },
+                            fmt(n) {
+                                const s = n.toLocaleString('en-US', { minimumFractionDigits: this.decimals, maximumFractionDigits: this.decimals });
+                                return this.after ? s + this.symbol : this.symbol + s;
+                            },
+                        }">
+                        <flux:field>
+                            <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Received
+                            </flux:label>
+                            <flux:input x-ref="amountInput" wire:model="amountReceived" type="number" step="0.01"
+                                :prefix="currency_symbol()" autofocus class="h-12 text-lg font-semibold tabular-nums"
+                                x-on:focus="$event.target.select()"
+                                x-on:keydown.enter.prevent="$wire.completeSale()" />
+                        </flux:field>
 
-                    @if ($this->changeDue > 0)
-                        <div
+                        <div x-show="short <= 0"
                             class="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/50 dark:bg-green-950/30">
-                            <span class="text-sm font-medium text-green-800 dark:text-green-300">Change Due</span>
-                            <span
-                                class="text-xl font-semibold tabular-nums text-green-700 dark:text-green-400">{{ money($this->changeDue) }}</span>
+                            <span class="text-sm font-medium text-green-800 dark:text-green-300">Change to return</span>
+                            <span class="text-xl font-semibold tabular-nums text-green-700 dark:text-green-400"
+                                x-text="fmt(change)">{{ money($this->changeDue) }}</span>
                         </div>
-                    @endif
+
+                        <div x-show="short > 0" style="display: none"
+                            class="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
+                            <span class="text-sm font-medium text-red-800 dark:text-red-300">Still short</span>
+                            <span class="text-xl font-semibold tabular-nums text-red-700 dark:text-red-400"
+                                x-text="fmt(short)"></span>
+                        </div>
+                    </div>
                 @endif
             </div>
 

@@ -46,7 +46,7 @@ class InvoiceForm extends Component
 
     public ?int $payment_account_id = null;
 
-    /** bKash / Nagad transaction ID when paid that way. */
+    /** Mobile-wallet transaction ID when paid that way. */
     public string $payment_reference = '';
 
     public string $tax = '0';
@@ -410,7 +410,7 @@ class InvoiceForm extends Component
             ],
             [
                 'payment_account_id.required' => 'Select the account or card this was paid to.',
-                'payment_reference.required' => 'Enter the bKash / Nagad transaction ID.',
+                'payment_reference.required' => 'Enter the '.wallet_label().' transaction ID.',
             ],
         );
 

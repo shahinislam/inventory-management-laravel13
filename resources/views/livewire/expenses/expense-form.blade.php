@@ -36,7 +36,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Amount <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                                <flux:input wire:model="amount" type="number" step="0.01" min="0.01" prefix="৳" placeholder="0.00" />
+                                <flux:input wire:model="amount" type="number" step="0.01" min="0.01" :prefix="currency_symbol()" placeholder="0.00" />
                                 <flux:description>The total you paid.</flux:description>
                                 <flux:error name="amount" />
                             </flux:field>
@@ -108,7 +108,7 @@
                                 </flux:label>
                                 <flux:input wire:model="reference" :placeholder="$needsReference ? 'e.g. 9A7B6C5D4E' : 'Cheque no., transfer ref...'" />
                                 <flux:description>
-                                    {{ $needsReference ? 'The bKash / Nagad transaction ID, so this payment can be traced.' : 'Optional — helps match this with your bank statement.' }}
+                                    {{ $needsReference ? 'The '.wallet_label().' transaction ID, so this payment can be traced.' : 'Optional — helps match this with your bank statement.' }}
                                 </flux:description>
                                 <flux:error name="reference" />
                             </flux:field>

@@ -39,7 +39,7 @@
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Bank / Provider</flux:label>
-                                <flux:input wire:model="bank_name" placeholder="e.g. City Bank, bKash" />
+                                <flux:input wire:model="bank_name" placeholder="e.g. Chase, HSBC, PayPal" />
                                 <flux:error name="bank_name" />
                             </flux:field>
 

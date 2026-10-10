@@ -58,9 +58,9 @@ class SampleTransactionSeeder extends Seeder
         $this->sale($customers[1 % $customers->count()], [[$products[2], 5]], daysAgo: 8,
             payments: [['bank_transfer', $account('DBBL Current Account'), null]]);
 
-        // Part paid by bKash, rest overdue.
+        // Part paid by mobile wallet, rest overdue.
         $this->sale($customers[2 % $customers->count()], [[$products[0], 4], [$products[3], 2]], daysAgo: 20,
-            payments: [['mobile_banking', $account('bKash Merchant'), 0.4]], dueInDays: -5);
+            payments: [['mobile_banking', $account('Wallet Merchant'), 0.4]], dueInDays: -5);
 
         // Nothing paid yet, due next week.
         $this->sale($customers[0], [[$products[1], 6]], daysAgo: 3,

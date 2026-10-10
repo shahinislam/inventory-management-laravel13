@@ -60,7 +60,7 @@ class ExpenseForm extends Component
         return [
             'amount.gt' => 'The amount must be more than zero.',
             'payment_account_id.required' => 'Choose which account this was paid from.',
-            'reference.required' => 'Enter the bKash / Nagad transaction ID.',
+            'reference.required' => 'Enter the '.wallet_label().' transaction ID.',
         ];
     }
 
@@ -155,7 +155,7 @@ class ExpenseForm extends Component
 
         return view('livewire.expenses.expense-form', [
             'categories' => $categories,
-            'methods' => Payment::METHODS,
+            'methods' => Payment::methods(),
             'accounts' => PaymentAccount::requiredFor($this->method)
                 ? PaymentAccount::query()->forMethod($this->method)->get()
                 : collect(),

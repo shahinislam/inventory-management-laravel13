@@ -24,8 +24,8 @@ class SettingsSeeder extends Seeder
             ['key' => 'company.tax_number',     'value' => null,               'group' => 'company',      'type' => 'text',    'is_public' => false],
 
             // Currency
-            ['key' => 'currency.symbol',        'value' => '৳',                'group' => 'currency',     'type' => 'text',    'is_public' => true],
-            ['key' => 'currency.code',          'value' => 'BDT',              'group' => 'currency',     'type' => 'text',    'is_public' => true],
+            ['key' => 'currency.symbol',        'value' => '$',                'group' => 'currency',     'type' => 'text',    'is_public' => true],
+            ['key' => 'currency.code',          'value' => 'USD',              'group' => 'currency',     'type' => 'text',    'is_public' => true],
             ['key' => 'currency.position',      'value' => 'before',           'group' => 'currency',     'type' => 'text',    'is_public' => true],
             ['key' => 'currency.decimals',      'value' => '2',                'group' => 'currency',     'type' => 'number',  'is_public' => true],
 
@@ -82,6 +82,7 @@ class SettingsSeeder extends Seeder
             ['key' => 'notification.days',      'value' => '30',               'group' => 'notification', 'type' => 'number',  'is_public' => false],
 
             // POS
+            ['key' => 'pos.wallet_label',       'value' => 'Mobile Wallet',    'group' => 'pos',          'type' => 'text',    'is_public' => true],
             ['key' => 'pos.receipt_footer',     'value' => 'Thank you!',       'group' => 'pos',          'type' => 'text',    'is_public' => false],
             ['key' => 'pos.print_receipt',      'value' => 'true',             'group' => 'pos',          'type' => 'boolean', 'is_public' => false],
             ['key' => 'pos.barcode_scanner',    'value' => 'true',             'group' => 'pos',          'type' => 'boolean', 'is_public' => false],

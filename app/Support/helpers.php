@@ -2,6 +2,26 @@
 
 use App\Models\Setting;
 
+if (! function_exists('currency_symbol')) {
+    /** The shop's currency symbol from Settings → Currency ($, €, ৳, ₹ …). */
+    function currency_symbol(): string
+    {
+        return (string) (Setting::get('currency.symbol', '$') ?? '$');
+    }
+}
+
+if (! function_exists('wallet_label')) {
+    /**
+     * What the shop calls mobile-wallet payments, from Settings → Currency
+     * (e.g. "bKash / Nagad", "M-Pesa", "GCash", "PayPal"). Defaults to
+     * "Mobile Wallet".
+     */
+    function wallet_label(): string
+    {
+        return (string) (Setting::get('pos.wallet_label') ?: 'Mobile Wallet');
+    }
+}
+
 if (! function_exists('money')) {
     /**
      * Format an amount using the configured currency settings.

@@ -40,7 +40,7 @@
                 @if($audience === 'spent')
                     <flux:field class="mt-4 max-w-xs">
                         <flux:label>Total spent at least</flux:label>
-                        <flux:input wire:model.live.debounce.400ms="minSpend" type="number" min="0" step="1" prefix="৳" />
+                        <flux:input wire:model.live.debounce.400ms="minSpend" type="number" min="0" step="1" :prefix="currency_symbol()" />
                         <flux:description>Purchases minus returns, all time.</flux:description>
                         <flux:error name="minSpend" />
                     </flux:field>

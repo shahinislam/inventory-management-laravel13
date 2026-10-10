@@ -141,7 +141,7 @@
                                     <flux:error name="paymentAccountId" />
                                 @endif
                                 @if (App\Models\Payment::needsReference($refundMethod))
-                                    <flux:input wire:model="reference" placeholder="bKash / Nagad transaction ID" />
+                                    <flux:input wire:model="reference" :placeholder="wallet_label().' transaction ID'" />
                                     <flux:error name="reference" />
                                 @endif
                             </div>

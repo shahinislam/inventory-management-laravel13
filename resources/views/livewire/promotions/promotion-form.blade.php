@@ -62,13 +62,13 @@
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <flux:field>
                                     <flux:label>Value <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                                    <flux:input wire:model="value" type="number" step="0.01" min="0" :suffix="$type === 'percentage' ? '%' : null" :prefix="$type === 'fixed' ? '৳' : null" />
+                                    <flux:input wire:model="value" type="number" step="0.01" min="0" :suffix="$type === 'percentage' ? '%' : null" :prefix="$type === 'fixed' ? currency_symbol() : null" />
                                     <flux:error name="value" />
                                 </flux:field>
                                 @if($type === 'percentage')
                                     <flux:field>
                                         <flux:label>Max Discount Cap</flux:label>
-                                        <flux:input wire:model="max_discount" type="number" step="0.01" min="0" prefix="৳" placeholder="No limit" />
+                                        <flux:input wire:model="max_discount" type="number" step="0.01" min="0" :prefix="currency_symbol()" placeholder="No limit" />
                                     </flux:field>
                                 @endif
                             </div>
@@ -77,7 +77,7 @@
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Minimum Order Amount</flux:label>
-                                <flux:input wire:model="min_order_amount" type="number" step="0.01" min="0" prefix="৳" placeholder="No minimum" />
+                                <flux:input wire:model="min_order_amount" type="number" step="0.01" min="0" :prefix="currency_symbol()" placeholder="No minimum" />
                             </flux:field>
                             <flux:field>
                                 <flux:label>Minimum Quantity</flux:label>

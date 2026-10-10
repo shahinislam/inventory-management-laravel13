@@ -435,7 +435,7 @@
                 <flux:field>
                     <flux:label badge="Required">Amount</flux:label>
                     <flux:input wire:model="payment_amount" type="number" step="0.01" min="0"
-                        max="{{ $invoice->due_amount }}" prefix="৳"
+                        max="{{ $invoice->due_amount }}" :prefix="currency_symbol()"
                         class="h-12 text-lg font-semibold tabular-nums" />
                     <flux:error name="payment_amount" />
                 </flux:field>
@@ -443,7 +443,7 @@
                 <flux:field>
                     <flux:label>Payment Method</flux:label>
                     <flux:select wire:model.live="payment_method">
-                        @foreach (App\Models\Payment::METHODS as $value => $label)
+                        @foreach (App\Models\Payment::methods() as $value => $label)
                             <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>

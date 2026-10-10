@@ -124,7 +124,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>Amount</flux:label>
-                        <flux:input wire:model="amount" type="number" step="0.01" min="0.01" prefix="৳"
+                        <flux:input wire:model="amount" type="number" step="0.01" min="0.01" :prefix="currency_symbol()"
                             class="tabular-nums" />
                         <flux:error name="amount" />
                     </flux:field>

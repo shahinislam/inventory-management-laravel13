@@ -102,7 +102,7 @@
                                 <flux:icon name="gift" class="size-10 text-zinc-300" />
                                 <flux:text class="text-zinc-500">No rewards yet</flux:text>
                                 <flux:text class="max-w-md text-sm text-zinc-400">
-                                    Example: “Bill of ৳5,000 or more → 5% off” or “Total spend reaches ৳50,000 → free gift”.
+                                    Example: “Bill of {{ money(5000) }} or more → 5% off” or “Total spend reaches {{ money(50000) }} → free gift”.
                                 </flux:text>
                                 <flux:button size="sm" variant="primary" href="{{ route('membership-rewards.create') }}" wire:navigate>Create your first reward</flux:button>
                             </div>

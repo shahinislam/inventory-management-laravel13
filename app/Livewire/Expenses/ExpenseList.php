@@ -102,7 +102,7 @@ class ExpenseList extends Component
             'expenses' => $expenses,
             'summary' => $summary,
             'categories' => $categories,
-            'methods' => Payment::METHODS,
+            'methods' => Payment::methods(),
         ])->layout('layouts.app', ['title' => 'Expenses']);
     }
 }

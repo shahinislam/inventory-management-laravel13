@@ -212,14 +212,14 @@
                     <flux:heading>Supplier refunded now</flux:heading>
                     <flux:field>
                         <flux:label>Amount <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
-                        <flux:input wire:model="refund_amount" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                        <flux:input wire:model="refund_amount" type="number" step="0.01" min="0" :prefix="currency_symbol()" class="tabular-nums" />
                         <flux:error name="refund_amount" />
                     </flux:field>
 
                     <flux:field>
                         <flux:label>Method</flux:label>
                         <flux:select wire:model.live="refund_method">
-                            @foreach (App\Models\Payment::METHODS as $value => $label)
+                            @foreach (App\Models\Payment::methods() as $value => $label)
                                 <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>

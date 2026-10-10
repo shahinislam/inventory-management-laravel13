@@ -319,7 +319,7 @@
                         <flux:field>
                             <flux:label class="text-xs">Tax Amount</flux:label>
                             @if($isEditable)
-                                <flux:input wire:model="tax" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                                <flux:input wire:model="tax" type="number" step="0.01" min="0" :prefix="currency_symbol()" class="tabular-nums" />
                             @else
                                 <flux:text class="tabular-nums">{{ money($order->tax) }}</flux:text>
                             @endif
@@ -328,7 +328,7 @@
                         <flux:field>
                             <flux:label class="text-xs">Discount</flux:label>
                             @if($isEditable)
-                                <flux:input wire:model="discount" type="number" step="0.01" min="0" prefix="৳" class="tabular-nums" />
+                                <flux:input wire:model="discount" type="number" step="0.01" min="0" :prefix="currency_symbol()" class="tabular-nums" />
                             @else
                                 <flux:text class="tabular-nums">{{ money($order->discount) }}</flux:text>
                             @endif
@@ -347,13 +347,13 @@
                                     <flux:label class="text-xs">Billed by supplier</flux:label>
                                     {{-- Mirrors into the cost until the cost is edited by hand. --}}
                                     <flux:input wire:model="courierCharge" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="if (! costTouched) $wire.courierCost = $event.target.value" />
                                 </flux:field>
                                 <flux:field>
                                     <flux:label class="text-xs">Courier cost</flux:label>
                                     <flux:input wire:model="courierCost" type="number" step="0.01"
-                                        min="0" prefix="৳" class="tabular-nums"
+                                        min="0" :prefix="currency_symbol()" class="tabular-nums"
                                         x-on:input="costTouched = true" />
                                 </flux:field>
                             </div>
@@ -536,14 +536,14 @@
                 <flux:field>
                     <flux:label badge="Required">Amount</flux:label>
                     <flux:input wire:model="payment_amount" type="number" step="0.01" min="0"
-                        max="{{ $order->due_amount }}" prefix="৳" class="tabular-nums" />
+                        max="{{ $order->due_amount }}" :prefix="currency_symbol()" class="tabular-nums" />
                     <flux:error name="payment_amount" />
                 </flux:field>
 
                 <flux:field>
                     <flux:label>Payment Method</flux:label>
                     <flux:select wire:model.live="payment_method">
-                        @foreach(App\Models\Payment::METHODS as $value => $label)
+                        @foreach(App\Models\Payment::methods() as $value => $label)
                             <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>

@@ -109,7 +109,7 @@ class SalesReturnService
                     throw ValidationException::withMessages(['paymentAccountId' => 'Select the account the refund is paid from.']);
                 }
                 if (Payment::needsReference($refundMethod) && blank($reference)) {
-                    throw ValidationException::withMessages(['reference' => 'Enter the bKash / Nagad transaction ID.']);
+                    throw ValidationException::withMessages(['reference' => 'Enter the '.wallet_label().' transaction ID.']);
                 }
             }
 
