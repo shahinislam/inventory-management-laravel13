@@ -397,6 +397,15 @@ class InvoiceForm extends Component
     public function saveAndSend(): void
     {
         $this->validate();
+
+        // Sending hands the goods over, so it takes the stock out (as a POS
+        // credit sale does). Refuse up front rather than throw mid-save.
+        if ($this->stockShortages !== []) {
+            $this->addError('stock', 'Not enough stock to send this invoice. Reduce the quantities or save it as a draft.');
+
+            return;
+        }
+
         $invoice = $this->persist('sent');
         session()->flash('success', 'Invoice saved and marked as sent!');
         $this->redirect(route('invoices.show', $invoice), navigate: true);
@@ -438,9 +447,10 @@ class InvoiceForm extends Component
     private function persist(string $status): Invoice
     {
         // Stock and promotion usage are committed once, when the invoice first
-        // becomes paid. Re-saving an already-paid invoice must not deduct again.
+        // leaves draft (sent or paid). Paying it later, from the invoice page,
+        // must not deduct again — and invoices with stock out cannot be re-edited.
         $wasAlreadyPaid = $this->invoice?->exists && $this->invoice->status === 'paid';
-        $shouldCommitStock = $status === 'paid' && ! $wasAlreadyPaid;
+        $shouldCommitStock = $status !== 'draft' && ! $wasAlreadyPaid;
 
         return DB::transaction(function () use ($status, $wasAlreadyPaid, $shouldCommitStock) {
             $data = [
@@ -483,8 +493,8 @@ class InvoiceForm extends Component
                 $disc = (float) $item['discount'] * (float) $item['quantity'];
                 $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
 
-                // Deduct stock only on the transition into "paid"; that also
-                // tells us what the goods cost (earliest-expiry batch first).
+                // Deduct stock only on the way out of draft; that also tells us
+                // what the goods cost (earliest-expiry batch first).
                 $unitCost = (float) (Product::find($item['product_id'])?->cost_price ?? 0);
                 if ($shouldCommitStock) {
                     $unitCost = $inventory->remove(

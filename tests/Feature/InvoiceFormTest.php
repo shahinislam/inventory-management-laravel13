@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Invoices\InvoiceForm;
+use App\Livewire\Invoices\InvoiceView;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
@@ -114,6 +115,32 @@ it('does not deduct stock twice when a paid invoice is re-saved', function () {
     expect($product->fresh()->quantity)->toBe(7.0)
         ->and(StockMovement::where('type', 'sale')->count())->toBe(1)
         ->and(Payment::count())->toBe(1);
+});
+
+it('takes stock out when an invoice is sent, and not again when it is paid later', function () {
+    $product = Product::factory()->create(['selling_price' => 100, 'quantity' => 10]);
+
+    invoiceWith($product, 3)->call('saveAndSend');
+    expect($product->fresh()->quantity)->toBe(7.0);
+
+    $invoice = Invoice::sole();
+
+    Livewire::test(InvoiceView::class, ['invoice' => $invoice])
+        ->call('openPaymentModal')
+        ->call('recordPayment');
+
+    expect($invoice->fresh()->status)->toBe('paid')
+        ->and($product->fresh()->quantity)->toBe(7.0)
+        ->and(StockMovement::where('type', 'sale')->count())->toBe(1);
+});
+
+it('refuses to send an invoice without enough stock', function () {
+    $product = Product::factory()->create(['selling_price' => 100, 'quantity' => 2]);
+
+    invoiceWith($product, 5)->call('saveAndSend')->assertHasErrors('stock');
+
+    expect(Invoice::count())->toBe(0)
+        ->and($product->fresh()->quantity)->toBe(2.0);
 });
 
 it('does not increment promotion usage twice on re-save', function () {
