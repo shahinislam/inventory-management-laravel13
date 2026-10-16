@@ -42,14 +42,21 @@ class PricingService
     private function bestPromotionFor(Product $product): ?Promotion
     {
         return Promotion::active()
+            // A bare orWhere('category_id', null) would become "category_id IS NULL"
+            // and hand an uncategorised product every other product's promotion.
             ->where(fn ($q) => $q
                 ->where('product_id', $product->id)
-                ->orWhere('category_id', $product->category_id))
+                ->when($product->category_id, fn ($q) => $q->orWhere(fn ($q) => $q
+                    ->whereNull('product_id')
+                    ->where('category_id', $product->category_id)))
+                // "All Products" promotions carry neither a product nor a category.
+                ->orWhere(fn ($q) => $q->whereNull('product_id')->whereNull('category_id')))
             ->where(fn ($q) => $q
                 ->whereNull('usage_limit')
                 ->orWhereColumn('used_count', '<', 'usage_limit'))
-            // Prefer a product-specific promo over a category-wide one.
-            ->orderByRaw('CASE WHEN product_id = ? THEN 0 ELSE 1 END', [$product->id])
+            // Most specific wins: this product, then its category, then store-wide.
+            ->orderByRaw('CASE WHEN product_id = ? THEN 0 WHEN category_id IS NOT NULL THEN 1 ELSE 2 END', [$product->id])
+            ->orderBy('id')
             ->first();
     }
 

@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -147,9 +148,38 @@ class UserManagement extends Component
             return;
         }
 
+        // Their invoices, payments, shifts and stock movements reference them
+        // with ON DELETE CASCADE, so deleting would erase that history.
+        if ($this->hasHistory($user)) {
+            session()->flash('error', 'This user has sales, payments or stock records. Deactivate the account instead so that history is kept.');
+
+            return;
+        }
+
         $user->delete();
         $this->deleteId = null;
         session()->flash('success', 'User deleted successfully!');
+    }
+
+    private function hasHistory(User $user): bool
+    {
+        $owned = [
+            'invoices' => 'created_by',
+            'payments' => 'created_by',
+            'cash_shifts' => 'user_id',
+            'stock_movements' => 'created_by',
+            'purchase_orders' => 'created_by',
+            'purchase_payments' => 'created_by',
+            'expenses' => 'created_by',
+        ];
+
+        foreach ($owned as $table => $column) {
+            if (DB::table($table)->where($column, $user->id)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function toggleStatus(int $id): void

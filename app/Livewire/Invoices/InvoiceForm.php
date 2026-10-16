@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\PaymentAccount;
 use App\Models\Product;
 use App\Models\Promotion;
+use App\Models\StockMovement;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
 use App\Services\PricingService;
@@ -77,6 +78,17 @@ class InvoiceForm extends Component
 
         // Return notes and parked POS sales are not edited here.
         if ($invoice?->exists && ($invoice->isReturn() || $invoice->is_held)) {
+            $this->redirect(route('invoices.show', $invoice), navigate: true);
+
+            return;
+        }
+
+        // Re-saving rebuilds the lines and the paid/due figures from scratch, so
+        // once money, returns or stock are attached it would double-deduct stock,
+        // wipe payments or reopen returned goods. Payments go through the invoice
+        // page; corrections through a return.
+        if ($invoice?->exists && $this->hasLockedHistory($invoice)) {
+            session()->flash('error', 'This invoice already has payments, returns or stock taken out, so it can no longer be edited. Record payments from the invoice page, or process a return.');
             $this->redirect(route('invoices.show', $invoice), navigate: true);
 
             return;
@@ -543,6 +555,15 @@ class InvoiceForm extends Component
         $this->addProduct($product->id); // adds 1 more if already listed
 
         return true;
+    }
+
+    /** Payments, returns or stock movements are tied to this invoice. */
+    private function hasLockedHistory(Invoice $invoice): bool
+    {
+        return $invoice->payments()->exists()
+            || (float) $invoice->returned_amount > 0
+            || $invoice->returns()->exists()
+            || StockMovement::where('reference_type', Invoice::class)->where('reference_id', $invoice->id)->exists();
     }
 
     public function render()

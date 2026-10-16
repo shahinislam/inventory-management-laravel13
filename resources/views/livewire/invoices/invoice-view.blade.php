@@ -60,7 +60,7 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            @if ($invoice->due_amount > 0 && ! in_array($invoice->status, ['cancelled', 'draft'], true) && ! $invoice->isReturn())
+            @if ($invoice->due_amount > 0 && ! in_array($invoice->status, ['cancelled', 'draft'], true) && ! $invoice->isReturn() && auth()->user()->hasRole(['admin', 'manager', 'staff']))
                 <flux:button icon="banknotes" variant="primary" wire:click="openPaymentModal">Record Payment
                 </flux:button>
             @endif

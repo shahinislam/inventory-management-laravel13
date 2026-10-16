@@ -32,8 +32,18 @@ class InvoiceView extends Component
         $this->invoice = $invoice->load(['items.product', 'items.returnItems', 'customer', 'warehouse', 'createdBy', 'payments.paymentAccount', 'parent', 'returns']);
     }
 
+    /** Viewers may open invoices (route allows it) but must not take payments. */
+    private function canRecordPayment(): bool
+    {
+        return (bool) auth()->user()?->hasRole(['admin', 'manager', 'staff'])
+            && ! $this->invoice->isReturn()
+            && ! in_array($this->invoice->status, ['cancelled', 'draft'], true);
+    }
+
     public function openPaymentModal(): void
     {
+        abort_unless($this->canRecordPayment(), 403);
+
         // No thousands separator — see PosTerminal::openPaymentModal().
         $this->payment_amount = number_format($this->invoice->due_amount, 2, '.', '');
         $this->showPaymentModal = true;
@@ -41,6 +51,9 @@ class InvoiceView extends Component
 
     public function recordPayment(): void
     {
+        // Re-checked here: Livewire methods are callable straight from the browser.
+        abort_unless($this->canRecordPayment(), 403);
+
         // Strip any thousands separators the user typed before validating, so
         // "1,100.00" is not rejected as non-numeric.
         $this->payment_amount = str_replace(',', '', $this->payment_amount);

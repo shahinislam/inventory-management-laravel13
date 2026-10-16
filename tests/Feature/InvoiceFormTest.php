@@ -104,13 +104,13 @@ it('does not deduct stock twice when a paid invoice is re-saved', function () {
     invoiceWith($product, 3)->call('saveAsPaid');
     expect($product->fresh()->quantity)->toBe(7.0);
 
-    // Re-open the saved invoice and save it again.
+    // Re-opening a paid invoice for editing sends you back to its page instead.
     $invoice = Invoice::sole();
 
     Livewire::test(InvoiceForm::class, ['invoice' => $invoice])
-        ->call('saveAsPaid');
+        ->assertRedirect(route('invoices.show', $invoice));
 
-    // Still 7 — the second save must not deduct again.
+    // Still 7 — nothing was deducted again.
     expect($product->fresh()->quantity)->toBe(7.0)
         ->and(StockMovement::where('type', 'sale')->count())->toBe(1)
         ->and(Payment::count())->toBe(1);
@@ -128,7 +128,7 @@ it('does not increment promotion usage twice on re-save', function () {
     expect($promotion->fresh()->used_count)->toBe(1);
 
     Livewire::test(InvoiceForm::class, ['invoice' => Invoice::sole()])
-        ->call('saveAsPaid');
+        ->assertRedirect(route('invoices.show', Invoice::sole()));
 
     expect($promotion->fresh()->used_count)->toBe(1);
 });

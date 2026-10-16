@@ -17,7 +17,8 @@ return new class extends Migration
             $table->decimal('quantity', 12, 3);
             $table->decimal('unit_price', 12, 2);
             $table->decimal('tax_rate', 5, 2)->default(0);
-            $table->decimal('discount', 5, 2)->default(0);
+            // Per-unit discount in money, not a percentage.
+            $table->decimal('discount', 12, 2)->default(0);
             $table->decimal('subtotal', 12, 2);
             // A free member reward: billed at zero, still taken out of stock.
             $table->boolean('is_gift')->default(false);
