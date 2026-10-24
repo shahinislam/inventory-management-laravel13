@@ -245,6 +245,69 @@ class PosTerminal extends Component
         ];
     }
 
+    /**
+     * Rebuild every cart line from the catalogue before money changes hands.
+     *
+     * The cart is a public property, so the browser sends it back with every
+     * request and could change any figure in it. Only the quantity is the
+     * cashier's to set; price, discount, tax rate and promotion are re-read
+     * from the product, and a line is only free if it is the gift of a reward
+     * that is actually applied.
+     */
+    private function repriceCart(): void
+    {
+        $pricing = app(PricingService::class);
+        $lines = [];
+
+        foreach ($this->cart as $item) {
+            $product = Product::find((int) ($item['product_id'] ?? 0));
+
+            // A product deleted since it was added cannot be priced. Stock is not
+            // checked here: InventoryService refuses to sell more than is on hand,
+            // which fails the whole sale rather than quietly shrinking a line the
+            // customer is holding in full.
+            if (! $product) {
+                continue;
+            }
+
+            if ($reward = $this->giftRewardFor($item)) {
+                $lines[] = array_merge($this->cartLine($product, $reward->gift_quantity, $reward->gift_quantity, new ResolvedDiscount(perUnit: 0.0)), [
+                    'price' => 0.0,
+                    'tax_rate' => 0.0,
+                    'promotion_label' => 'Member gift · '.$reward->name,
+                    'is_gift' => true,
+                    'reward_id' => $reward->id,
+                ]);
+
+                continue;
+            }
+
+            $quantity = (float) ($item['quantity'] ?? 0);
+            $quantity = $product->isLoose() ? max(0.001, round($quantity, 3)) : max(1, floor($quantity));
+
+            $lines[] = $this->cartLine($product, $quantity, $this->stockHere($product->id), $pricing->resolveDiscount($product));
+        }
+
+        $this->cart = $lines;
+        $this->syncRewards();
+    }
+
+    /** The applied gift reward a cart line belongs to, or null if it is not a genuine gift line. */
+    private function giftRewardFor(array $item): ?MembershipReward
+    {
+        $rewardId = (int) ($item['reward_id'] ?? 0);
+
+        if (empty($item['is_gift']) || ! isset($this->appliedRewards[$rewardId])) {
+            return null;
+        }
+
+        $reward = MembershipReward::find($rewardId);
+
+        return $reward?->isGift() && (int) $reward->gift_product_id === (int) ($item['product_id'] ?? 0)
+            ? $reward
+            : null;
+    }
+
     public function getWeighProductProperty(): ?Product
     {
         return $this->weighProductId ? Product::find($this->weighProductId) : null;
@@ -755,7 +818,14 @@ class PosTerminal extends Component
 
             return;
         }
-        $this->syncRewards();
+
+        $shown = round($this->cartTotal, 2);
+        $this->repriceCart();
+
+        if (round($this->cartTotal, 2) !== $shown) {
+            session()->flash('error', 'Cart prices were refreshed from the catalogue.');
+        }
+
         // No thousands separator: this populates a numeric input that is later
         // cast with (float), and "1,100.00" would cast to 1.0.
         $this->amountReceived = number_format($this->cartTotal, 2, '.', '');
@@ -906,8 +976,19 @@ class PosTerminal extends Component
             return;
         }
 
-        // Re-check rewards against the final cart before anything is charged.
-        $this->syncRewards();
+        // Re-price from the catalogue (which also re-checks rewards) before
+        // anything is charged. If that moves the total, the cashier has to see
+        // the new figure rather than be charged something different.
+        $shown = round($this->cartTotal, 2);
+        $this->repriceCart();
+
+        if (round($this->cartTotal, 2) !== $shown) {
+            $this->showPaymentModal = false;
+            session()->flash('error', 'Prices changed since this cart was built. Check the new total and charge again.');
+
+            return;
+        }
+
         $total = round($this->cartTotal, 2);
         $method = $this->paymentMethod;
 

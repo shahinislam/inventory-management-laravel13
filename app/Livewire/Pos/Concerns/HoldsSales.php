@@ -54,6 +54,9 @@ trait HoldsSales
 
         $this->validate(['holdLabel' => 'nullable|string|max:100']);
 
+        // Save catalogue figures, not whatever the browser sent back.
+        $this->repriceCart();
+
         DB::transaction(function () {
             $customer = $this->customer_id ? Customer::find($this->customer_id) : null;
 
