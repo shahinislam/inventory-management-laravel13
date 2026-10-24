@@ -66,6 +66,7 @@ trait HoldsSales
                 'customer_name' => $customer?->name ?? 'Walk-in Customer',
                 'customer_phone' => $customer?->phone,
                 'status' => 'draft',
+                'prices_include_tax' => $this->pricesIncludeTax,
                 'subtotal' => $this->cartSubtotal,
                 // Only the manually entered extra tax is kept; line tax is recalculated on resume.
                 'tax' => (float) ($this->tax ?: 0),
@@ -88,6 +89,7 @@ trait HoldsSales
                     'tax_rate' => $item['tax_rate'],
                     'discount' => $item['discount'],
                     'subtotal' => $this->lineSubtotal($item),
+                    'tax_amount' => $this->lineAmounts($item)['tax'],
                 ]);
             }
         });

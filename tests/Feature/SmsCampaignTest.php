@@ -110,22 +110,22 @@ it('shows the total number of SMS parts', function () {
 });
 
 it('lists logged messages in the SMS log with filters', function () {
-    $customer = Customer::factory()->create(['phone' => '01711111111']);
-    $other = Customer::factory()->create(['phone' => '01822222222']);
+    $customer = Customer::factory()->create(['phone' => '5550111111']);
+    $other = Customer::factory()->create(['phone' => '5550333333']);
     app(SmsService::class)->send($customer->phone, 'First message', $customer, 'campaign');
     app(SmsService::class)->send($other->phone, 'Second message', $other, 'receipt');
 
     Livewire::test(SmsLog::class)
-        ->assertSee('01711111111')
-        ->assertSee('01822222222')
+        ->assertSee('5550111111')
+        ->assertSee('5550333333')
         ->assertSee('Logged only')
         ->set('type', 'receipt')
-        ->assertDontSee('01711111111')
-        ->assertSee('01822222222')
+        ->assertDontSee('5550111111')
+        ->assertSee('5550333333')
         ->set('type', '')
-        ->set('search', '0171')
-        ->assertSee('01711111111')
-        ->assertDontSee('01822222222')
+        ->set('search', '55501')
+        ->assertSee('5550111111')
+        ->assertDontSee('5550333333')
         ->set('search', '')
         ->set('status', 'sent')
         ->assertSee('No messages match');

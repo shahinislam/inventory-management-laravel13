@@ -102,7 +102,7 @@ class SmsService
         }
 
         $this->send($invoice->customer_phone, $this->render(
-            (string) Setting::get('sms.receipt_template', 'Thank you {name}! Bill {invoice}: {total}. - {shop}'),
+            (string) Setting::get('sms.receipt_template', 'Thank you {name}! Receipt {invoice}: {total}. Total spent: {spent}. - {shop}'),
             [
                 'name' => $customer->name,
                 'invoice' => $invoice->invoice_number,
@@ -127,7 +127,7 @@ class SmsService
         }
 
         $this->send($invoice->customer_phone, $this->render(
-            (string) Setting::get('sms.reward_template', 'Congrats {name}! You received {reward} on bill {invoice}. - {shop}'),
+            (string) Setting::get('sms.reward_template', 'Congrats {name}! You earned {reward} on receipt {invoice}. - {shop}'),
             [
                 'name' => $customer->name,
                 'reward' => $redemptions->map->description->implode(', '),

@@ -68,7 +68,7 @@ class GeneralSettings extends Component
     // Tax
     public string $tax_rate = '0';
 
-    public bool $tax_inclusive = false;
+    public bool $prices_include_tax = false;
 
     // Invoice
     public string $invoice_prefix = '';
@@ -77,20 +77,16 @@ class GeneralSettings extends Component
 
     public string $invoice_terms = '';
 
-    // Notification
-    public bool $notification_low_stock = true;
-
-    public bool $notification_expiry = true;
-
+    // Expiry: default window of the Expiry Report
     public string $notification_days = '30';
 
     // Theme — brand colours, stored as hex and expanded into full OKLCH ramps
     // by App\Support\ThemeColors.
-    public string $theme_primary = '#4f46e5';
+    public string $theme_primary = '#0f7a55';
 
-    public string $theme_secondary = '#0d9488';
+    public string $theme_secondary = '#b45309';
 
-    public string $theme_tertiary = '#d97706';
+    public string $theme_tertiary = '#1d6fa5';
 
     /** Left menu colour: light, dark or brand (filled with the primary colour). */
     public string $theme_sidebar = 'light';
@@ -126,19 +122,17 @@ class GeneralSettings extends Component
         $this->wallet_label = wallet_label();
 
         $this->tax_rate = (string) Setting::get('tax.rate', 0);
-        $this->tax_inclusive = Setting::get('tax.inclusive', false);
+        $this->prices_include_tax = Setting::bool('tax.prices_include_tax');
 
         $this->invoice_prefix = Setting::get('invoice.prefix', 'INV') ?? 'INV';
         $this->invoice_footer = Setting::get('invoice.footer', '') ?? '';
         $this->invoice_terms = Setting::get('invoice.terms', '') ?? '';
 
-        $this->notification_low_stock = Setting::get('notification.low_stock', true);
-        $this->notification_expiry = Setting::get('notification.expiry', true);
         $this->notification_days = (string) Setting::get('notification.days', 30);
 
-        $this->theme_primary = ThemeColors::normalizeHex(Setting::get('theme.primary')) ?? '#4f46e5';
-        $this->theme_secondary = ThemeColors::normalizeHex(Setting::get('theme.secondary')) ?? '#0d9488';
-        $this->theme_tertiary = ThemeColors::normalizeHex(Setting::get('theme.tertiary')) ?? '#d97706';
+        $this->theme_primary = ThemeColors::normalizeHex(Setting::get('theme.primary')) ?? '#0f7a55';
+        $this->theme_secondary = ThemeColors::normalizeHex(Setting::get('theme.secondary')) ?? '#b45309';
+        $this->theme_tertiary = ThemeColors::normalizeHex(Setting::get('theme.tertiary')) ?? '#1d6fa5';
         $this->theme_sidebar = in_array(Setting::get('theme.sidebar'), ['light', 'dark', 'brand'], true) ? Setting::get('theme.sidebar') : 'light';
     }
 
@@ -202,14 +196,12 @@ class GeneralSettings extends Component
         Setting::set('pos.wallet_label', trim($this->wallet_label) ?: 'Mobile Wallet');
 
         Setting::set('tax.rate', $this->tax_rate);
-        Setting::set('tax.inclusive', $this->tax_inclusive ? 'true' : 'false');
+        Setting::set('tax.prices_include_tax', $this->prices_include_tax ? 'true' : 'false');
 
         Setting::set('invoice.prefix', $this->invoice_prefix);
         Setting::set('invoice.footer', $this->invoice_footer);
         Setting::set('invoice.terms', $this->invoice_terms);
 
-        Setting::set('notification.low_stock', $this->notification_low_stock ? 'true' : 'false');
-        Setting::set('notification.expiry', $this->notification_expiry ? 'true' : 'false');
         Setting::set('notification.days', $this->notification_days);
 
         // Normalize so a 3-digit shorthand is stored expanded and lowercased.

@@ -4,21 +4,22 @@
     $formNo = $isReturn ? 'Mushak-6.7' : 'Mushak-6.3';
     $rate = fn ($r) => rtrim(rtrim(number_format((float) $r, 2), '0'), '.').'%';
 
+    // Stored per line whichever way the prices were set: subtotal is what was
+    // charged and tax_amount the VAT inside it, so the value is the difference.
     $lines = $invoice->items->values()->map(function ($item, $i) {
         $qty = (float) $item->quantity;
-        $value = round(((float) $item->unit_price - (float) $item->discount) * $qty, 2);
-        $vat = round($value * (float) $item->tax_rate / 100, 2);
+        $value = $item->netAmount();
 
         return [
             'sl' => $i + 1,
             'name' => $item->product_name.($item->is_gift ? ' (gift)' : ''),
             'unit' => $item->product?->unit ?: 'pcs',
             'qty' => $qty,
-            'unit_price' => (float) $item->unit_price - (float) $item->discount,
+            'unit_price' => $qty > 0 ? round($value / $qty, 2) : 0.0,
             'value' => $value,
             'vat_rate' => (float) $item->tax_rate,
-            'vat' => $vat,
-            'total' => round($value + $vat, 2),
+            'vat' => (float) $item->tax_amount,
+            'total' => (float) $item->subtotal,
         ];
     });
 

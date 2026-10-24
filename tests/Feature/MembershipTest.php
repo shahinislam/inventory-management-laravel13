@@ -57,11 +57,11 @@ it('requires a phone number for every customer', function () {
 });
 
 it('rejects a phone number that already belongs to another customer, ignoring formatting', function () {
-    Customer::factory()->create(['phone' => '01712345678']);
+    Customer::factory()->create(['phone' => '5550123456']);
 
     Livewire::test(CustomerForm::class)
         ->set('name', 'Duplicate')
-        ->set('phone', '01712-345 678')
+        ->set('phone', '555-012 3456')
         ->call('save')
         ->assertHasErrors(['phone' => 'unique']);
 });
@@ -74,21 +74,21 @@ it('derives the member number from the customer id', function () {
 
 it('registers a new member from the POS and selects them', function () {
     Livewire::test(PosTerminal::class)
-        ->set('customerSearch', '01999 888777')
+        ->set('customerSearch', '555 0199 888')
         ->call('openRegisterCustomer')
-        ->assertSet('newCustomerPhone', '01999 888777')
+        ->assertSet('newCustomerPhone', '555 0199 888')
         ->set('newCustomerName', 'New Member')
         ->call('registerCustomer')
         ->assertHasNoErrors()
         ->assertSet('showRegisterCustomer', false)
-        ->assertSet('customer_id', Customer::where('phone', '01999888777')->value('id'));
+        ->assertSet('customer_id', Customer::where('phone', '5550199888')->value('id'));
 });
 
 it('finds a member by phone even when typed with dashes', function () {
-    $customer = Customer::factory()->create(['phone' => '01712345678']);
+    $customer = Customer::factory()->create(['phone' => '5550123456']);
 
     $results = Livewire::test(PosTerminal::class)
-        ->set('customerSearch', '01712-345')
+        ->set('customerSearch', '555-012')
         ->instance()->customerResults;
 
     expect($results->pluck('id')->all())->toContain($customer->id);
@@ -153,7 +153,7 @@ it('offers no rewards on a walk-in sale', function () {
 // ============ APPLYING ============
 
 it('takes an applied discount off the total and records it with the phone', function () {
-    $customer = Customer::factory()->create(['phone' => '01711111111']);
+    $customer = Customer::factory()->create(['phone' => '5550111111']);
     $product = Product::factory()->create(['selling_price' => 1000, 'quantity' => 50]);
     $rule = reward(['basis' => 'single_invoice', 'min_amount' => 1000, 'reward_type' => 'percent', 'value' => 10]);
 
@@ -170,11 +170,11 @@ it('takes an applied discount off the total and records it with the phone', func
 
     expect((float) $invoice->membership_discount)->toBe(200.0)
         ->and((float) $invoice->total)->toBe(1800.0)
-        ->and($invoice->customer_phone)->toBe('01711111111');
+        ->and($invoice->customer_phone)->toBe('5550111111');
 
     $redemption = MembershipRewardRedemption::first();
     expect($redemption->invoice_id)->toBe($invoice->id)
-        ->and($redemption->customer_phone)->toBe('01711111111')
+        ->and($redemption->customer_phone)->toBe('5550111111')
         ->and((float) $redemption->discount_amount)->toBe(200.0);
 });
 
@@ -296,7 +296,7 @@ it('requires a gift product for a gift reward', function () {
 // ============ SCREENS ============
 
 it('shows the member panel and earned reward on the POS', function () {
-    $customer = Customer::factory()->create(['phone' => '01722222222']);
+    $customer = Customer::factory()->create(['phone' => '5550222222']);
     $product = Product::factory()->create(['selling_price' => 1000, 'quantity' => 50]);
     reward(['name' => 'Thanks', 'basis' => 'single_invoice', 'min_amount' => 500, 'reward_type' => 'fixed', 'value' => 100]);
     reward(['name' => 'Milestone', 'basis' => 'cumulative', 'min_amount' => 99999, 'reward_type' => 'percent', 'value' => 5]);
@@ -305,7 +305,7 @@ it('shows the member panel and earned reward on the POS', function () {
         ->call('selectCustomer', $customer->id)
         ->call('addToCart', $product->id)
         ->assertSee($customer->member_no)
-        ->assertSee('01722222222')
+        ->assertSee('5550222222')
         ->assertSee('This member earned a reward')
         ->assertSee('more to unlock');
 });

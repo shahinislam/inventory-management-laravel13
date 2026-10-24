@@ -10,29 +10,29 @@ class MembershipRewardSeeder extends Seeder
 {
     public function run(): void
     {
-        $gift = Product::where('sku', 'PRAN-MNG-250ML')->first() ?? Product::first();
+        $gift = Product::where('sku', 'JUICE-MNG-250ML')->first() ?? Product::first();
 
         $rewards = [
             [
                 'name' => 'Big basket discount',
                 'basis' => 'single_invoice',
-                'min_amount' => 2000,
-                'max_amount' => 4999.99,
+                'min_amount' => 20,
+                'max_amount' => 49.99,
                 'reward_type' => 'percent',
                 'value' => 3,
             ],
             [
                 'name' => 'Bulk buyer discount',
                 'basis' => 'single_invoice',
-                'min_amount' => 5000,
+                'min_amount' => 50,
                 'max_amount' => null,
                 'reward_type' => 'fixed',
-                'value' => 250,
+                'value' => 5,
             ],
             [
                 'name' => 'Loyal member gift',
                 'basis' => 'cumulative',
-                'min_amount' => 10000,
+                'min_amount' => 100,
                 'max_amount' => null,
                 'reward_type' => 'gift',
                 'value' => 0,
@@ -42,7 +42,7 @@ class MembershipRewardSeeder extends Seeder
             [
                 'name' => 'Gold member thank-you',
                 'basis' => 'cumulative',
-                'min_amount' => 50000,
+                'min_amount' => 500,
                 'max_amount' => null,
                 'reward_type' => 'percent',
                 'value' => 10,

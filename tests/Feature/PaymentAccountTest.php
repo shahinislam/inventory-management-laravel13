@@ -27,7 +27,7 @@ beforeEach(function () {
     openShift();
 
     $this->card = PaymentAccount::create(['name' => 'Company Visa', 'type' => 'card', 'account_number' => '4111111111111234']);
-    $this->bank = PaymentAccount::create(['name' => 'City Bank', 'type' => 'bank', 'bank_name' => 'City Bank']);
+    $this->bank = PaymentAccount::create(['name' => 'Main Checking', 'type' => 'bank', 'bank_name' => 'First National Bank']);
 });
 
 function placedOrder(float $total = 1000, float $paid = 0): PurchaseOrder
@@ -50,7 +50,7 @@ it('creates a payment account', function () {
     Livewire::test(PaymentAccountForm::class)
         ->set('name', 'bKash Merchant')
         ->set('type', 'mobile_wallet')
-        ->set('account_number', '01711000000')
+        ->set('account_number', '5550100000')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('payment-accounts.index'));

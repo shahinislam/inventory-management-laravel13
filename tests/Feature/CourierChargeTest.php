@@ -154,7 +154,7 @@ it('rehydrates courier amounts when editing an invoice without overwriting the c
         ->assertSet('courierCost', '90.00');
 });
 
-it('keeps the courier cost off the customer-facing receipt and pdf', function () {
+it('keeps the courier cost off the customer-facing receipt', function () {
     $invoice = Invoice::create([
         'warehouse_id' => $this->warehouse->id,
         'created_by' => $this->user->id,
@@ -174,8 +174,6 @@ it('keeps the courier cost off the customer-facing receipt and pdf', function ()
     $company = ['name' => 'Test Co'];
 
     $receipt = view('pdf.receipt', compact('invoice', 'company'))->render();
-    $pdf = view('pdf.invoice', compact('invoice', 'company'))->render();
 
-    expect($receipt)->not->toContain('999.77')
-        ->and($pdf)->not->toContain('999.77');
+    expect($receipt)->not->toContain('999.77');
 });

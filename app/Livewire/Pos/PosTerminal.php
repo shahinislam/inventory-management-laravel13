@@ -398,19 +398,29 @@ class PosTerminal extends Component
      */
     public function getCartSubtotalProperty(): float
     {
-        return array_reduce($this->cart, function ($sum, $item) {
-            return $sum + ($item['price'] * $item['quantity']) - ($item['discount'] * $item['quantity']);
-        }, 0);
+        return round(array_reduce($this->cart, fn ($sum, $item) => $sum + $this->lineAmounts($item)['net'], 0), 2);
     }
 
     /** Tax accumulated from each line's tax_rate. */
     public function getCartItemTaxProperty(): float
     {
-        return array_reduce($this->cart, function ($sum, $item) {
-            $lineTotal = ($item['price'] * $item['quantity']) - ($item['discount'] * $item['quantity']);
+        return round(array_reduce($this->cart, fn ($sum, $item) => $sum + $this->lineAmounts($item)['tax'], 0), 2);
+    }
 
-            return $sum + ($lineTotal * ($item['tax_rate'] / 100));
-        }, 0);
+    /** Settings → Tax: shelf prices already contain tax. */
+    public function getPricesIncludeTaxProperty(): bool
+    {
+        return PricingService::pricesIncludeTax();
+    }
+
+    /**
+     * The goods value as the bill shows it: excluding tax when tax is added on
+     * top, including it when prices already contain tax. Member reward rules
+     * are judged on this, so a threshold matches what the customer sees.
+     */
+    public function getCartGoodsTotalProperty(): float
+    {
+        return $this->pricesIncludeTax ? round($this->cartSubtotal + $this->cartItemTax, 2) : $this->cartSubtotal;
     }
 
     /** Per-line tax plus the manually entered additional tax. */
@@ -558,7 +568,7 @@ class PosTerminal extends Component
         $customer = $this->selectedCustomer;
 
         return $customer
-            ? app(MembershipService::class)->eligibleRewards($customer, $this->cartSubtotal, $this->memberSpend)
+            ? app(MembershipService::class)->eligibleRewards($customer, $this->cartGoodsTotal, $this->memberSpend)
             : collect();
     }
 
@@ -567,7 +577,7 @@ class PosTerminal extends Component
         $customer = $this->selectedCustomer;
 
         return $customer
-            ? app(MembershipService::class)->nextReward($customer, $this->cartSubtotal, $this->memberSpend)
+            ? app(MembershipService::class)->nextReward($customer, $this->cartGoodsTotal, $this->memberSpend)
             : null;
     }
 
@@ -610,7 +620,7 @@ class PosTerminal extends Component
         $this->appliedRewards[$rewardId] = [
             'name' => $reward->name,
             'type' => $reward->reward_type,
-            'amount' => $reward->isGift() ? '0' : number_format($reward->discountFor($this->cartSubtotal), 2, '.', ''),
+            'amount' => $reward->isGift() ? '0' : number_format($reward->discountFor($this->cartGoodsTotal), 2, '.', ''),
             'edited' => false,
         ];
 
@@ -685,7 +695,7 @@ class PosTerminal extends Component
             }
 
             if (! $reward->isGift() && ! $applied['edited']) {
-                $this->appliedRewards[$id]['amount'] = number_format($reward->discountFor($this->cartSubtotal), 2, '.', '');
+                $this->appliedRewards[$id]['amount'] = number_format($reward->discountFor($this->cartGoodsTotal), 2, '.', '');
             }
         }
 
@@ -711,7 +721,7 @@ class PosTerminal extends Component
             ->where('type', '!=', 'gift')
             ->sum(fn ($r) => (float) $r['amount']);
 
-        $this->membershipDiscount = round(min($sum, max(0, $this->cartSubtotal)), 2);
+        $this->membershipDiscount = round(min($sum, max(0, $this->cartGoodsTotal)), 2);
         unset($this->cartTotal);
     }
 
@@ -730,7 +740,7 @@ class PosTerminal extends Component
     private function forgetCartComputed(): void
     {
         unset(
-            $this->cartSubtotal, $this->cartItemTax, $this->cartTaxTotal,
+            $this->cartSubtotal, $this->cartItemTax, $this->cartTaxTotal, $this->cartGoodsTotal,
             $this->cartItemDiscountTotal, $this->cartTotal,
             $this->selectedCustomer, $this->memberSpend, $this->eligibleRewards, $this->nextReward,
         );
@@ -965,6 +975,7 @@ class PosTerminal extends Component
                 'customer_address' => $customer?->full_address,
                 'status' => $due <= 0 ? 'paid' : ($paid > 0 ? 'partial' : 'sent'),
                 'payment_method' => $method,
+                'prices_include_tax' => $this->pricesIncludeTax,
                 'subtotal' => $this->cartSubtotal,
                 'tax' => $this->cartTaxTotal,
                 'discount' => (float) ($this->discount ?: 0),
@@ -1003,6 +1014,7 @@ class PosTerminal extends Component
                     'tax_rate' => $item['tax_rate'],
                     'discount' => $item['discount'],
                     'subtotal' => $this->lineSubtotal($item),
+                    'tax_amount' => $this->lineAmounts($item)['tax'],
                     'is_gift' => ! empty($item['is_gift']),
                 ]);
 
@@ -1057,12 +1069,19 @@ class PosTerminal extends Component
         $this->clearCart();
     }
 
-    /** Line total after per-unit discount, plus this line's tax. */
+    /** What the customer pays for a line: after its per-unit discount, tax included. */
     private function lineSubtotal(array $item): float
     {
-        $afterDiscount = ($item['price'] - $item['discount']) * $item['quantity'];
+        return $this->lineAmounts($item)['gross'];
+    }
 
-        return $afterDiscount + ($afterDiscount * $item['tax_rate'] / 100);
+    /** @return array{net: float, tax: float, gross: float} */
+    private function lineAmounts(array $item): array
+    {
+        return PricingService::lineAmounts(
+            (float) $item['price'], (float) $item['discount'], (float) $item['quantity'],
+            (float) $item['tax_rate'], $this->pricesIncludeTax,
+        );
     }
 
     /**

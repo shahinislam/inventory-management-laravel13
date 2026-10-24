@@ -10,16 +10,17 @@ use Illuminate\Support\Facades\Cache;
  *
  * A single hex per role is expanded into a full 50–950 ramp so utilities like
  * bg-primary-600 or text-secondary-400 behave exactly like Tailwind's built-in
- * palettes. The ramp is generated in OKLCH: lightness is interpolated across the
- * standard Tailwind steps while the hue is preserved and chroma is tapered at
- * the extremes, which keeps pale and very dark steps from looking muddy the way
- * naive RGB lightening does.
+ * palettes. The ramp is generated in OKLCH: the picked colour is pinned to the
+ * 600 step, the other steps are interpolated towards fixed light and dark ends
+ * while the hue is preserved, and chroma is tapered at the extremes, which keeps
+ * pale and very dark steps from looking muddy the way naive RGB lightening does.
  */
 class ThemeColors
 {
     /**
-     * Lightness targets per step, matching the perceptual spacing Tailwind v4
-     * uses for its own palettes.
+     * Reference lightness curve, matching the perceptual spacing Tailwind v4
+     * uses for its own palettes. The 50 and 950 ends are used as-is; the steps
+     * in between are rescaled around the picked colour (see ramp()).
      */
     private const LIGHTNESS = [
         50 => 0.971,
@@ -54,11 +55,19 @@ class ThemeColors
         950 => 0.48,
     ];
 
+    /**
+     * Bounds for the lightness the picked colour is pinned at. A very light or
+     * very dark pick is clamped so the ramp still has room on both sides.
+     */
+    private const ANCHOR_MIN = 0.40;
+
+    private const ANCHOR_MAX = 0.70;
+
     /** Fallbacks used when a setting is missing or malformed. */
     private const DEFAULTS = [
-        'primary' => '#4f46e5',
-        'secondary' => '#0d9488',
-        'tertiary' => '#d97706',
+        'primary' => '#0f7a55',
+        'secondary' => '#b45309',
+        'tertiary' => '#1d6fa5',
     ];
 
     /**
@@ -102,9 +111,23 @@ class ThemeColors
         // preserve, so the ramp stays neutral rather than inventing a tint.
         $baseChroma = $c;
 
+        // Pin the picked colour to 600 — the step buttons, links and the bare
+        // alias use — so the shade a shop chooses is the shade it gets, and its
+        // contrast against white carries over unchanged. Lighter steps keep the
+        // reference curve's proportions between 600 and the fixed 50 end,
+        // darker ones between 600 and the fixed 950 end.
+        $anchor = min(max($l, self::ANCHOR_MIN), self::ANCHOR_MAX);
+        $mid = self::LIGHTNESS[600];
+        $lightest = self::LIGHTNESS[50];
+        $darkest = self::LIGHTNESS[950];
+
         $ramp = [];
 
-        foreach (self::LIGHTNESS as $step => $lightness) {
+        foreach (self::LIGHTNESS as $step => $reference) {
+            $lightness = $reference >= $mid
+                ? $lightest - ($lightest - $anchor) * ($lightest - $reference) / ($lightest - $mid)
+                : $anchor - ($anchor - $darkest) * ($mid - $reference) / ($mid - $darkest);
+
             $chroma = round($baseChroma * self::CHROMA_SCALE[$step], 4);
 
             $ramp[$step] = sprintf(

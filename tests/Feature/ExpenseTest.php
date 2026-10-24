@@ -51,7 +51,7 @@ it('requires a transaction id for bKash / Nagad expenses', function () {
 });
 
 it('records an expense paid from a bank account', function () {
-    $bank = PaymentAccount::create(['name' => 'City Bank', 'type' => 'bank', 'account_number' => '1234567890', 'is_active' => true]);
+    $bank = PaymentAccount::create(['name' => 'Main Checking', 'type' => 'bank', 'account_number' => '1234567890', 'is_active' => true]);
 
     Livewire::test(ExpenseForm::class)
         ->set('category', 'Rent')

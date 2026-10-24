@@ -8,7 +8,6 @@ use App\Models\Payment;
 use App\Models\PaymentAccount;
 use App\Models\Setting;
 use App\Services\ShiftService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -124,22 +123,10 @@ class InvoiceView extends Component
         $this->payment_account_id = $accounts->count() === 1 ? $accounts->first()->id : null;
     }
 
-    public function downloadPdf()
-    {
-        $company = Setting::getGroup('company');
-        $invoice = $this->invoice;
-
-        $pdf = Pdf::loadView('pdf.invoice', compact('invoice', 'company'));
-
-        return response()->streamDownload(
-            fn () => print ($pdf->output()),
-            "{$invoice->invoice_number}.pdf"
-        );
-    }
-
     public function render()
     {
-        $company = Setting::getGroup('company');
+        // The invoice group carries the footer and terms printed on the document.
+        $company = Setting::getGroup('company') + Setting::getGroup('invoice');
 
         $paymentAccounts = PaymentAccount::forMethod($this->payment_method)->get();
 

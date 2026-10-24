@@ -156,14 +156,4 @@ class Product extends Model
     {
         return $this->quantity <= 0;
     }
-
-    public function getPriceAfterDiscountAttribute(): float
-    {
-        return $this->selling_price - ($this->selling_price * $this->discount / 100);
-    }
-
-    public function getPriceWithTaxAttribute(): float
-    {
-        return $this->price_after_discount + ($this->price_after_discount * $this->tax_rate / 100);
-    }
 }

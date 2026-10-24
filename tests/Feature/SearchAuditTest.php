@@ -35,8 +35,8 @@ beforeEach(function () {
     openShift();
 
     $this->product = Product::factory()->create([
-        'name' => 'Teer Soyabean Oil',
-        'sku' => 'TEER-SOY-5L',
+        'name' => 'Sunflower Oil',
+        'sku' => 'OIL-SUN-5L',
         'barcode' => '8901234567890',
         'quantity' => 0,
     ]);
@@ -51,8 +51,8 @@ beforeEach(function () {
     );
 
     $this->customer = Customer::factory()->create([
-        'name' => 'Usama Rahman',
-        'phone' => '01712345678',
+        'name' => 'Quinn Fairweather',
+        'phone' => '5550123456',
         'is_active' => true,
     ]);
 });
@@ -61,7 +61,7 @@ it('finds a stocked product in POS search by name, sku and barcode', function (s
     Livewire::test(PosTerminal::class)
         ->set('search', $term)
         ->tap(fn ($c) => expect($c->instance()->searchResults)->toHaveCount(1));
-})->with(['Soyabean', 'TEER-SOY']);
+})->with(['Sunflower', 'OIL-SUN']);
 
 it('auto-adds a product to the POS cart on an exact barcode scan', function () {
     // Scans arrive as the barcode-scanned event from the browser-side scanner
@@ -84,23 +84,23 @@ it('finds a customer in POS by name and by phone', function (string $term) {
     Livewire::test(PosTerminal::class)
         ->set('customerSearch', $term)
         ->tap(fn ($c) => expect($c->instance()->customerResults)->toHaveCount(1));
-})->with(['Usama', '01712345678']);
+})->with(['Fairweather', '5550123456']);
 
 it('finds a customer in the invoice form by name and by phone', function (string $term) {
     Livewire::test(InvoiceForm::class)
         ->set('customerSearch', $term)
         ->tap(fn ($c) => expect($c->instance()->customerResults)->toHaveCount(1));
-})->with(['Usama', '01712345678']);
+})->with(['Fairweather', '5550123456']);
 
 it('finds a product in the invoice form by name, sku and barcode', function (string $term) {
     Livewire::test(InvoiceForm::class)
         ->set('productSearch', $term)
         ->tap(fn ($c) => expect($c->instance()->productResults)->toHaveCount(1));
-})->with(['Soyabean', 'TEER-SOY', '8901234567890']);
+})->with(['Sunflower', 'OIL-SUN', '8901234567890']);
 
 it('finds a product in the purchase form search', function () {
     Livewire::test(PurchaseForm::class)
-        ->set('productSearch', 'Soyabean')
+        ->set('productSearch', 'Sunflower')
         ->tap(fn ($c) => expect($c->instance()->searchProducts())->not->toBeEmpty());
 });
 
@@ -108,8 +108,8 @@ it('filters the product list by search term', function () {
     Product::factory()->create(['name' => 'Unrelated Thing']);
 
     Livewire::test(ProductList::class)
-        ->set('search', 'Soyabean')
-        ->assertSee('Teer Soyabean Oil')
+        ->set('search', 'Sunflower')
+        ->assertSee('Sunflower Oil')
         ->assertDontSee('Unrelated Thing');
 });
 
@@ -117,8 +117,8 @@ it('filters the customer list by search term', function () {
     Customer::factory()->create(['name' => 'Someone Else']);
 
     Livewire::test(CustomerList::class)
-        ->set('search', 'Usama')
-        ->assertSee('Usama Rahman')
+        ->set('search', 'Fairweather')
+        ->assertSee('Quinn Fairweather')
         ->assertDontSee('Someone Else');
 });
 

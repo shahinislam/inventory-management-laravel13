@@ -1,9 +1,8 @@
 {{-- Client-side totals, the pattern from the Livewire docs: inputs use plain
      (deferred) wire:model and Alpine derives every figure by reading $wire, so
-     typing costs no server round-trip. The formulas must stay in step with
-     InvoiceForm::getSubtotalProperty(), getItemTaxProperty(), getTaxTotalProperty()
-     and getTotalProperty(), which the server still uses on save. money() mirrors
-     the PHP money() helper. --}}
+     typing costs no server round-trip. amounts() must stay in step with
+     PricingService::lineAmounts(), and totals with InvoiceForm's getters, which
+     the server still uses on save. money() mirrors the PHP money() helper. --}}
 <div class="p-4" x-data="{
     currency: @js([
         'symbol' => (string) (App\Models\Setting::get('currency.symbol', '$') ?? '$'),
@@ -24,29 +23,39 @@
             ? formatted + this.currency.symbol
             : this.currency.symbol + formatted;
     },
-    net(item) {
-        return this.num(item?.quantity) * this.num(item?.unit_price)
-            - this.num(item?.discount) * this.num(item?.quantity);
-    },
-    lineTax(item) {
-        return this.net(item) * this.num(item?.tax_rate) / 100;
+    inclusive: @js($pricesIncludeTax),
+    round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; },
+    // Mirrors PricingService::lineAmounts(): discount before tax, tax rounded per line.
+    amounts(item) {
+        const amount = this.round2((this.num(item?.unit_price) - this.num(item?.discount)) * this.num(item?.quantity));
+        const rate = this.num(item?.tax_rate);
+        if (this.inclusive) {
+            const tax = this.round2(amount * rate / (100 + rate));
+            return { net: this.round2(amount - tax), tax, gross: amount };
+        }
+        const tax = this.round2(amount * rate / 100);
+        return { net: amount, tax, gross: this.round2(amount + tax) };
     },
     lineTotal(index) {
-        const item = this.$wire.items[index];
-        return this.net(item) + this.lineTax(item);
+        return this.amounts(this.$wire.items[index]).gross;
     },
     get totals() {
         const items = Object.values(this.$wire.items ?? {});
-        const subtotal = items.reduce((sum, item) => sum + this.net(item), 0);
-        const tax = items.reduce((sum, item) => sum + this.lineTax(item), 0) + this.num(this.$wire.tax);
+        const subtotal = this.round2(items.reduce((sum, item) => sum + this.amounts(item).net, 0));
+        const itemTax = this.round2(items.reduce((sum, item) => sum + this.amounts(item).tax, 0));
+        const extraTax = this.num(this.$wire.tax);
         const courier = this.$wire.hasCourier ? this.num(this.$wire.courierCharge) : 0;
         const courierCost = this.$wire.hasCourier ? this.num(this.$wire.courierCost) : 0;
         return {
             subtotal,
-            tax,
+            // What the invoice lists as the goods value: tax included when prices contain it.
+            goods: this.inclusive ? this.round2(subtotal + itemTax) : subtotal,
+            itemTax,
+            extraTax,
+            tax: itemTax + extraTax,
             courier,
             courierCost,
-            total: Math.max(0, subtotal - this.num(this.$wire.discount) - this.num(this.$wire.membershipDiscount) + tax + courier),
+            total: Math.max(0, subtotal - this.num(this.$wire.discount) - this.num(this.$wire.membershipDiscount) + itemTax + extraTax + courier),
         };
     },
 }">
@@ -187,10 +196,10 @@
                         <tbody>
                             @forelse($items as $index => $item)
                                 @php
-                                    $line = (float) $item['quantity'] * (float) $item['unit_price'];
-                                    $disc = (float) $item['discount'] * (float) $item['quantity'];
-                                    $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
-                                    $total = $line - $disc + $tax;
+                                    $lineGross = App\Services\PricingService::lineAmounts(
+                                        (float) ($item['unit_price'] ?: 0), (float) ($item['discount'] ?: 0),
+                                        (float) ($item['quantity'] ?: 0), (float) ($item['tax_rate'] ?: 0), $pricesIncludeTax,
+                                    )['gross'];
                                     $available = $this->stockLevels[$item['product_id']] ?? 0;
                                     $isShort = isset($this->stockShortages[$item['product_id']]);
                                 @endphp
@@ -245,7 +254,7 @@
                                     </td>
                                     <td class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white"
                                         x-text="money(lineTotal({{ $index }}))">
-                                        {{ money($total) }}</td>
+                                        {{ money($lineGross) }}</td>
                                     <td class="px-2 py-3">
                                         <flux:button icon="x-mark" variant="subtle" size="xs" square
                                             wire:click="removeItem({{ $index }})" type="button" />
@@ -349,7 +358,7 @@
                     <div class="flex items-center justify-between text-sm">
                         <span class="text-zinc-500">Subtotal</span>
                         <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
-                            x-text="money(totals.subtotal)">{{ money($this->subtotal) }}</span>
+                            x-text="money(totals.goods)">{{ money($this->goodsTotal) }}</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -406,12 +415,22 @@
                         </div>
                     </div>
 
-                    <div x-show="totals.tax > 0" @unless ($this->taxTotal > 0) style="display: none" @endunless
-                        class="flex items-center justify-between text-sm">
-                        <span class="text-zinc-500">Tax</span>
-                        <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
-                            x-text="money(totals.tax)">{{ money($this->taxTotal) }}</span>
-                    </div>
+                    @if ($pricesIncludeTax)
+                        {{-- Prices contain the line tax: shown under the total, not added again. --}}
+                        <div x-show="totals.extraTax > 0" @unless ((float) ($tax ?: 0) > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Additional tax</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.extraTax)">{{ money((float) ($tax ?: 0)) }}</span>
+                        </div>
+                    @else
+                        <div x-show="totals.tax > 0" @unless ($this->taxTotal > 0) style="display: none" @endunless
+                            class="flex items-center justify-between text-sm">
+                            <span class="text-zinc-500">Tax</span>
+                            <span class="font-medium tabular-nums text-zinc-900 dark:text-white"
+                                x-text="money(totals.tax)">{{ money($this->taxTotal) }}</span>
+                        </div>
+                    @endif
 
                     <div x-show="totals.courier > 0" @unless ($this->courierChargeValue > 0) style="display: none" @endunless
                         class="flex items-center justify-between text-sm">
@@ -426,6 +445,12 @@
                         <span class="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white"
                             x-text="money(totals.total)">{{ money($this->total) }}</span>
                     </div>
+                    @if ($pricesIncludeTax)
+                        <div x-show="totals.itemTax > 0" @unless ($this->itemTax > 0) style="display: none" @endunless
+                            class="-mt-2 text-right text-xs tabular-nums text-zinc-500">
+                            Includes tax <span x-text="money(totals.itemTax)">{{ money($this->itemTax) }}</span>
+                        </div>
+                    @endif
                 </div>
             </flux:card>
 

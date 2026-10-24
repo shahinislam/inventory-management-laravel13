@@ -7,6 +7,7 @@ use App\Livewire\Dashboard\Index as DashboardIndex;
 use App\Models\Category;
 use App\Models\Media;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Services\Barcode\Code128;
@@ -119,6 +120,9 @@ class ProductForm extends Component
             $this->weight = $product->weight ?? '';
             $this->dimensions = $product->dimensions ?? '';
             $this->status = $product->status;
+        } else {
+            // New products start with the default rate from Settings → Tax.
+            $this->tax_rate = (string) Setting::get('tax.rate', 0);
         }
     }
 

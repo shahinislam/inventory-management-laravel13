@@ -43,7 +43,7 @@
 
                             <flux:field>
                                 <flux:label>Phone</flux:label>
-                                <flux:input wire:model="phone" placeholder="+880 1234-567890" />
+                                <flux:input wire:model="phone" placeholder="Phone number" />
                                 <flux:error name="phone" />
                             </flux:field>
                         </div>

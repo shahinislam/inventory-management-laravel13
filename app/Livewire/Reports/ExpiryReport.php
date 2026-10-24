@@ -119,7 +119,6 @@ class ExpiryReport extends Component
             'soonValue' => (float) $soon->v,
             'window' => $days,
             'canWriteOff' => auth()->user()->hasRole(['admin', 'manager']),
-            'alertsOn' => (bool) Setting::get('notification.expiry', true),
         ])->layout('layouts.app', ['title' => 'Expiry Report']);
     }
 }

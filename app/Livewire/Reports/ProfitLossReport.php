@@ -80,7 +80,7 @@ class ProfitLossReport extends Component
         $unknownCost = $this->lines($this->sales($from, $to))
             ->where('invoice_items.unit_cost', '<=', 0)
             ->where('invoice_items.is_gift', false)
-            ->selectRaw('COUNT(*) as n, COALESCE(SUM(invoice_items.quantity * invoice_items.unit_price), 0) as v')
+            ->selectRaw('COUNT(*) as n, COALESCE(SUM(invoice_items.subtotal - invoice_items.tax_amount), 0) as v')
             ->toBase()->first();
 
         $expenses = Expense::query()->costs()
@@ -140,7 +140,8 @@ class ProfitLossReport extends Component
      */
     public function categoryBreakdown(CarbonInterface $from, CarbonInterface $to): array
     {
-        $lineNet = 'invoice_items.quantity * invoice_items.unit_price * (1 - invoice_items.discount / 100)';
+        // What the line was charged less the tax inside it, whether prices included tax or not.
+        $lineNet = 'invoice_items.subtotal - invoice_items.tax_amount';
         $lineCost = 'invoice_items.quantity * invoice_items.unit_cost';
 
         $byCategory = fn (Builder $lines, string $aggregates) => $lines

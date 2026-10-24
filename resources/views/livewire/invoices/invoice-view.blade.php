@@ -75,8 +75,8 @@
             @endif
             <flux:button icon="receipt-percent" variant="outline" href="{{ route('invoices.receipt', $invoice) }}"
                 target="_blank">Receipt</flux:button>
-            <flux:button icon="printer" variant="outline" onclick="window.print()">Print</flux:button>
-            <flux:button icon="arrow-down-tray" variant="outline" wire:click="downloadPdf">PDF</flux:button>
+            {{-- The browser's print dialog also saves as PDF, and renders every script (Bangla, Arabic, Hindi …). --}}
+            <flux:button icon="printer" variant="outline" onclick="window.print()">Print / PDF</flux:button>
         </div>
     </div>
 
@@ -250,7 +250,7 @@
                             <td class="px-2 py-3 text-right tabular-nums text-zinc-500">
                                 {{ $item->discount > 0 ? '−' . money($item->discount) : '—' }}</td>
                             <td class="px-2 py-3 text-right tabular-nums text-zinc-500">
-                                {{ $item->tax_rate > 0 ? rtrim(rtrim(number_format($item->tax_rate, 2), '0'), '.') . '%' : '—' }}
+                                {{ $item->tax_rate > 0 ? rtrim(rtrim(number_format($item->tax_rate, 2), '0'), '.') . '%' . ($invoice->prices_include_tax ? ' incl.' : '') : '—' }}
                             </td>
                             <td
                                 class="px-2 py-3 text-right font-semibold tabular-nums text-zinc-900 dark:text-white print:text-black">
@@ -268,7 +268,7 @@
                     <div class="flex justify-between">
                         <span class="text-zinc-500">Subtotal</span>
                         <span class="font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
-                            {{ money($invoice->subtotal) }}</span>
+                            {{ money($invoice->goodsTotal()) }}</span>
                     </div>
                     @if ($invoice->discount > 0)
                         <div class="flex justify-between">
@@ -284,11 +284,15 @@
                                 −{{ money($invoice->membership_discount) }}</span>
                         </div>
                     @endif
-                    @if ($invoice->tax > 0)
+                    @php
+                        // Prices that contain tax already carry the line tax; only a hand-added tax goes on top.
+                        $addedTax = $invoice->prices_include_tax ? $invoice->extraTax() : (float) $invoice->tax;
+                    @endphp
+                    @if ($addedTax > 0)
                         <div class="flex justify-between">
-                            <span class="text-zinc-500">Tax</span>
+                            <span class="text-zinc-500">{{ $invoice->prices_include_tax ? 'Additional tax' : 'Tax' }}</span>
                             <span class="font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
-                                {{ money($invoice->tax) }}</span>
+                                {{ money($addedTax) }}</span>
                         </div>
                     @endif
                     @if ($invoice->courier_charge > 0)
@@ -314,6 +318,10 @@
                         class="text-xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white print:text-black">
                         {{ money($invoice->total) }}</span>
                 </div>
+                @if ($invoice->prices_include_tax && $invoice->lineTax() > 0)
+                    <div class="mt-1 text-right text-xs tabular-nums text-zinc-500 print:text-zinc-700">
+                        Includes tax {{ money($invoice->lineTax()) }}</div>
+                @endif
 
                 @if ($invoice->courier_cost > 0)
                     {{-- Internal only: what the courier cost us, and whether the
@@ -408,6 +416,14 @@
                 <div class="text-[0.6875rem] font-semibold uppercase tracking-wider text-zinc-400">Notes</div>
                 <div class="mt-1.5 text-sm text-zinc-600 dark:text-zinc-300 print:text-zinc-700">{{ $invoice->notes }}
                 </div>
+            </div>
+        @endif
+
+        {{-- Terms --}}
+        @if (filled($company['invoice.terms'] ?? null))
+            <div class="mt-4 text-xs text-zinc-500">
+                <span class="font-semibold uppercase tracking-wider text-zinc-400">Terms</span>
+                <div class="mt-1 whitespace-pre-line">{{ $company['invoice.terms'] }}</div>
             </div>
         @endif
 

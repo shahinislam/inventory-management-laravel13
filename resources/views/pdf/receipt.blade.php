@@ -93,7 +93,7 @@
                             − {{ money($item->discount, false) }}
                         @endif
                         @if ($item->tax_rate > 0)
-                            (+{{ rtrim(rtrim(number_format($item->tax_rate, 2), '0'), '.') }}%)
+                            ({{ $invoice->prices_include_tax ? 'incl. ' : '+' }}{{ rtrim(rtrim(number_format($item->tax_rate, 2), '0'), '.') }}%)
                         @endif
                     </td>
                     <td class="r">× {{ format_qty($item->quantity) }}</td>
@@ -109,7 +109,7 @@
     <table class="totals">
         <tr>
             <td>Subtotal</td>
-            <td>{{ money($invoice->subtotal, false) }}</td>
+            <td>{{ money($invoice->goodsTotal(), false) }}</td>
         </tr>
         @if ($invoice->discount > 0)
             <tr>
@@ -123,10 +123,14 @@
                 <td>−{{ money($invoice->membership_discount, false) }}</td>
             </tr>
         @endif
-        @if ($invoice->tax > 0)
+        @php
+            // Prices that contain tax already carry the line tax; only a hand-added tax goes on top.
+            $addedTax = $invoice->prices_include_tax ? $invoice->extraTax() : (float) $invoice->tax;
+        @endphp
+        @if ($addedTax > 0)
             <tr>
-                <td>Tax</td>
-                <td>{{ money($invoice->tax, false) }}</td>
+                <td>{{ $invoice->prices_include_tax ? 'Additional tax' : 'Tax' }}</td>
+                <td>{{ money($addedTax, false) }}</td>
             </tr>
         @endif
         @if ($invoice->courier_charge > 0)
@@ -145,6 +149,14 @@
             <td>{{ money($invoice->total) }}</td>
         </tr>
     </table>
+    @if ($invoice->prices_include_tax && $invoice->lineTax() > 0)
+        <table class="totals">
+            <tr class="muted">
+                <td>Includes tax</td>
+                <td>{{ money($invoice->lineTax(), false) }}</td>
+            </tr>
+        </table>
+    @endif
 
     <div class="rule-solid"></div>
 
@@ -167,6 +179,11 @@
     @if ($invoice->notes)
         <div class="rule"></div>
         <div class="muted">{{ $invoice->notes }}</div>
+    @endif
+
+    @if (filled($company['invoice.terms'] ?? null))
+        <div class="rule"></div>
+        <div class="muted center" style="font-size:9px">{!! nl2br(e($company['invoice.terms'])) !!}</div>
     @endif
 
     <div class="rule"></div>

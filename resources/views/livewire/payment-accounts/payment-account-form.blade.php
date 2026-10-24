@@ -21,7 +21,7 @@
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <flux:field>
                                 <flux:label>Account Name <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                                <flux:input wire:model="name" placeholder="e.g. City Bank Current, Company Visa" />
+                                <flux:input wire:model="name" placeholder="e.g. Main Checking, Company Visa" />
                                 <flux:error name="name" />
                             </flux:field>
 

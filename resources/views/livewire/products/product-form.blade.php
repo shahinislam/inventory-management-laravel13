@@ -64,7 +64,7 @@
                         </flux:field>
 
                         <flux:field>
-                            <flux:label>Selling Price <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
+                            <flux:label>Selling Price{{ App\Services\PricingService::pricesIncludeTax() ? ' (incl. tax)' : '' }} <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
                             <flux:input wire:model="selling_price" type="number" step="0.01" min="0" placeholder="0.00" :prefix="currency_symbol()" />
                             <flux:error name="selling_price" />
                         </flux:field>
@@ -90,13 +90,20 @@
 
                     {{-- Price Preview --}}
                     @if($selling_price > 0)
+                    @php
+                        $inclusive = App\Services\PricingService::pricesIncludeTax();
+                        $previewDiscount = $discount_type === 'fixed'
+                            ? (float) $discount
+                            : (float) $selling_price * (float) $discount / 100;
+                        $preview = App\Services\PricingService::lineAmounts(
+                            (float) $selling_price, $previewDiscount, 1, (float) $tax_rate, $inclusive,
+                        );
+                    @endphp
                     <div class="mt-4 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
                         <flux:text class="text-sm">
-                            Final Price:
-                            <strong>
-                                {{ money($selling_price - ($selling_price * $discount / 100) + (($selling_price - ($selling_price * $discount / 100)) * $tax_rate / 100)) }}
-                            </strong>
-                            (after {{ $discount }}% discount + {{ $tax_rate }}% tax)
+                            Customer pays:
+                            <strong>{{ money($preview['gross']) }}</strong>
+                            ({{ $previewDiscount > 0 ? 'after discount, ' : '' }}{{ $preview['tax'] > 0 ? ($inclusive ? 'includes ' : 'plus ').money($preview['tax']).' tax' : 'no tax' }})
                         </flux:text>
                     </div>
                     @endif

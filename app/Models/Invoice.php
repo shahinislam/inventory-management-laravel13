@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'invoice_number', 'warehouse_id', 'customer_id', 'created_by',
     'customer_name', 'customer_email', 'customer_phone', 'customer_address',
-    'status', 'payment_method',
+    'status', 'payment_method', 'prices_include_tax',
     'subtotal', 'tax', 'discount', 'membership_discount', 'courier_charge', 'courier_cost', 'total', 'paid_amount', 'due_amount',
     'invoice_date', 'due_date', 'paid_date', 'notes',
     'type', 'parent_invoice_id', 'is_held', 'held_label', 'shift_id', 'returned_amount',
@@ -24,6 +24,7 @@ class Invoice extends Model
     {
         return [
             'is_held' => 'boolean',
+            'prices_include_tax' => 'boolean',
             'returned_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'tax' => 'decimal:2',
@@ -82,6 +83,26 @@ class Invoice extends Model
     public function getNetTotalAttribute(): float
     {
         return round((float) $this->total - (float) $this->returned_amount, 2);
+    }
+
+    /** The tax contained in the lines; `tax` also holds any manually added tax. */
+    public function lineTax(): float
+    {
+        return round((float) $this->items->sum('tax_amount'), 2);
+    }
+
+    /** Tax added by hand on top of the lines. */
+    public function extraTax(): float
+    {
+        return max(0, round((float) $this->tax - $this->lineTax(), 2));
+    }
+
+    /** The goods value as the document lists it: tax included when the prices contain it. */
+    public function goodsTotal(): float
+    {
+        return $this->prices_include_tax
+            ? round((float) $this->subtotal + $this->lineTax(), 2)
+            : (float) $this->subtotal;
     }
 
     public function parent()

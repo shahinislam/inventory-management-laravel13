@@ -17,6 +17,7 @@ use App\Services\InventoryService;
 use App\Services\PricingService;
 use App\Services\ShiftService;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class InvoiceForm extends Component
@@ -69,6 +70,13 @@ class InvoiceForm extends Component
 
     public array $items = [];
 
+    /**
+     * Whether line prices contain tax. New invoices follow Settings → Tax; a
+     * saved draft keeps the mode it was priced in, even if the setting changes.
+     */
+    #[Locked]
+    public bool $pricesIncludeTax = false;
+
     public string $productSearch = '';
 
     public function mount(?Invoice $invoice = null): void
@@ -94,6 +102,10 @@ class InvoiceForm extends Component
             return;
         }
 
+        $this->pricesIncludeTax = $invoice?->exists
+            ? (bool) $invoice->prices_include_tax
+            : PricingService::pricesIncludeTax();
+
         if ($invoice?->exists) {
             $this->invoice = $invoice->load('items.product');
             $this->customer_id = $invoice->customer_id;
@@ -106,7 +118,9 @@ class InvoiceForm extends Component
             $this->due_date = $invoice->due_date?->format('Y-m-d') ?? '';
             $this->payment_method = $invoice->payment_method ?? 'cash';
             // See PurchaseForm::mount() — string-typed properties, nullable columns.
-            $this->tax = (string) ($invoice->tax ?? '0');
+            // The stored tax includes the line tax, which is recalculated from the
+            // lines; only the manually added tax goes back into the field.
+            $this->tax = (string) max(0, round((float) $invoice->tax - (float) $invoice->items->sum('tax_amount'), 2));
             $this->discount = (string) ($invoice->discount ?? '0');
             $this->membershipDiscount = (float) $invoice->membership_discount;
             $this->courierCharge = (string) ($invoice->courier_charge ?? '0');
@@ -294,23 +308,28 @@ class InvoiceForm extends Component
      */
     public function getSubtotalProperty(): float
     {
-        return array_reduce($this->items, function ($sum, $item) {
-            $line = (float) ($item['quantity'] ?: 0) * (float) ($item['unit_price'] ?: 0);
-            $disc = (float) ($item['discount'] ?: 0) * (float) ($item['quantity'] ?: 0);
-
-            return $sum + $line - $disc;
-        }, 0);
+        return round(array_reduce($this->items, fn ($sum, $item) => $sum + $this->lineAmounts($item)['net'], 0), 2);
     }
 
     /** Tax accumulated from the per-line tax_rate on each item. */
     public function getItemTaxProperty(): float
     {
-        return array_reduce($this->items, function ($sum, $item) {
-            $line = (float) ($item['quantity'] ?: 0) * (float) ($item['unit_price'] ?: 0);
-            $disc = (float) ($item['discount'] ?: 0) * (float) ($item['quantity'] ?: 0);
+        return round(array_reduce($this->items, fn ($sum, $item) => $sum + $this->lineAmounts($item)['tax'], 0), 2);
+    }
 
-            return $sum + (($line - $disc) * ((float) ($item['tax_rate'] ?: 0) / 100));
-        }, 0);
+    /** The goods value as the invoice lists it: tax included when prices contain it. */
+    public function getGoodsTotalProperty(): float
+    {
+        return $this->pricesIncludeTax ? round($this->subtotal + $this->itemTax, 2) : $this->subtotal;
+    }
+
+    /** @return array{net: float, tax: float, gross: float} */
+    private function lineAmounts(array $item): array
+    {
+        return PricingService::lineAmounts(
+            (float) ($item['unit_price'] ?: 0), (float) ($item['discount'] ?: 0), (float) ($item['quantity'] ?: 0),
+            (float) ($item['tax_rate'] ?: 0), $this->pricesIncludeTax,
+        );
     }
 
     /**
@@ -463,6 +482,7 @@ class InvoiceForm extends Component
                 'customer_address' => $this->customer_address ?: null,
                 'status' => $status,
                 'payment_method' => $this->payment_method ?: null,
+                'prices_include_tax' => $this->pricesIncludeTax,
                 'subtotal' => $this->subtotal,
                 'tax' => $this->taxTotal,
                 'discount' => (float) ($this->discount ?: 0),
@@ -489,9 +509,7 @@ class InvoiceForm extends Component
             $inventory = app(InventoryService::class);
 
             foreach ($this->items as $item) {
-                $line = (float) $item['quantity'] * (float) $item['unit_price'];
-                $disc = (float) $item['discount'] * (float) $item['quantity'];
-                $tax = ($line - $disc) * ((float) $item['tax_rate'] / 100);
+                $amounts = $this->lineAmounts($item);
 
                 // Deduct stock only on the way out of draft; that also tells us
                 // what the goods cost (earliest-expiry batch first).
@@ -516,7 +534,8 @@ class InvoiceForm extends Component
                     'unit_price' => $item['unit_price'],
                     'tax_rate' => $item['tax_rate'],
                     'discount' => $item['discount'],
-                    'subtotal' => $line - $disc + $tax,
+                    'subtotal' => $amounts['gross'],
+                    'tax_amount' => $amounts['tax'],
                     'is_gift' => ! empty($item['is_gift']),
                 ]);
 

@@ -35,7 +35,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Phone</flux:label>
-                                <flux:input wire:model="company_phone" placeholder="+880 1234-567890" />
+                                <flux:input wire:model="company_phone" placeholder="Phone number" />
                             </flux:field>
                         </div>
 
@@ -101,16 +101,19 @@
                             <flux:label>Default Tax Rate (%)</flux:label>
                             <flux:input wire:model="tax_rate" type="number" step="0.01" min="0" suffix="%" />
                         </flux:field>
-                        <flux:field>
+                        <flux:field class="sm:col-span-2">
                             <div class="flex items-center justify-between">
-                                <flux:label>Tax Inclusive Pricing</flux:label>
-                                <flux:switch wire:model="tax_inclusive" />
+                                <div>
+                                    <flux:label>Prices include tax</flux:label>
+                                    <flux:description>Selling prices already contain tax; receipts show the tax included. Off: tax is added on top.</flux:description>
+                                </div>
+                                <flux:switch wire:model="prices_include_tax" />
                             </div>
                         </flux:field>
                         <flux:field class="sm:col-span-2">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <flux:label>Mushak 6.3 VAT invoice</flux:label>
+                                    <flux:label>Bangladesh VAT invoice (Mushak 6.3)</flux:label>
                                     <flux:description>Adds a “Mushak 6.3” print button to invoices and the POS. Set the VAT BIN above.</flux:description>
                                 </div>
                                 <flux:switch wire:model="mushak_enabled" />
@@ -139,25 +142,14 @@
                     </div>
                 </flux:card>
 
-                {{-- Notifications --}}
+                {{-- Expiry --}}
                 <flux:card class="p-6">
-                    <flux:heading class="mb-4">Notification Settings</flux:heading>
+                    <flux:heading class="mb-4">Expiry</flux:heading>
                     <div class="space-y-4">
                         <flux:field>
-                            <div class="flex items-center justify-between">
-                                <flux:label>Low Stock Alerts</flux:label>
-                                <flux:switch wire:model="notification_low_stock" />
-                            </div>
-                        </flux:field>
-                        <flux:field>
-                            <div class="flex items-center justify-between">
-                                <flux:label>Expiry Date Warnings</flux:label>
-                                <flux:switch wire:model="notification_expiry" />
-                            </div>
-                        </flux:field>
-                        <flux:field>
-                            <flux:label>Expiry Warning Days Before</flux:label>
+                            <flux:label>Expiring-soon window</flux:label>
                             <flux:input wire:model="notification_days" type="number" min="1" suffix="days" />
+                            <flux:description>Default range for the Expiry Report.</flux:description>
                         </flux:field>
                     </div>
                 </flux:card>
@@ -174,7 +166,7 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_8rem]">
                         <flux:field>
                             <flux:label>Gateway URL</flux:label>
-                            <flux:input wire:model="sms_gateway_url" placeholder="https://bulksmsbd.net/api/smsapi" />
+                            <flux:input wire:model="sms_gateway_url" placeholder="https://api.your-sms-provider.com/send" />
                             <flux:error name="sms_gateway_url" />
                         </flux:field>
                         <flux:field>
@@ -190,7 +182,7 @@
                         </flux:field>
                         <flux:field>
                             <flux:label>Sender ID</flux:label>
-                            <flux:input wire:model="sms_sender_id" placeholder="e.g. 8809617..." />
+                            <flux:input wire:model="sms_sender_id" placeholder="e.g. MyShop" />
                         </flux:field>
                     </div>
                     <details class="mt-4">
@@ -220,7 +212,7 @@
                             <flux:description>Placeholders: {name} {reward} {invoice} {shop}</flux:description>
                         </flux:field>
                         <div class="flex items-end gap-2">
-                            <flux:input wire:model="sms_test_phone" label="Send a test to" placeholder="01XXXXXXXXX" class="flex-1" />
+                            <flux:input wire:model="sms_test_phone" label="Send a test to" placeholder="Phone number" class="flex-1" />
                             <flux:button wire:click="sendTestSms" type="button" icon="paper-airplane">Send test</flux:button>
                         </div>
                         <flux:error name="sms_test_phone" />
@@ -249,7 +241,7 @@
                                     <input type="color" wire:model.live="{{ $field }}"
                                         class="size-10 shrink-0 cursor-pointer rounded-lg border border-zinc-200 bg-transparent p-1 dark:border-zinc-700"
                                         aria-label="{{ $label }} colour picker" />
-                                    <flux:input wire:model.live="{{ $field }}" class="font-mono" placeholder="#4f46e5" />
+                                    <flux:input wire:model.live="{{ $field }}" class="font-mono" placeholder="#0f7a55" />
                                 </div>
                                 <flux:text class="text-xs text-zinc-500">{{ $hint }}</flux:text>
                                 <flux:error name="{{ $field }}" />

@@ -101,6 +101,7 @@ it('renders the Mushak-6.3 tax invoice with the BIN', function () {
         'discount' => 0,
         'tax_rate' => 15,
         'subtotal' => 115,
+        'tax_amount' => 15,
     ]);
 
     $this->get(route('invoices.mushak', $invoice))

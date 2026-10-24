@@ -56,7 +56,7 @@ class SampleTransactionSeeder extends Seeder
 
         // Fully paid by bank transfer.
         $this->sale($customers[1 % $customers->count()], [[$products[2], 5]], daysAgo: 8,
-            payments: [['bank_transfer', $account('DBBL Current Account'), null]]);
+            payments: [['bank_transfer', $account('Main Checking'), null]]);
 
         // Part paid by mobile wallet, rest overdue.
         $this->sale($customers[2 % $customers->count()], [[$products[0], 4], [$products[3], 2]], daysAgo: 20,
@@ -75,7 +75,7 @@ class SampleTransactionSeeder extends Seeder
 
         // Fully paid by bank.
         $this->purchase($suppliers[0], [[$products[0], 20], [$products[2], 30]], daysAgo: 15,
-            payments: [['bank_transfer', $account('City Bank Savings'), null]], dueInDays: 15);
+            payments: [['bank_transfer', $account('Business Savings'), null]], dueInDays: 15);
 
         // Part paid by card, rest overdue.
         $this->purchase($suppliers[1 % $suppliers->count()], [[$products[1], 40]], daysAgo: 25,

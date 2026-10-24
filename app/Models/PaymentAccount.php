@@ -89,7 +89,7 @@ class PaymentAccount extends Model
             ->whereIn('type', self::METHOD_TYPES[$method]);
     }
 
-    /** e.g. "City Bank Current ••1234" */
+    /** e.g. "Main Checking ••1234" */
     public function getDisplayNameAttribute(): string
     {
         $digits = preg_replace('/\D/', '', (string) $this->account_number);

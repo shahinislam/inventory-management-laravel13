@@ -38,7 +38,7 @@
 
                             <flux:field>
                                 <flux:label>Phone <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                                <flux:input wire:model="phone" type="tel" placeholder="01XXXXXXXXX" />
+                                <flux:input wire:model="phone" type="tel" placeholder="Phone number" />
                                 <flux:description>Used to find this member at checkout. Must be unique.</flux:description>
                                 <flux:error name="phone" />
                             </flux:field>

@@ -11,8 +11,8 @@ class PartnerSeeder extends Seeder
     {
         // Active partner shares must sum to 100 (see PartnerForm).
         $partners = [
-            ['name' => 'Osman Goni Shuvo', 'share_percentage' => 50],
-            ['name' => 'Abdur Rahman', 'share_percentage' => 50],
+            ['name' => 'Alex Morgan', 'share_percentage' => 50],
+            ['name' => 'Jordan Lee', 'share_percentage' => 50],
         ];
 
         foreach ($partners as $partner) {

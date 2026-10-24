@@ -19,7 +19,10 @@ return new class extends Migration
             $table->decimal('tax_rate', 5, 2)->default(0);
             // Per-unit discount in money, not a percentage.
             $table->decimal('discount', 12, 2)->default(0);
+            // What the customer pays for the line, tax included.
             $table->decimal('subtotal', 12, 2);
+            // The tax contained in `subtotal`, so the line's net value is subtotal - tax_amount.
+            $table->decimal('tax_amount', 12, 2)->default(0);
             // A free member reward: billed at zero, still taken out of stock.
             $table->boolean('is_gift')->default(false);
             // Cost per unit when sold, for profit reporting.

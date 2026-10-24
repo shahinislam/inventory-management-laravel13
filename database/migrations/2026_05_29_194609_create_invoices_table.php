@@ -44,6 +44,9 @@ return new class extends Migration
                 'mobile_banking',
                 'split',
             ])->nullable();
+            // Whether the line prices already contained tax when the invoice was priced.
+            // Either way `subtotal` is the goods value excluding tax and `tax` the tax.
+            $table->boolean('prices_include_tax')->default(false);
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('tax', 12, 2)->default(0);
             $table->decimal('discount', 12, 2)->default(0);

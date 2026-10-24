@@ -20,7 +20,7 @@
             <flux:heading class="mb-1">1. Find the sale</flux:heading>
             <flux:text class="mb-4 text-sm">Scan the receipt barcode, or type the receipt number, phone or name.</flux:text>
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" autofocus
-                placeholder="e.g. INV-2026-0042 or 01711000001" />
+                placeholder="e.g. INV-2026-0042 or phone number" />
 
             <div class="mt-3 space-y-2">
                 @foreach ($this->matches as $m)

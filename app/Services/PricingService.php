@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\Promotion;
+use App\Models\Setting;
 
 /**
  * Decides what a customer is actually charged for a product.
@@ -14,6 +15,41 @@ use App\Models\Promotion;
  */
 class PricingService
 {
+    /** Settings → Tax: whether selling prices already contain tax. */
+    public static function pricesIncludeTax(): bool
+    {
+        return Setting::bool('tax.prices_include_tax');
+    }
+
+    /**
+     * Split one sale line into its net value, tax and the amount charged.
+     *
+     * The per-unit discount is taken off before tax. When prices exclude tax
+     * the tax is added on top; when they include it, the tax is extracted from
+     * the shelf price. Tax is rounded per line, so net + tax = gross exactly
+     * and the lines always add up to the invoice header.
+     *
+     * Every place that prices a sale (POS, held sales, the invoice form) goes
+     * through this, and the JavaScript copies in the POS and invoice-form views
+     * mirror it for instant totals.
+     *
+     * @return array{net: float, tax: float, gross: float}
+     */
+    public static function lineAmounts(float $price, float $discount, float $quantity, float $taxRate, bool $inclusive): array
+    {
+        $amount = round(($price - $discount) * $quantity, 2);
+
+        if ($inclusive) {
+            $tax = round($amount * $taxRate / (100 + $taxRate), 2);
+
+            return ['net' => round($amount - $tax, 2), 'tax' => $tax, 'gross' => $amount];
+        }
+
+        $tax = round($amount * $taxRate / 100, 2);
+
+        return ['net' => $amount, 'tax' => $tax, 'gross' => round($amount + $tax, 2)];
+    }
+
     /**
      * Resolve the per-unit discount for a product.
      *

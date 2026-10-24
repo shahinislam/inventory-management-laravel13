@@ -174,7 +174,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{invoice}/receipt', function (Invoice $invoice) {
                 return view('pdf.receipt', [
                     'invoice' => $invoice->load(['items', 'warehouse', 'createdBy', 'payments.paymentAccount']),
-                    'company' => Setting::getGroup('company'),
+                    'company' => Setting::getGroup('company') + Setting::getGroup('invoice'),
                 ]);
             })->name('receipt');
 

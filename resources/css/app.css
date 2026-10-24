@@ -15,66 +15,67 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     /* Neutrals in OKLCH, matching Tailwind v4's own ramp so lightness steps are
-       perceptually even (the previous flat hex values were not). A touch of
-       cool hue is carried through so the greys sit with the brand accent
-       rather than looking muddy next to it.
+       perceptually even (the previous flat hex values were not). Chroma and
+       hue follow Tailwind's stone, a warm grey that sits with the green brand
+       and its off-white / charcoal (#F6F4EF / #1C1917).
        400 and 500 stay darker than Tailwind's stock values on purpose: Flux
        renders table cells at zinc-500 and hint lines at zinc-400, and the stock
        values failed contrast against white. */
-    --color-zinc-50: oklch(98.5% 0 0);
-    --color-zinc-100: oklch(96.7% 0.001 286.375);
-    --color-zinc-200: oklch(92% 0.004 286.32);
-    --color-zinc-300: oklch(87.1% 0.006 286.286);
-    --color-zinc-400: oklch(64% 0.009 286.13);
-    --color-zinc-500: oklch(48% 0.011 285.9);
-    --color-zinc-600: oklch(44.2% 0.013 285.786);
-    --color-zinc-700: oklch(37% 0.013 285.805);
-    --color-zinc-800: oklch(27.4% 0.014 286.033);
-    --color-zinc-900: oklch(21% 0.013 285.88);
-    --color-zinc-950: oklch(14.1% 0.011 285.82);
+    --color-zinc-50: oklch(98.5% 0.001 106.423);
+    --color-zinc-100: oklch(96.7% 0.001 106.424);
+    --color-zinc-200: oklch(92% 0.003 48.717);
+    --color-zinc-300: oklch(87.1% 0.005 56.366);
+    --color-zinc-400: oklch(64% 0.01 56.259);
+    --color-zinc-500: oklch(48% 0.013 58.071);
+    --color-zinc-600: oklch(44.2% 0.011 73.639);
+    --color-zinc-700: oklch(37% 0.01 67.558);
+    --color-zinc-800: oklch(27.4% 0.007 34.298);
+    --color-zinc-900: oklch(21% 0.006 56.043);
+    --color-zinc-950: oklch(14.1% 0.004 49.25);
 
     /* Brand palettes. Declared here so Tailwind generates the utility classes
        (bg-primary-600, text-secondary-400, border-tertiary-500, …); the actual
        values are overridden at runtime by ThemeColors::css(), which derives a
        full OKLCH ramp from the three hex colours in Settings → Theme.
-       These literals are the fallback when no setting is stored. */
-    --color-primary-50: oklch(97.1% 0.023 277);
-    --color-primary-100: oklch(93.6% 0.046 277);
-    --color-primary-200: oklch(88.5% 0.087 277);
-    --color-primary-300: oklch(80.9% 0.143 277);
-    --color-primary-400: oklch(70.7% 0.202 277);
-    --color-primary-500: oklch(63.7% 0.23 277);
-    --color-primary-600: oklch(57.7% 0.23 277);
-    --color-primary-700: oklch(50.5% 0.212 277);
-    --color-primary-800: oklch(44.4% 0.184 277);
-    --color-primary-900: oklch(39.6% 0.156 277);
-    --color-primary-950: oklch(28.4% 0.11 277);
+       These literals are the fallback when no setting is stored: ThemeColors'
+       ramps for green #0f7a55, amber #b45309 and blue #1d6fa5. */
+    --color-primary-50: oklch(97.1% 0.0107 162.84);
+    --color-primary-100: oklch(93% 0.0215 162.84);
+    --color-primary-200: oklch(87.1% 0.0408 162.84);
+    --color-primary-300: oklch(78.3% 0.0665 162.84);
+    --color-primary-400: oklch(66.5% 0.0944 162.84);
+    --color-primary-500: oklch(58.4% 0.1073 162.84);
+    --color-primary-600: oklch(51.4% 0.1073 162.84);
+    --color-primary-700: oklch(45.8% 0.0987 162.84);
+    --color-primary-800: oklch(41% 0.0859 162.84);
+    --color-primary-900: oklch(37.2% 0.073 162.84);
+    --color-primary-950: oklch(28.4% 0.0515 162.84);
     --color-primary: var(--color-primary-600);
 
-    --color-secondary-50: oklch(97.1% 0.01 184.7);
-    --color-secondary-100: oklch(93.6% 0.021 184.7);
-    --color-secondary-200: oklch(88.5% 0.04 184.7);
-    --color-secondary-300: oklch(80.9% 0.064 184.7);
-    --color-secondary-400: oklch(70.7% 0.092 184.7);
-    --color-secondary-500: oklch(63.7% 0.104 184.7);
-    --color-secondary-600: oklch(57.7% 0.104 184.7);
-    --color-secondary-700: oklch(50.5% 0.096 184.7);
-    --color-secondary-800: oklch(44.4% 0.083 184.7);
-    --color-secondary-900: oklch(39.6% 0.071 184.7);
-    --color-secondary-950: oklch(28.4% 0.05 184.7);
+    --color-secondary-50: oklch(97.1% 0.0146 48.998);
+    --color-secondary-100: oklch(93.4% 0.0291 48.998);
+    --color-secondary-200: oklch(88% 0.0553 48.998);
+    --color-secondary-300: oklch(80% 0.0902 48.998);
+    --color-secondary-400: oklch(69.2% 0.128 48.998);
+    --color-secondary-500: oklch(61.9% 0.1455 48.998);
+    --color-secondary-600: oklch(55.5% 0.1455 48.998);
+    --color-secondary-700: oklch(48.9% 0.1339 48.998);
+    --color-secondary-800: oklch(43.2% 0.1164 48.998);
+    --color-secondary-900: oklch(38.8% 0.0989 48.998);
+    --color-secondary-950: oklch(28.4% 0.0698 48.998);
     --color-secondary: var(--color-secondary-600);
 
-    --color-tertiary-50: oklch(97.1% 0.016 58.3);
-    --color-tertiary-100: oklch(93.6% 0.031 58.3);
-    --color-tertiary-200: oklch(88.5% 0.06 58.3);
-    --color-tertiary-300: oklch(80.9% 0.097 58.3);
-    --color-tertiary-400: oklch(70.7% 0.138 58.3);
-    --color-tertiary-500: oklch(63.7% 0.157 58.3);
-    --color-tertiary-600: oklch(57.7% 0.157 58.3);
-    --color-tertiary-700: oklch(50.5% 0.144 58.3);
-    --color-tertiary-800: oklch(44.4% 0.126 58.3);
-    --color-tertiary-900: oklch(39.6% 0.107 58.3);
-    --color-tertiary-950: oklch(28.4% 0.075 58.3);
+    --color-tertiary-50: oklch(97.1% 0.0114 243.196);
+    --color-tertiary-100: oklch(93.1% 0.0227 243.196);
+    --color-tertiary-200: oklch(87.3% 0.0432 243.196);
+    --color-tertiary-300: oklch(78.6% 0.0705 243.196);
+    --color-tertiary-400: oklch(66.9% 0.1 243.196);
+    --color-tertiary-500: oklch(58.9% 0.1136 243.196);
+    --color-tertiary-600: oklch(52.1% 0.1136 243.196);
+    --color-tertiary-700: oklch(46.3% 0.1046 243.196);
+    --color-tertiary-800: oklch(41.3% 0.0909 243.196);
+    --color-tertiary-900: oklch(37.5% 0.0773 243.196);
+    --color-tertiary-950: oklch(28.4% 0.0546 243.196);
     --color-tertiary: var(--color-tertiary-600);
 
     /* Flux's accent tokens now point at the brand primary, so primary buttons,

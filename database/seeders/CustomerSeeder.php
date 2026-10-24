@@ -11,9 +11,9 @@ class CustomerSeeder extends Seeder
     {
         // Every customer is a member, identified by a unique phone number.
         $customers = [
-            ['name' => "Muhammad Mus'ab", 'gender' => 'male', 'phone' => '01711000001'],
-            ['name' => 'Zayan', 'gender' => 'male', 'phone' => '01811000002'],
-            ['name' => 'Zareef', 'gender' => 'male', 'phone' => '01911000003'],
+            ['name' => 'Emma Wilson', 'gender' => 'female', 'phone' => '+1 555-0101'],
+            ['name' => 'Liam Carter', 'gender' => 'male', 'phone' => '+1 555-0102'],
+            ['name' => 'Sophia Patel', 'gender' => 'female', 'phone' => '+1 555-0103'],
         ];
 
         foreach ($customers as $customer) {
@@ -22,8 +22,8 @@ class CustomerSeeder extends Seeder
                 [
                     'name' => $customer['name'],
                     'gender' => $customer['gender'],
-                    'city' => 'Dhaka',
-                    'country' => 'Bangladesh',
+                    'city' => 'Springfield',
+                    'country' => 'United States',
                     'is_active' => true,
                 ]
             );

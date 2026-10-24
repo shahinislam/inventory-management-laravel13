@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
     'invoice_id', 'product_id',
     'product_name', 'product_sku',
     'quantity', 'unit_price',
-    'tax_rate', 'discount', 'subtotal', 'is_gift', 'notes',
+    'tax_rate', 'discount', 'subtotal', 'tax_amount', 'is_gift', 'notes',
     'unit_cost', 'parent_item_id', 'restock',
 ])]
 class InvoiceItem extends Model
@@ -25,6 +25,7 @@ class InvoiceItem extends Model
             'tax_rate' => 'decimal:2',
             'discount' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
             'is_gift' => 'boolean',
             'unit_cost' => 'decimal:2',
             'restock' => 'boolean',
@@ -59,12 +60,9 @@ class InvoiceItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function calculateSubtotal(): float
+    /** The line's value excluding tax, whichever way it was priced. */
+    public function netAmount(): float
     {
-        $sub = $this->quantity * $this->unit_price;
-        $sub -= $sub * ($this->discount / 100);
-        $sub += $sub * ($this->tax_rate / 100);
-
-        return round($sub, 2);
+        return round((float) $this->subtotal - (float) $this->tax_amount, 2);
     }
 }
