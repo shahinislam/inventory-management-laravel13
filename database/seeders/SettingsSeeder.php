@@ -11,7 +11,7 @@ class SettingsSeeder extends Seeder
     {
         $settings = [
             // General
-            ['key' => 'app.name',              'value' => 'Swift Inventory',  'group' => 'general',      'type' => 'text',    'is_public' => true],
+            ['key' => 'app.name',              'value' => 'Inventory',        'group' => 'general',      'type' => 'text',    'is_public' => true],
             ['key' => 'app.timezone',           'value' => 'UTC',              'group' => 'general',      'type' => 'text',    'is_public' => true],
             ['key' => 'app.language',           'value' => 'en',               'group' => 'general',      'type' => 'text',    'is_public' => true],
 

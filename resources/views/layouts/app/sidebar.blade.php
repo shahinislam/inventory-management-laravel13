@@ -335,7 +335,7 @@
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             {{-- App name --}}
-            <flux:heading class="text-sm font-semibold">Swift Inventory</flux:heading>
+            <flux:heading class="text-sm font-semibold">{{ config('app.name') }}</flux:heading>
 
             <flux:spacer />
 
