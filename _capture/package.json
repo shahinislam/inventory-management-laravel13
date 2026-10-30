@@ -1,11 +1,12 @@
 {
-    "name": "swift-inventory-capture",
+    "name": "inventory-capture",
     "private": true,
     "type": "module",
     "description": "Snapshots the running Inventory app (HTML + screenshots + role matrix) so the static clone can be matched against it.",
     "scripts": {
         "setup": "npm install && npx playwright install chromium",
-        "capture": "node capture.mjs"
+        "capture": "node capture.mjs",
+        "staged": "node staged.mjs"
     },
     "dependencies": {
         "playwright": "^1.56.0"

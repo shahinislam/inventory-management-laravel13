@@ -6,7 +6,8 @@ use App\Models\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use InvalidArgumentException;
@@ -15,9 +16,15 @@ class MediaService
 {
     private ImageManager $manager;
 
-    public function __construct()
+    public function __construct(?string $driver = null)
     {
-        $this->manager = ImageManager::usingDriver(Driver::class);
+        $this->manager = ImageManager::usingDriver($driver ?? self::driver());
+    }
+
+    /** Imagick when the extension is loaded, otherwise GD (the usual one on shared hosting). */
+    public static function driver(): string
+    {
+        return extension_loaded('imagick') ? ImagickDriver::class : GdDriver::class;
     }
 
     /**

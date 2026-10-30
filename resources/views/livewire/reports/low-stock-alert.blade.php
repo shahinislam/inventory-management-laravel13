@@ -68,7 +68,7 @@
                             </flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="text-sm tabular-nums">{{ $product->min_stock_level }} {{ $product->unit }}</flux:text>
+                            <flux:text class="text-sm tabular-nums">{{ format_qty($product->min_stock_level, $product->unit) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text class="text-sm tabular-nums text-red-600 dark:text-red-400">

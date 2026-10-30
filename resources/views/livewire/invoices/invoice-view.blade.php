@@ -141,6 +141,9 @@
                     @if ($company['company.email'] ?? false)
                         <div>{{ $company['company.email'] }}</div>
                     @endif
+                    @if ($company['company.tax_number'] ?? false)
+                        <div>Tax No: {{ $company['company.tax_number'] }}</div>
+                    @endif
                 </div>
             </div>
 
@@ -204,7 +207,7 @@
                 <div class="mt-2 font-medium text-zinc-900 dark:text-white print:text-black">
                     {{ $invoice->createdBy->name }}</div>
                 <div class="mt-0.5 text-sm text-zinc-500">
-                    {{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? '—')) }}
+                    {{ $invoice->payment_method ? \App\Models\Payment::methodLabel($invoice->payment_method) : '—' }}
                     @if ($account = $invoice->payments->first()?->paymentAccount)
                         · {{ $account->display_name }}
                     @endif

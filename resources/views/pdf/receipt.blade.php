@@ -25,6 +25,9 @@
         @if ($company['company.email'] ?? false)
             <div class="muted">{{ $company['company.email'] }}</div>
         @endif
+        @if ($company['company.tax_number'] ?? false)
+            <div class="muted">Tax No: {{ $company['company.tax_number'] }}</div>
+        @endif
     </div>
 
     <div class="rule-solid"></div>
@@ -162,7 +165,7 @@
 
     <table class="totals">
         <tr>
-            <td>{{ ucfirst(str_replace('_', ' ', $invoice->payment_method ?? 'Paid')) }}@if ($account = $invoice->payments->first()?->paymentAccount)
+            <td>{{ $invoice->payment_method ? \App\Models\Payment::methodLabel($invoice->payment_method) : 'Paid' }}@if ($account = $invoice->payments->first()?->paymentAccount)
                     ({{ $account->display_name }})
                 @endif
             </td>

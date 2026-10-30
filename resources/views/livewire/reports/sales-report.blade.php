@@ -91,7 +91,7 @@
                                 <flux:text class="font-medium">{{ $product->product_name }}</flux:text>
                                 <flux:text class="font-mono text-xs text-zinc-400">{{ $product->product_sku }}</flux:text>
                             </flux:table.cell>
-                            <flux:table.cell><flux:badge size="sm" color="zinc">{{ $product->total_qty }}</flux:badge></flux:table.cell>
+                            <flux:table.cell><flux:badge size="sm" color="zinc">{{ format_qty($product->total_qty) }}</flux:badge></flux:table.cell>
                             <flux:table.cell><flux:text class="font-medium tabular-nums">{{ money($product->total_revenue) }}</flux:text></flux:table.cell>
                         </flux:table.row>
                     @empty

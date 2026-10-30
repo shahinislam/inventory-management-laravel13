@@ -349,7 +349,7 @@
         <table>
           <thead><tr><th>Component</th><th>Requirement</th></tr></thead>
           <tbody>
-            <tr><td>PHP</td><td><strong>8.3 or newer</strong> with these extensions: BCMath, Ctype, cURL, DOM, Fileinfo, Filter, Mbstring, OpenSSL, PDO MySQL, Session, Tokenizer, XML, Intl and <strong>Imagick</strong> (needed to upload logos and product images).</td></tr>
+            <tr><td>PHP</td><td><strong>8.3 or newer</strong> with these extensions: BCMath, Ctype, cURL, DOM, Fileinfo, Filter, Mbstring, OpenSSL, PDO MySQL, Session, Tokenizer, XML, Intl, and <strong>GD or Imagick</strong> with WebP support (needed to upload logos and product images; Imagick is used when both are present).</td></tr>
             <tr><td>Database</td><td><strong>MySQL 8.0+</strong> or <strong>MariaDB 10.4+</strong>.</td></tr>
             <tr><td>Web server</td><td>Apache with <code>mod_rewrite</code> (an <code>.htaccess</code> file is included) or Nginx. The site's document root must point to the <code>public</code> folder.</td></tr>
             <tr><td>Command line</td><td>SSH or a hosting terminal (for example cPanel → Terminal) to run a few <code>php artisan</code> commands during installation and updates.</td></tr>
@@ -509,7 +509,7 @@ npm run build</code></pre>
           <tbody>
             <tr><td>Company Name</td><td>Required. Printed at the top of receipts and invoices, and used as <code>{shop}</code> in SMS messages.</td></tr>
             <tr><td>Email, Phone, Address</td><td>Printed in the receipt and invoice header.</td></tr>
-            <tr><td>Tax / VAT Number</td><td>Your tax registration number.</td></tr>
+            <tr><td>Tax / VAT Number</td><td>Your tax registration number. When filled in, it is printed as <em>Tax No:</em> under your company details on receipts and invoices.</td></tr>
             <tr><td>Company Logo</td><td>In the right-hand column, click <strong>Change Logo</strong> and pick or upload an image from the Media Library. It appears in the sidebar, on the login screen and on invoices. A square image works best.</td></tr>
           </tbody>
         </table>
@@ -681,7 +681,7 @@ php artisan optimize</code></pre>
       <h4>Logo or product images don't appear</h4>
       <p>Run <code>php artisan storage:link</code>, and check that <code>APP_URL</code> matches the address in your browser exactly, including <code>https://</code>.</p>
       <h4>Image upload fails</h4>
-      <p>The PHP <strong>Imagick</strong> extension is missing. Ask your host to enable it, or enable it in your PHP settings.</p>
+      <p>Neither the PHP <strong>GD</strong> nor the <strong>Imagick</strong> extension is enabled. Ask your host to enable one of them. On XAMPP, open <code>php.ini</code>, change <code>;extension=gd</code> to <code>extension=gd</code> and restart Apache.</p>
       <h4>Changes to .env have no effect</h4>
       <p>Run <code>php artisan optimize:clear</code> and then <code>php artisan optimize</code>.</p>
       <h4>Dates or times are off by some hours</h4>

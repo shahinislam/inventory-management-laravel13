@@ -140,7 +140,7 @@ async function newSession(browser, { role = null, theme = 'light', viewport = DE
         await page.fill('input[name="email"]', ACCOUNTS[role]);
         await page.fill('input[name="password"]', PASSWORD);
         await Promise.all([
-            page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 20000 }),
+            page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 90000, waitUntil: 'commit' }),
             page.locator('[data-test="login-button"], form button[type="submit"]').first().click(),
         ]);
         await settle(page);
@@ -304,9 +304,10 @@ async function captureStates(page, dir) {
     await go('/pos');
     await step('pos-initial', async () => {});
     await step('pos-search', async () => {
-        const search = page.locator('input[placeholder*="earch" i]').first();
+        // An editable div (see components/search-select), not an <input>.
+        const search = page.locator('[data-placeholder*="earch" i]').first();
         await search.click({ timeout: 5000 });
-        await search.fill('Teer');
+        await search.pressSequentially('Oil', { delay: 60 });
         await page.waitForTimeout(900);
     });
 

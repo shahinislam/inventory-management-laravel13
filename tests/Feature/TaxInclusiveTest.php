@@ -142,6 +142,18 @@ it('prints the tax as included on the receipt and the invoice page', function ()
         ->assertSee('Includes tax '.money(30));
 });
 
+it('prints the shop tax number on the receipt and the invoice page only when set', function () {
+    sellAtPos(taxedProduct());
+    $invoice = Invoice::sole();
+
+    $this->get(route('invoices.receipt', $invoice))->assertOk()->assertDontSee('Tax No:');
+
+    Setting::set('company.tax_number', 'TX-48210-7');
+
+    $this->get(route('invoices.receipt', $invoice))->assertOk()->assertSee('Tax No: TX-48210-7');
+    $this->get(route('invoices.show', $invoice))->assertOk()->assertSee('Tax No: TX-48210-7');
+});
+
 it('reports category sales without the tax inside inclusive prices', function () {
     pricesIncludeTax();
     $drinks = Category::factory()->create(['name' => 'Drinks']);

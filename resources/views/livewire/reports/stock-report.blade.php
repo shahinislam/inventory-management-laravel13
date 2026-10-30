@@ -81,7 +81,7 @@
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:text class="text-sm">{{ $product->min_stock_level }}</flux:text>
+                            <flux:text class="text-sm">{{ format_qty($product->min_stock_level) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:text>{{ money($product->cost_price) }}</flux:text>

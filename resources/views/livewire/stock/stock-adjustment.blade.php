@@ -61,7 +61,7 @@
                                         <flux:heading size="lg">{{ format_qty($selectedProduct->quantity, $selectedProduct->unit) }}</flux:heading>
                                     </div>
                                     <flux:badge :color="$selectedProduct->isLowStock() ? 'red' : 'green'">
-                                        Min: {{ $selectedProduct->min_stock_level }}
+                                        Min: {{ format_qty($selectedProduct->min_stock_level) }}
                                     </flux:badge>
                                 </div>
                             </div>
