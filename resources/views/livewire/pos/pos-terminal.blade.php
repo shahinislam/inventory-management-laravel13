@@ -620,34 +620,35 @@
     @endif
 
     {{-- ============ PAYMENT MODAL ============ --}}
-    <flux:modal wire:model="showPaymentModal" class="w-full max-w-md">
+    {{-- Compact so the cash case fits a laptop screen without scrolling; the
+         buttons stay pinned to the bottom when card/wallet/split add fields. --}}
+    <flux:modal wire:model="showPaymentModal" class="w-full max-w-md p-0!">
         <div x-data x-on:keydown.f6.window.prevent="$wire.setPaymentMethod('cash')"
             x-on:keydown.f7.window.prevent="$wire.setPaymentMethod('card')"
             x-on:keydown.f8.window.prevent="$wire.setPaymentMethod('mobile_banking')"
             x-on:keydown.f10.window.prevent="$wire.setPaymentMethod('bank_transfer')">
 
             {{-- Amount due --}}
-            <div class="border-b border-zinc-200 px-6 pb-5 pt-6 text-center dark:border-zinc-800">
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Due</flux:text>
-                <div class="mt-1.5 text-4xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
+            <div class="border-b border-zinc-200 px-5 pb-4 pt-5 text-center dark:border-zinc-700">
+                <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Amount Due
+                    @if (count($cart) > 0)
+                        <span class="normal-case tracking-normal">· {{ count($cart) }} {{ Str::plural('item', count($cart)) }}</span>
+                    @endif
+                </flux:text>
+                <div class="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
                     {{ money($this->cartTotal) }}
                 </div>
-                @if (count($cart) > 0)
-                    <flux:text class="mt-1 text-xs text-zinc-500">{{ count($cart) }}
-                        {{ Str::plural('item', count($cart)) }}</flux:text>
-                @endif
             </div>
 
-            <div class="space-y-5 p-6">
+            <div class="space-y-4 p-5">
                 {{-- Payment Method --}}
                 <flux:field>
-                    <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Payment Method
-                    </flux:label>
                     <div class="grid grid-cols-5 gap-2">
                         @foreach ([['cash', 'Cash', 'banknotes', 'F6'], ['card', 'Card', 'credit-card', 'F7'], ['mobile_banking', wallet_label(), 'device-phone-mobile', 'F8'], ['bank_transfer', 'Bank', 'building-library', 'F10']] as [$value, $label, $icon, $key])
                             <button type="button" wire:click="setPaymentMethod('{{ $value }}')"
                                 @class([
-                                    'flex flex-col items-center gap-1.5 rounded-xl border px-1 py-3 transition-colors',
+                                    'flex flex-col items-center gap-1 rounded-xl border px-1 py-2 transition-colors',
                                     'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900' =>
                                         ! $splitMode && $paymentMethod === $value,
                                     'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800' =>
@@ -660,7 +661,7 @@
                         @endforeach
                         <button type="button" wire:click="{{ $splitMode ? 'disableSplit' : 'enableSplit' }}"
                             @class([
-                                'flex flex-col items-center gap-1.5 rounded-xl border px-1 py-3 transition-colors',
+                                'flex flex-col items-center gap-1 rounded-xl border px-1 py-2 transition-colors',
                                 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900' => $splitMode,
                                 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! $splitMode,
                             ])>
@@ -712,8 +713,15 @@
                     </div>
                 @endif
 
-                {{-- Account / card the money goes to (Card, mobile wallet & Bank) --}}
-                @if (! $splitMode && App\Models\PaymentAccount::requiredFor($paymentMethod))
+                {{-- Account / card the money goes to (Card, mobile wallet & Bank), and the
+                     wallet's transaction ID beside it. --}}
+                @php
+                    $needsAccount = ! $splitMode && App\Models\PaymentAccount::requiredFor($paymentMethod);
+                    $needsReference = ! $splitMode && App\Models\Payment::needsReference($paymentMethod);
+                @endphp
+                @if ($needsAccount || $needsReference)
+                <div @class(['grid gap-3', 'grid-cols-2' => $needsAccount && $needsReference])>
+                @if ($needsAccount)
                     <flux:field>
                         <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">
                             {{ match ($paymentMethod) { 'card' => 'Card', 'mobile_banking' => 'Wallet', default => 'Account' } }}
@@ -734,28 +742,30 @@
                     </flux:field>
                 @endif
 
-                @if (! $splitMode && App\Models\Payment::needsReference($paymentMethod))
+                @if ($needsReference)
                     <flux:field>
                         <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Transaction ID</flux:label>
-                        <flux:input wire:model="paymentReference" placeholder="e.g. 9BG7KX2LPQ" />
-                        <flux:description>From the customer's {{ wallet_label() }} payment confirmation.</flux:description>
+                        <flux:input wire:model="paymentReference" placeholder="e.g. 9BG7KX2LPQ"
+                            :title="'From the customer\'s ' . wallet_label() . ' payment confirmation'" />
                         <flux:error name="paymentReference" />
                     </flux:field>
+                @endif
+                </div>
                 @endif
 
                 {{-- Due / credit sale --}}
                 @unless ($splitMode)
-                <div class="rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <flux:text class="text-sm font-medium">Sell on due</flux:text>
-                            <flux:text class="text-xs text-zinc-500">Customer pays part now, the rest later</flux:text>
-                        </div>
+                <div class="rounded-xl border border-zinc-200 px-3 py-2 dark:border-zinc-700">
+                    <div class="flex items-center justify-between gap-3">
+                        <flux:text class="text-sm">
+                            <span class="font-medium text-zinc-800 dark:text-white">Sell on due</span>
+                            <span class="text-zinc-500">· pay part now, the rest later</span>
+                        </flux:text>
                         <flux:switch wire:model.live="payLater" />
                     </div>
 
                     @if ($payLater)
-                        <div class="mt-3 space-y-3" x-data="{
+                        <div class="mb-1 mt-3 space-y-3" x-data="{
                             total: @js(round($this->cartTotal, 2)),
                             get due() {
                                 const paid = parseFloat(String($wire.paidNow ?? '').replace(/,/g, '')) || 0;
@@ -787,7 +797,7 @@
                 {{-- Amount Received (Cash only) --}}
                 @if (! $splitMode && $paymentMethod === 'cash' && ! $payLater)
                     {{-- Change is worked out in the browser as the cashier types — no server round trip. --}}
-                    <div class="space-y-3" wire:key="cash-received-{{ $this->cartTotal }}"
+                    <div class="grid grid-cols-2 gap-3" wire:key="cash-received-{{ $this->cartTotal }}"
                         x-on:input="if ($event.target.tagName === 'INPUT') received = $event.target.value"
                         x-data="{
                             received: @js((string) $amountReceived),
@@ -804,32 +814,35 @@
                             },
                         }">
                         <flux:field>
-                            <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Amount Received
+                            <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">Received
                             </flux:label>
                             <flux:input x-ref="amountInput" wire:model="amountReceived" type="number" step="0.01"
-                                :prefix="currency_symbol()" autofocus class="h-12 text-lg font-semibold tabular-nums"
+                                :prefix="currency_symbol()" autofocus class="h-11 text-lg font-semibold tabular-nums"
                                 x-on:focus="$event.target.select()"
                                 x-on:keydown.enter.prevent="$wire.completeSale()" />
                         </flux:field>
 
-                        <div x-show="short <= 0"
-                            class="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/50 dark:bg-green-950/30">
-                            <span class="text-sm font-medium text-green-800 dark:text-green-300">Change to return</span>
-                            <span class="text-xl font-semibold tabular-nums text-green-700 dark:text-green-400"
-                                x-text="fmt(change)">{{ money($this->changeDue) }}</span>
-                        </div>
-
-                        <div x-show="short > 0" style="display: none"
-                            class="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/50 dark:bg-red-950/30">
-                            <span class="text-sm font-medium text-red-800 dark:text-red-300">Still short</span>
-                            <span class="text-xl font-semibold tabular-nums text-red-700 dark:text-red-400"
-                                x-text="fmt(short)"></span>
-                        </div>
+                        <flux:field>
+                            <flux:label class="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                                <span x-text="short > 0 ? 'Still short' : 'Change'">Change</span>
+                            </flux:label>
+                            <div x-show="short <= 0"
+                                class="flex h-11 items-center justify-end rounded-lg border border-green-200 bg-green-50 px-3 dark:border-green-900/50 dark:bg-green-950/30">
+                                <span class="text-xl font-semibold tabular-nums text-green-700 dark:text-green-400"
+                                    x-text="fmt(change)">{{ money($this->changeDue) }}</span>
+                            </div>
+                            <div x-show="short > 0" style="display: none"
+                                class="flex h-11 items-center justify-end rounded-lg border border-red-200 bg-red-50 px-3 dark:border-red-900/50 dark:bg-red-950/30">
+                                <span class="text-xl font-semibold tabular-nums text-red-700 dark:text-red-400"
+                                    x-text="fmt(short)"></span>
+                            </div>
+                        </flux:field>
                     </div>
                 @endif
             </div>
 
-            <div class="flex justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
+            {{-- Pinned: stays visible even when the fields above need to scroll. --}}
+            <div class="sticky bottom-0 flex justify-end gap-3 rounded-b-xl border-t border-zinc-200 bg-white px-5 py-3 dark:border-zinc-700 dark:bg-zinc-800">
                 <flux:button variant="ghost" wire:click="$set('showPaymentModal', false)" type="button">Cancel
                 </flux:button>
                 <flux:button wire:click="completeSale" variant="primary" icon="check">Complete Sale</flux:button>
