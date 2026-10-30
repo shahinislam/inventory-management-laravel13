@@ -178,15 +178,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ]);
             })->name('receipt');
 
-            // Mushak 6.3 — the VAT tax invoice (Bangladesh NBR format).
-            Route::get('/{invoice}/mushak', function (Invoice $invoice) {
-                return view('pdf.mushak63', [
-                    'invoice' => $invoice->load(['items.product', 'customer', 'warehouse', 'createdBy']),
-                    'company' => Setting::getGroup('company'),
-                    'bin' => Setting::get('company.bin'),
-                ]);
-            })->name('mushak');
-
             Route::get('/{invoice}', InvoiceView::class)->name('show');
         });
     });

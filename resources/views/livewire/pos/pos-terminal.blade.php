@@ -981,12 +981,6 @@
                         target="_blank">
                         Invoice
                     </flux:button>
-                    @if (App\Models\Setting::bool('tax.mushak_enabled'))
-                        <flux:button icon="document-check" variant="outline" class="col-span-2"
-                            :href="route('invoices.mushak', $lastInvoice)" target="_blank">
-                            Mushak 6.3 (VAT invoice)
-                        </flux:button>
-                    @endif
                 </div>
             @endif
 

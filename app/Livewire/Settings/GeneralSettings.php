@@ -24,11 +24,6 @@ class GeneralSettings extends Component
 
     public string $company_tax_number = '';
 
-    /** VAT Business Identification Number, printed on the Mushak 6.3 invoice. */
-    public string $company_bin = '';
-
-    public bool $mushak_enabled = false;
-
     // SMS gateway (generic HTTP). Until enabled + URL set, messages are only logged.
     public bool $sms_enabled = false;
 
@@ -91,7 +86,7 @@ class GeneralSettings extends Component
     /** Left menu colour: light, dark or brand (filled with the primary colour). */
     public string $theme_sidebar = 'light';
 
-    /** Name shown for mobile-wallet payments (bKash, M-Pesa, PayPal …). */
+    /** Name shown for mobile-wallet payments (M-Pesa, GCash, PayPal …). */
     public string $wallet_label = 'Mobile Wallet';
 
     public bool $showMediaPicker = false;
@@ -106,8 +101,6 @@ class GeneralSettings extends Component
         $this->company_phone = Setting::get('company.phone', '') ?? '';
         $this->company_address = Setting::get('company.address', '') ?? '';
         $this->company_tax_number = Setting::get('company.tax_number', '') ?? '';
-        $this->company_bin = Setting::get('company.bin', '') ?? '';
-        $this->mushak_enabled = Setting::bool('tax.mushak_enabled');
 
         $this->sms_enabled = Setting::bool('sms.enabled');
         foreach (['gateway_url', 'http_method', 'api_key', 'sender_id', 'param_to', 'param_message', 'param_key', 'param_sender', 'receipt_template', 'reward_template'] as $key) {
@@ -159,7 +152,6 @@ class GeneralSettings extends Component
         $this->validate([
             'company_name' => 'required|string|max:200',
             'company_email' => 'nullable|email',
-            'company_bin' => 'nullable|string|max:30',
             'sms_gateway_url' => $this->sms_enabled ? 'required|url' : 'nullable|url',
             'sms_http_method' => 'required|in:GET,POST',
             'invoice_prefix' => 'required|string|max:10',
@@ -180,8 +172,6 @@ class GeneralSettings extends Component
         Setting::set('company.phone', $this->company_phone);
         Setting::set('company.address', $this->company_address);
         Setting::set('company.tax_number', $this->company_tax_number);
-        Setting::set('company.bin', $this->company_bin);
-        Setting::set('tax.mushak_enabled', $this->mushak_enabled ? 'true' : 'false');
 
         Setting::set('sms.enabled', $this->sms_enabled ? 'true' : 'false');
         Setting::set('sms.send_receipt', $this->sms_send_receipt ? 'true' : 'false');

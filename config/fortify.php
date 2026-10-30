@@ -142,8 +142,9 @@ return [
     |
     */
 
+    // Public sign-up is off: a self-registered account would get staff access.
+    // Admins add users under Settings → Users.
     'features' => [
-        Features::registration(),
         Features::resetPasswords(),
     ],
 

@@ -103,7 +103,7 @@ class CustomerForm extends Component
 
     public function save(): void
     {
-        // Normalise first so "01712-345 678" is checked as "01712345678".
+        // Normalise first so "(555) 010-0123" is checked as "5550100123".
         $this->phone = Customer::normalizePhone($this->phone) ?? '';
 
         $data = $this->validate();

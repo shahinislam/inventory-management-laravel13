@@ -48,16 +48,16 @@ function placedOrder(float $total = 1000, float $paid = 0): PurchaseOrder
 
 it('creates a payment account', function () {
     Livewire::test(PaymentAccountForm::class)
-        ->set('name', 'bKash Merchant')
+        ->set('name', 'Wallet Merchant')
         ->set('type', 'mobile_wallet')
         ->set('account_number', '5550100000')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('payment-accounts.index'));
 
-    expect(PaymentAccount::where('name', 'bKash Merchant')->first())
+    expect(PaymentAccount::where('name', 'Wallet Merchant')->first())
         ->type->toBe('mobile_wallet')
-        ->display_name->toBe('bKash Merchant ••0000');
+        ->display_name->toBe('Wallet Merchant ••0000');
 });
 
 it('toggles and soft-deletes an account', function () {

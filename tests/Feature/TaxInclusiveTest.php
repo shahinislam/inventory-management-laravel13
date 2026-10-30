@@ -142,17 +142,6 @@ it('prints the tax as included on the receipt and the invoice page', function ()
         ->assertSee('Includes tax '.money(30));
 });
 
-it('shows the VAT inside inclusive prices on the Mushak 6.3 invoice', function () {
-    pricesIncludeTax();
-    sellAtPos(taxedProduct());
-
-    $this->get(route('invoices.mushak', Invoice::sole()))
-        ->assertOk()
-        ->assertSee(money(200, false))
-        ->assertSee(money(30, false))
-        ->assertSee(money(230, false));
-});
-
 it('reports category sales without the tax inside inclusive prices', function () {
     pricesIncludeTax();
     $drinks = Category::factory()->create(['name' => 'Drinks']);

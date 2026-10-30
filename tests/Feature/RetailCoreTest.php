@@ -252,9 +252,9 @@ it('holds a sale without moving stock and resumes it', function () {
 
 // ============ SPLIT / MOBILE BANKING ============
 
-it('splits one bill across cash and bKash', function () {
+it('splits one bill across cash and a mobile wallet', function () {
     openShift();
-    $wallet = PaymentAccount::create(['name' => 'bKash Merchant', 'type' => 'mobile_wallet', 'is_active' => true]);
+    $wallet = PaymentAccount::create(['name' => 'Wallet Merchant', 'type' => 'mobile_wallet', 'is_active' => true]);
     $product = Product::factory()->create(['quantity' => 10, 'selling_price' => 500]);
 
     Livewire::test(PosTerminal::class)
@@ -291,9 +291,9 @@ it('refuses a split that does not add up', function () {
     expect(Invoice::count())->toBe(0);
 });
 
-it('needs the transaction ID for a bKash payment', function () {
+it('needs the transaction ID for a mobile wallet payment', function () {
     openShift();
-    $wallet = PaymentAccount::create(['name' => 'Nagad', 'type' => 'mobile_wallet', 'is_active' => true]);
+    $wallet = PaymentAccount::create(['name' => 'PayPal Business', 'type' => 'mobile_wallet', 'is_active' => true]);
     $product = Product::factory()->create(['quantity' => 10, 'selling_price' => 100]);
 
     $pos = Livewire::test(PosTerminal::class)

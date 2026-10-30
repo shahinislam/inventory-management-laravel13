@@ -62,7 +62,7 @@ class MembershipReward extends Model
         };
     }
 
-    /** "5% off", "৳200 off", "2 × Coffee Mug free". */
+    /** "5% off", "$200 off", "2 × Coffee Mug free". */
     public function getRewardLabelAttribute(): string
     {
         return match ($this->reward_type) {
@@ -73,7 +73,7 @@ class MembershipReward extends Model
         };
     }
 
-    /** "Total spend reaches ৳10,000" / "Bill between ৳2,000 and ৳5,000". */
+    /** "Total spend reaches $10,000" / "Bill between $2,000 and $5,000". */
     public function getRangeLabelAttribute(): string
     {
         if ($this->isCumulative()) {

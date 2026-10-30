@@ -38,8 +38,8 @@ it('requires a payment account for card expenses', function () {
         ->assertHasErrors(['payment_account_id' => 'required']);
 });
 
-it('requires a transaction id for bKash / Nagad expenses', function () {
-    $wallet = PaymentAccount::create(['name' => 'Shop bKash', 'type' => 'mobile_wallet', 'is_active' => true]);
+it('requires a transaction id for mobile wallet expenses', function () {
+    $wallet = PaymentAccount::create(['name' => 'Shop Wallet', 'type' => 'mobile_wallet', 'is_active' => true]);
 
     Livewire::test(ExpenseForm::class)
         ->set('category', 'Transport')

@@ -1,5 +1,5 @@
 // capture.mjs
-// Snapshots the RUNNING Swift Inventory app so the static clone can be matched against it.
+// Snapshots the RUNNING Inventory app so the static clone can be matched against it.
 // Read-only: it only issues GET requests and clicks UI controls that open menus/modals
 // (it never confirms a delete or submits a form other than logging in).
 //
@@ -19,7 +19,7 @@ import path from 'node:path';
 const BASE = (process.env.BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
 const OUT = path.resolve(process.env.OUT_DIR || './out');
 const PASSWORD = process.env.APP_PASSWORD || 'password';
-const TZ_ID = process.env.TZ_ID || 'Asia/Dhaka';
+const TZ_ID = process.env.TZ_ID || 'UTC';
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 const flag = (name) => process.env[name] === '1';
@@ -33,7 +33,6 @@ const ACCOUNTS = {
 
 const AUTH_PAGES = [
     '/login',
-    '/register',
     '/forgot-password',
     '/reset-password/demo-token?email=admin%40inventory.com',
 ];
@@ -74,7 +73,7 @@ const DISCOVER = [
     { list: '/customers', tpl: '/customers/{id}/edit' },
     { list: '/purchases', tpl: '/purchases/{id}/edit', also: ['/purchases/{id}/return'] },
     { list: '/purchases', tpl: '/purchases/returns/{id}' },
-    { list: '/invoices', tpl: '/invoices/{id}', also: ['/invoices/{id}/edit', '/invoices/{id}/receipt', '/invoices/{id}/mushak'] },
+    { list: '/invoices', tpl: '/invoices/{id}', also: ['/invoices/{id}/edit', '/invoices/{id}/receipt'] },
     { list: '/shifts', tpl: '/shifts/{id}', also: ['/shifts/{id}/report'] },
     { list: '/expenses', tpl: '/expenses/{id}/edit' },
     { list: '/promotions', tpl: '/promotions/{id}/edit' },

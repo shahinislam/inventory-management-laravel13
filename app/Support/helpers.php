@@ -3,7 +3,7 @@
 use App\Models\Setting;
 
 if (! function_exists('currency_symbol')) {
-    /** The shop's currency symbol from Settings → Currency ($, €, ৳, ₹ …). */
+    /** The shop's currency symbol from Settings → Currency ($, €, £, ₹ …). */
     function currency_symbol(): string
     {
         return (string) (Setting::get('currency.symbol', '$') ?? '$');
@@ -13,7 +13,7 @@ if (! function_exists('currency_symbol')) {
 if (! function_exists('wallet_label')) {
     /**
      * What the shop calls mobile-wallet payments, from Settings → Currency
-     * (e.g. "bKash / Nagad", "M-Pesa", "GCash", "PayPal"). Defaults to
+     * (e.g. "M-Pesa", "GCash", "PayPal"). Defaults to
      * "Mobile Wallet".
      */
     function wallet_label(): string
@@ -27,7 +27,7 @@ if (! function_exists('money')) {
      * Format an amount using the configured currency settings.
      *
      * Reads currency.symbol / currency.position / currency.decimals from the
-     * settings table (cached), so a deployment can render ৳, €, etc. rather
+     * settings table (cached), so a deployment can render €, £, etc. rather
      * than a hardcoded dollar sign.
      */
     function money(mixed $amount, bool $withSymbol = true): string

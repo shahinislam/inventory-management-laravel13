@@ -9,3 +9,10 @@
 CHANGELOG.md export-ignore
 README.md export-ignore
 .github/workflows/browser-tests.yml export-ignore
+
+/_capture export-ignore
+/_capture/** export-ignore
+/project_plan.md export-ignore
+/compose.yaml export-ignore
+/.editorconfig export-ignore
+/pint.json export-ignore

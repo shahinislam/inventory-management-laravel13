@@ -68,7 +68,7 @@
                     <span>{{ $length }} characters</span>
                     <span>{{ $segments }} SMS {{ Str::plural('part', $segments) }} each</span>
                     @if($unicode)
-                        <span class="text-amber-600 dark:text-amber-400">Bangla/emoji: 70 characters per part</span>
+                        <span class="text-amber-600 dark:text-amber-400">Unicode/emoji: 70 characters per part</span>
                     @endif
                 </div>
             </flux:card>

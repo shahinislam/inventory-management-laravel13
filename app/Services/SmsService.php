@@ -13,8 +13,8 @@ use Throwable;
 use function Illuminate\Support\defer;
 
 /**
- * Text messages through a generic HTTP SMS gateway (most Bangladeshi gateways
- * take a URL with number / message / api key / sender parameters; the
+ * Text messages through a generic HTTP SMS gateway (most gateways take a
+ * URL with number / message / api key / sender parameters; the
  * parameter names are configurable in Settings → SMS).
  *
  * Every message is recorded in activity_logs (action sms_logged, sms_sent or
@@ -137,7 +137,7 @@ class SmsService
         ), $customer, 'reward');
     }
 
-    /** SMS length in segments: 160 chars (GSM) or 70 (Unicode/Bangla) per part. */
+    /** SMS length in segments: 160 chars (GSM) or 70 (Unicode) per part. */
     public static function segments(string $message): int
     {
         $length = mb_strlen($message);

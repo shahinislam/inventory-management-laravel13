@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory Documentation</title>
+<meta name="description" content="Installation and user guide for Inventory, the inventory and POS system for Laravel by Qaswasoft.">
+<style>
+  :root {
+    --primary: #0F7A55;
+    --primary-strong: #0B5E42;
+    --primary-soft: #E7F3EE;
+    --secondary: #B45309;
+    --secondary-soft: #FBF1E6;
+    --tertiary: #1D6FA5;
+    --tertiary-soft: #E8F1F8;
+    --bg: #FAF9F7;
+    --surface: #FFFFFF;
+    --text: #1C1917;
+    --muted: #57534E;
+    --border: #E7E5E4;
+    --code-bg: #F5F4F1;
+    --wordmark: #1C1917;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #3DB585;
+      --primary-strong: #6FD0A6;
+      --primary-soft: #16362A;
+      --secondary: #E0954A;
+      --secondary-soft: #3A2A1A;
+      --tertiary: #5AA6DB;
+      --tertiary-soft: #182C3B;
+      --bg: #1C1917;
+      --surface: #262321;
+      --text: #F5F5F4;
+      --muted: #A8A29E;
+      --border: #3B3734;
+      --code-bg: #302C29;
+      --wordmark: #F6F4EF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #3DB585;
+    --primary-strong: #6FD0A6;
+    --primary-soft: #16362A;
+    --secondary: #E0954A;
+    --secondary-soft: #3A2A1A;
+    --tertiary: #5AA6DB;
+    --tertiary-soft: #182C3B;
+    --bg: #1C1917;
+    --surface: #262321;
+    --text: #F5F5F4;
+    --muted: #A8A29E;
+    --border: #3B3734;
+    --code-bg: #302C29;
+    --wordmark: #F6F4EF;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: var(--primary); text-underline-offset: 2px; }
+  a:hover { color: var(--primary-strong); }
+
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 24px 20px 32px;
+  }
+  .brand { display: block; color: var(--wordmark); margin-bottom: 6px; }
+  .brand svg { width: 150px; height: auto; display: block; }
+  .product { font-weight: 700; font-size: 1.05rem; margin: 14px 0 0; }
+  .version { color: var(--muted); font-size: .85rem; margin: 0 0 18px; }
+  .sidebar nav ol { list-style: none; margin: 0; padding: 0; }
+  .sidebar nav > ol > li { margin: 2px 0; }
+  .sidebar nav a {
+    display: block; padding: 5px 10px; border-radius: 6px;
+    color: var(--text); text-decoration: none; font-size: .94rem;
+  }
+  .sidebar nav a:hover { background: var(--primary-soft); color: var(--primary-strong); }
+  .sidebar nav ol ol a { padding-left: 24px; font-size: .88rem; color: var(--muted); }
+
+  .mobile-nav { display: none; }
+
+  /* Content */
+  main { padding: 48px 56px 96px; max-width: 920px; }
+  header.hero { margin-bottom: 40px; }
+  header.hero h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 10px; }
+  header.hero p { color: var(--muted); font-size: 1.08rem; margin: 0; }
+  .badges { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 18px 0 0; }
+  .badges li {
+    margin: 0; padding: 4px 12px; border-radius: 999px; font-size: .85rem; font-weight: 600;
+    background: var(--primary-soft); color: var(--primary-strong); border: 1px solid var(--border);
+  }
+  .stack { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin: 0 0 18px; }
+  .stack-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .stack-card.featured { border-top: 3px solid var(--primary); }
+  .stack-card p { margin: 0; font-size: .93rem; color: var(--muted); }
+  .stack-card p.stack-name { color: var(--text); font-weight: 700; font-size: 1.02rem; margin-bottom: 6px; }
+  .stack-name span { color: var(--primary); font-weight: 600; font-size: .9rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; font-size: .9rem; color: var(--muted); }
+  .meta strong { color: var(--text); font-weight: 600; }
+
+  section { padding-top: 12px; margin-bottom: 44px; }
+  h2 {
+    font-size: 1.55rem; line-height: 1.3; margin: 0 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  h3 { font-size: 1.15rem; margin: 30px 0 8px; }
+  h4 { font-size: 1rem; margin: 22px 0 6px; }
+  p, ul, ol { margin: 0 0 14px; }
+  li { margin: 4px 0; }
+  main ol.steps { padding-left: 22px; }
+  main ol.steps > li { margin-bottom: 14px; padding-left: 4px; }
+  main ol.steps > li::marker { color: var(--primary); font-weight: 700; }
+
+  code {
+    font: .88em/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg); border: 1px solid var(--border);
+    padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; margin: 0 0 16px;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: .86rem; overflow-wrap: normal; white-space: pre; }
+  .comment { color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.c, th.c { text-align: center; }
+  .full { color: var(--primary); font-weight: 600; }
+  .view { color: var(--tertiary); font-weight: 600; }
+  .none { color: var(--muted); }
+
+  .callout {
+    border: 1px solid var(--border); border-left: 4px solid var(--tertiary);
+    background: var(--tertiary-soft); border-radius: 8px; padding: 12px 16px; margin: 0 0 18px;
+  }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+  .callout.warn { border-left-color: var(--secondary); background: var(--secondary-soft); }
+  .callout.tip { border-left-color: var(--primary); background: var(--primary-soft); }
+  .callout .label { font-weight: 700; margin-right: 4px; }
+
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li { position: relative; padding-left: 30px; margin-bottom: 10px; }
+  .checklist li::before {
+    content: ""; position: absolute; left: 2px; top: 5px; width: 16px; height: 16px;
+    border: 2px solid var(--primary); border-radius: 4px;
+  }
+
+  .path { font-weight: 600; white-space: nowrap; }
+  .path span { color: var(--muted); font-weight: 400; padding: 0 3px; }
+
+  footer.doc-footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: .88rem; }
+
+  @media (max-width: 900px) {
+    .layout { display: block; }
+    .sidebar { display: none; }
+    .mobile-nav {
+      display: block; position: sticky; top: 0; z-index: 10;
+      background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px;
+    }
+    .mobile-nav summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 10px; color: var(--wordmark); }
+    .mobile-nav summary svg { width: 110px; height: auto; }
+    .mobile-nav nav { max-height: 70vh; overflow-y: auto; padding: 10px 0 4px; }
+    .mobile-nav ol { list-style: none; margin: 0; padding: 0; }
+    .mobile-nav a { display: block; padding: 6px 4px; color: var(--text); text-decoration: none; }
+    .mobile-nav ol ol a { padding-left: 18px; color: var(--muted); font-size: .92rem; }
+    main { padding: 28px 16px 72px; }
+    header.hero h1 { font-size: 1.7rem; }
+    html { scroll-padding-top: 64px; }
+  }
+
+  @media print {
+    .sidebar, .mobile-nav { display: none !important; }
+    .layout { display: block; }
+    main { padding: 0; max-width: none; }
+    section { break-inside: auto; }
+    pre, .callout, .table-wrap { break-inside: avoid; }
+    a { color: inherit; }
+  }
+</style>
+</head>
+<body>
+
+<template id="logo">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="76 84 2153.75 365.3" role="img" aria-label="Qaswasoft">
+    <path d="M248 84a172 172 0 1 0 121.6 293.6l-42.4-42.4A112 112 0 1 1 360 256h60A172 172 0 0 0 248 84z" fill="#0F7A55"/>
+    <path d="M288 288l140 140" stroke="#0F7A55" stroke-width="60"/>
+    <g fill="none" stroke="currentColor">
+      <path d="M480.2 311a96 96 0 1 0 192 0a96 96 0 1 0 -192 0M672.2 194V428" stroke-width="54"/>
+      <path d="M847.18 251.84A46.52 46.52 0 1 0 801.68 308.03A49.48 49.48 0 1 1 753.28 367.8" stroke-width="54"/>
+      <clipPath id="c2"><rect x="899.17" y="194" width="310" height="234"/></clipPath>
+      <path clip-path="url(#c2)" d="M915.18 134L992.67 442L1054.17 134L1115.67 442L1193.16 134" stroke-width="54" stroke-linejoin="miter" stroke-miterlimit="10"/>
+      <path d="M1257.17 311a96 96 0 1 0 192 0a96 96 0 1 0 -192 0M1449.17 194V428" stroke-width="54"/>
+      <path d="M1634.09 248.15A49.42 49.42 0 1 0 1585.75 307.85A52.58 52.58 0 1 1 1534.32 371.35" stroke-width="42"/>
+      <path d="M1704.32 311a102 102 0 1 0 204 0a102 102 0 1 0 -204 0" stroke-width="42"/>
+      <path d="M2023.32 428V163A58 58 0 0 1 2125.75 125.72M2151.754289041107 124V428M1957.32 215H2229.754289041107" stroke-width="42"/>
+    </g>
+  </svg>
+</template>
+
+<details class="mobile-nav">
+  <summary><span data-logo></span> Contents</summary>
+  <nav data-toc></nav>
+</details>
+
+<div class="layout">
+  <aside class="sidebar">
+    <span class="brand" data-logo></span>
+    <p class="product">Inventory</p>
+    <p class="version">Version 1.0 · Documentation</p>
+    <nav aria-label="Contents">
+      <ol id="toc">
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#technology">Technology</a></li>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#installation">Installation</a>
+          <ol>
+            <li><a href="#install-server">On a web server</a></li>
+            <li><a href="#install-local">On your computer</a></li>
+            <li><a href="#install-clean">Start without sample data</a></li>
+            <li><a href="#assets">Rebuilding assets</a></li>
+          </ol>
+        </li>
+        <li><a href="#env">The .env file</a></li>
+        <li><a href="#logins">Demo logins</a></li>
+        <li><a href="#first-steps">First steps</a></li>
+        <li><a href="#settings">Settings guide</a>
+          <ol>
+            <li><a href="#settings-company">Company</a></li>
+            <li><a href="#settings-currency">Currency</a></li>
+            <li><a href="#settings-tax">Tax</a></li>
+            <li><a href="#settings-invoice">Invoice</a></li>
+            <li><a href="#settings-expiry">Expiry</a></li>
+            <li><a href="#settings-sms">SMS gateway</a></li>
+            <li><a href="#settings-theme">Theme</a></li>
+          </ol>
+        </li>
+        <li><a href="#roles">Users &amp; roles</a></li>
+        <li><a href="#email">Email</a></li>
+        <li><a href="#updating">Updating</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#support">Support</a></li>
+        <li><a href="#credits">Credits</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <h1>Inventory</h1>
+      <p>An inventory and point-of-sale system for shops, built on the latest Laravel stack: a single-page Livewire app with Flux UI and Tailwind CSS.</p>
+      <ul class="badges" aria-label="Built with">
+        <li>Laravel 13</li>
+        <li>Livewire 4 · SPA</li>
+        <li>Flux UI 2</li>
+        <li>Tailwind CSS 4</li>
+        <li>Alpine.js</li>
+        <li>Vite 8</li>
+        <li>PHP 8.3</li>
+      </ul>
+      <div class="meta">
+        <span><strong>Version</strong> 1.0</span>
+        <span><strong>Author</strong> Qaswasoft</span>
+        <span><strong>Support</strong> <a href="mailto:shahin.sec.cse@gmail.com">shahin.sec.cse@gmail.com</a></span>
+      </div>
+    </header>
+
+    <!-- ============================================================ -->
+    <section id="introduction">
+      <h2>Introduction</h2>
+      <p>Thank you for purchasing Inventory. This guide takes you from a fresh download to a working shop: installation, configuration, user roles and day-to-day settings.</p>
+      <h3>What's included</h3>
+      <ul>
+        <li><strong>Point of sale</strong>: barcode scanning, held sales, split payments (cash, card, mobile wallet, bank transfer), 80&nbsp;mm thermal receipts.</li>
+        <li><strong>Stock</strong>: multiple warehouses, batches with expiry dates, stock adjustments, transfers, stock counts and barcode label printing.</li>
+        <li><strong>Sales</strong>: invoices with due tracking and payments, sales returns, cash shifts with a Z-report, customers with member rewards, and promotions.</li>
+        <li><strong>Purchasing</strong>: purchase orders, supplier payments, purchase returns and payment accounts.</li>
+        <li><strong>Finance and reports</strong>: expenses, plus reports for stock, sales, low stock, dues, accounts, expiry and profit &amp; loss. Partner investment and profit reports are also included.</li>
+        <li><strong>Marketing</strong>: SMS to members through your own HTTP SMS gateway.</li>
+        <li><strong>Administration</strong>: four user roles, your own brand colours and logo, and light/dark mode.</li>
+      </ul>
+      <h3>Package contents</h3>
+      <ul>
+        <li><code>inventory/</code> is the application (a Laravel project). The pre-built CSS/JS is already in <code>public/build</code>.</li>
+        <li><code>documentation/</code> is this guide.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="technology">
+      <h2>Technology</h2>
+      <p>Inventory uses the current versions of the official Laravel ecosystem. There is no separate JavaScript framework or API to maintain: the whole app is PHP and Blade, yet it behaves like a single-page application.</p>
+      <div class="stack">
+        <div class="stack-card featured">
+          <p class="stack-name">Livewire 4 <span>· single-page app</span></p>
+          <p>Every screen is a Livewire component. Links use <code>wire:navigate</code>, so moving between pages swaps the content without a full browser reload, and notifications carry over from page to page. Forms, searches, filters and the POS cart update in place without page refreshes.</p>
+        </div>
+        <div class="stack-card featured">
+          <p class="stack-name">Flux UI 2</p>
+          <p>The official component library from the creator of Livewire: buttons, inputs, modals, dropdowns, tables and navigation with consistent styling, keyboard support and built-in dark mode.</p>
+        </div>
+        <div class="stack-card featured">
+          <p class="stack-name">Tailwind CSS 4</p>
+          <p>Utility-first styling on the new Tailwind engine. Your three brand colours are expanded into full shade ranges and applied app-wide through CSS variables, with no rebuild needed.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stack-name">Laravel 13</p>
+          <p>The latest Laravel on PHP 8.3, with Fortify for sign-in, password resets and login throttling.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stack-name">Alpine.js</p>
+          <p>Small client-side touches like toggles and dropdowns, bundled with Livewire. USB and Bluetooth barcode scanners work with no setup on the POS, invoice, product, purchase, return and stock screens.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stack-name">Vite 8</p>
+          <p>A fast asset build with self-hosted fonts. The compiled assets are included, so Node.js is optional.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stack-name">Pest 4</p>
+          <p>More than 360 automated tests covering sales, stock, tax, roles and reports are included in <code>tests/</code>.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stack-name">MySQL / MariaDB</p>
+          <p>Transactional stock and document numbering with row locks, so two tills can't sell the same last item or reuse an invoice number.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="requirements">
+      <h2>Requirements</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td>PHP</td><td><strong>8.3 or newer</strong> with these extensions: BCMath, Ctype, cURL, DOM, Fileinfo, Filter, Mbstring, OpenSSL, PDO MySQL, Session, Tokenizer, XML, Intl and <strong>Imagick</strong> (needed to upload logos and product images).</td></tr>
+            <tr><td>Database</td><td><strong>MySQL 8.0+</strong> or <strong>MariaDB 10.4+</strong>.</td></tr>
+            <tr><td>Web server</td><td>Apache with <code>mod_rewrite</code> (an <code>.htaccess</code> file is included) or Nginx. The site's document root must point to the <code>public</code> folder.</td></tr>
+            <tr><td>Command line</td><td>SSH or a hosting terminal (for example cPanel → Terminal) to run a few <code>php artisan</code> commands during installation and updates.</td></tr>
+            <tr><td>Composer 2</td><td>Only if your download does not include the <code>vendor</code> folder.</td></tr>
+            <tr><td>Node.js</td><td><strong>Not needed</strong> to install or run the app. You only need Node.js 20.19+ or 22.12+ if you change CSS or JavaScript and rebuild the assets.</td></tr>
+            <tr><td>Browser</td><td>A current version of Chrome, Edge, Firefox or Safari. Everything prints through the browser: receipts to any 80&nbsp;mm thermal printer, invoices on A4 or Letter, and barcode labels on A4 label sheets or a label printer.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="installation">
+      <h2>Installation</h2>
+
+      <h3 id="install-server">On a web server</h3>
+      <ol class="steps">
+        <li>
+          <strong>Upload the files.</strong> Upload the contents of the <code>inventory/</code> folder to your server, for example to <code>/home/youruser/inventory</code>.
+        </li>
+        <li>
+          <strong>Point your domain to <code>public</code>.</strong> In your hosting panel, set the document root of your domain or subdomain to <code>/home/youruser/inventory/public</code>.
+          <div class="callout warn"><p><span class="label">Important:</span> Never expose the project root itself. Only the <code>public</code> folder should be reachable from the web, otherwise your <code>.env</code> file (with database passwords) could be downloaded.</p></div>
+        </li>
+        <li>
+          <strong>Create a database.</strong> Create an empty MySQL/MariaDB database with collation <code>utf8mb4_unicode_ci</code>, plus a database user with full rights on it.
+        </li>
+        <li>
+          <strong>Create the <code>.env</code> file.</strong> Copy <code>.env.example</code> to <code>.env</code> and fill in at least <code>APP_URL</code>, <code>APP_TIMEZONE</code> and the <code>DB_*</code> values. See <a href="#env">The .env file</a>.
+        </li>
+        <li>
+          <strong>Run the install commands</strong> from the project folder:
+<pre><code>cd /home/youruser/inventory
+
+<span class="comment"># Skip this line if your download already contains the vendor folder</span>
+composer install --no-dev --optimize-autoloader
+
+php artisan key:generate --force
+php artisan migrate --seed --force
+php artisan storage:link
+php artisan optimize</code></pre>
+          <p><code>migrate --seed</code> creates the tables, the demo user accounts, default settings and sample data (products, customers, sales and so on), so you can explore every screen. To start with an empty shop instead, see <a href="#install-clean">Start without sample data</a>.</p>
+          <p><code>--force</code> is needed because <code>.env.example</code> sets <code>APP_ENV=production</code>, and Laravel asks for confirmation before changing a production database.</p>
+        </li>
+        <li>
+          <strong>Set folder permissions.</strong> The web server must be able to write to <code>storage/</code> and <code>bootstrap/cache/</code>:
+<pre><code>chmod -R 775 storage bootstrap/cache</code></pre>
+        </li>
+        <li>
+          <strong>Log in.</strong> Open your <code>APP_URL</code> in the browser and sign in with the <a href="#logins">admin demo login</a>. Then change all demo passwords.
+        </li>
+      </ol>
+
+      <h3 id="install-local">On your computer (to try it out)</h3>
+      <p>With PHP 8.3 and MySQL/MariaDB installed (for example with XAMPP), unzip the package and run:</p>
+<pre><code>cd inventory
+copy .env.example .env          <span class="comment"># macOS / Linux: cp .env.example .env</span>
+<span class="comment"># edit .env: DB_DATABASE, DB_USERNAME, DB_PASSWORD
+# for local testing you may set APP_ENV=local and APP_DEBUG=true</span>
+
+composer install                <span class="comment"># skip if vendor/ is included</span>
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve</code></pre>
+      <p>Then open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>.</p>
+
+      <h3 id="install-clean">Start without sample data</h3>
+      <p>When you are ready to go live with real data, run these instead of <code>php artisan migrate --seed --force</code>:</p>
+<pre><code>php artisan migrate --force
+php artisan db:seed --class=AdminUserSeeder --force
+php artisan db:seed --class=SettingsSeeder --force
+php artisan db:seed --class=WarehouseSeeder --force</code></pre>
+      <p>This gives you the three demo accounts, the default settings and two warehouses (rename or edit them under <span class="path">Inventory <span>›</span> Warehouses</span>). There are no products, customers or transactions.</p>
+      <div class="callout warn"><p><span class="label">Already installed with sample data?</span> <code>php artisan migrate:fresh --force</code> followed by the three seed commands gives you a clean start, but it <strong>deletes all data</strong>, including anything you entered. Only do this before you start trading.</p></div>
+
+      <h3 id="assets">Rebuilding assets (optional)</h3>
+      <p>The compiled CSS and JavaScript are already in <code>public/build</code>. You only need to rebuild them if you edit files in <code>resources/css</code>, <code>resources/js</code> or change Tailwind classes in the views:</p>
+<pre><code>npm install
+npm run build</code></pre>
+      <div class="callout"><p>If a file named <code>public/hot</code> exists on your server, delete it. It tells the app to load assets from a development server, and pages will appear unstyled.</p></div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="env">
+      <h2>The .env file</h2>
+      <p>The <code>.env</code> file in the project root holds your server-specific configuration. The important keys:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Key</th><th>What to set</th></tr></thead>
+          <tbody>
+            <tr><td><code>APP_NAME</code></td><td>The name shown in the browser tab and emails. Your shop name on receipts comes from <a href="#settings-company">Company settings</a>.</td></tr>
+            <tr><td><code>APP_ENV</code></td><td><code>production</code> on a live server, <code>local</code> on your computer.</td></tr>
+            <tr><td><code>APP_KEY</code></td><td>Leave empty. <code>php artisan key:generate</code> fills it in. Never share or change it after going live.</td></tr>
+            <tr><td><code>APP_DEBUG</code></td><td><code>false</code> on a live server. Set it to <code>true</code> only briefly while troubleshooting, because it shows sensitive details on error pages.</td></tr>
+            <tr><td><code>APP_URL</code></td><td>The full address of your site, including <code>https://</code>, for example <code>https://shop.example.com</code>. Images and links are built from it.</td></tr>
+            <tr><td><code>APP_TIMEZONE</code></td><td>Your shop's timezone as a PHP timezone name, for example <code>America/New_York</code>, <code>Europe/London</code>, <code>Asia/Dubai</code> or <code>Australia/Sydney</code>. Default: <code>UTC</code>. Invoices, shifts and reports use it.</td></tr>
+            <tr><td><code>DB_HOST</code>, <code>DB_PORT</code>, <code>DB_DATABASE</code>, <code>DB_USERNAME</code>, <code>DB_PASSWORD</code></td><td>Your database connection.</td></tr>
+            <tr><td><code>MAIL_*</code></td><td>SMTP settings for password-reset emails. See <a href="#email">Email</a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn"><p><span class="label">Set the timezone before you start selling.</span> Times are stored in the configured timezone. If you change <code>APP_TIMEZONE</code> later, existing records keep their original clock times.</p></div>
+      <div class="callout tip"><p>After any change to <code>.env</code> on a server, run <code>php artisan optimize</code> so the new values are picked up (the configuration is cached).</p></div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="logins">
+      <h2>Demo logins</h2>
+      <p>The seeders create three accounts. All of them use the password <code>password</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Email</th><th>Password</th></tr></thead>
+          <tbody>
+            <tr><td>Admin</td><td><code>admin@inventory.com</code></td><td><code>password</code></td></tr>
+            <tr><td>Manager</td><td><code>manager@inventory.com</code></td><td><code>password</code></td></tr>
+            <tr><td>Staff</td><td><code>staff@inventory.com</code></td><td><code>password</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>No Viewer account is created. Add one under <span class="path">Settings <span>›</span> Users</span> if you need it.</p>
+
+      <h3>Changing the demo logins</h3>
+      <div class="callout warn"><p><span class="label">Do this before going live.</span> Anyone who knows these well-known logins can sign in to your shop.</p></div>
+      <ul>
+        <li><strong>Your own account:</strong> open the user menu (bottom left) → <strong>Settings</strong>. Change your name and email under <strong>Profile</strong>, and your password under <strong>Security</strong>.</li>
+        <li><strong>Other accounts (admin only):</strong> go to <span class="path">Settings <span>›</span> Users</span>. You can edit any user's name, email, role and password, deactivate them, or delete them. Delete or re-assign the demo manager and staff accounts you don't need.</li>
+        <li>The last active admin cannot be demoted, deactivated or deleted, so you can't lock yourself out.</li>
+      </ul>
+      <p>Public sign-up is turned off. New people can only get an account from an admin under <span class="path">Settings <span>›</span> Users</span>.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="first-steps">
+      <h2>First steps</h2>
+      <p>A suggested order for setting up a new shop:</p>
+      <ol class="steps">
+        <li>Change the demo passwords (see above).</li>
+        <li>Fill in <span class="path">Settings <span>›</span> General</span>: company details, logo, currency, tax and invoice texts.</li>
+        <li>Check your warehouses under <span class="path">Inventory <span>›</span> Warehouses</span>. One must be the default.</li>
+        <li>Add your bank, card and mobile wallet accounts under <span class="path">Purchasing <span>›</span> Payment Accounts</span>.</li>
+        <li>Create users for your team with the right roles.</li>
+        <li>Add categories, suppliers and products, or receive stock through <span class="path">Purchasing <span>›</span> Purchase Orders</span>.</li>
+        <li>Open a cash shift (<span class="path">Sales <span>›</span> My Shift</span>), then start selling from the <strong>POS Terminal</strong>.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="settings">
+      <h2>Settings guide</h2>
+      <p>All shop-wide settings are on <span class="path">Settings <span>›</span> General</span> (admins only). Change what you need, then click <strong>Save All Settings</strong>.</p>
+
+      <h3 id="settings-company">Company information and logo</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Company Name</td><td>Required. Printed at the top of receipts and invoices, and used as <code>{shop}</code> in SMS messages.</td></tr>
+            <tr><td>Email, Phone, Address</td><td>Printed in the receipt and invoice header.</td></tr>
+            <tr><td>Tax / VAT Number</td><td>Your tax registration number.</td></tr>
+            <tr><td>Company Logo</td><td>In the right-hand column, click <strong>Change Logo</strong> and pick or upload an image from the Media Library. It appears in the sidebar, on the login screen and on invoices. A square image works best.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="settings-currency">Currency</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Symbol</td><td>Shown next to every amount, for example <code>$</code>, <code>€</code>, <code>£</code> or <code>¥</code>.</td></tr>
+            <tr><td>Currency Code</td><td>The ISO code, for example <code>USD</code>, <code>EUR</code> or <code>GBP</code>.</td></tr>
+            <tr><td>Symbol Position</td><td><em>Before amount</em> ($100) or <em>After amount</em> (100$).</td></tr>
+            <tr><td>Decimal Places</td><td><code>2</code> (100.00) or <code>0</code> (100).</td></tr>
+            <tr><td>Mobile wallet name</td><td>The <strong>POS wallet label</strong>: how wallet payments are named at the POS, on receipts and in payment forms, for example <em>M-Pesa</em>, <em>GCash</em>, <em>Venmo</em> or <em>PayPal</em>. Default: <em>Mobile Wallet</em>. Wallet payments always ask for the transaction ID.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="settings-tax">Tax</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Default Tax Rate (%)</td><td>Pre-filled as the tax rate of <strong>new products</strong>. Each product keeps its own rate, and sales use the product's rate. Changing the default does not change existing products. Default: <code>0</code>.</td></tr>
+            <tr><td>Prices include tax</td><td><strong>On:</strong> your selling prices already contain tax, and receipts show the tax that is included. <strong>Off</strong> (default): tax is added on top of the price.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="settings-invoice">Invoice</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Invoice Number Prefix</td><td>Default <code>INV</code>. Numbers look like <code>INV-2026-0001</code>, and the sequence restarts at 0001 every calendar year.</td></tr>
+            <tr><td>Invoice Footer Text</td><td>A short line at the bottom of receipts and invoices, for example <em>Thank you for your business!</em></td></tr>
+            <tr><td>Terms &amp; Conditions</td><td>Your payment terms, return policy and so on, printed below the totals.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="settings-expiry">Expiry</h3>
+      <p><strong>Expiring-soon window</strong> (days, default <code>30</code>) is the default range for <span class="path">Reports <span>›</span> Expiry Report</span>. Batches that expire within this many days are listed as "expiring soon".</p>
+
+      <h3 id="settings-sms">SMS gateway</h3>
+      <p>Inventory sends SMS through any HTTP SMS gateway: you copy the API address and parameter names from your provider's documentation. While the SMS switch is off, messages are only recorded in <span class="path">Marketing <span>›</span> SMS Log</span> and nothing is sent.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>SMS switch</td><td>Turns real sending on or off.</td></tr>
+            <tr><td>Gateway URL</td><td>Your provider's send endpoint, for example <code>https://api.your-sms-provider.com/send</code>.</td></tr>
+            <tr><td>Method</td><td><code>POST</code> sends the values as a form body. <code>GET</code> sends them as URL query parameters. Use whichever your provider documents.</td></tr>
+            <tr><td>API key, Sender ID</td><td>The credentials and approved sender name from your provider.</td></tr>
+            <tr><td>Parameter names</td><td>The names your gateway expects for each value. Defaults: phone <code>number</code>, message <code>message</code>, API key <code>api_key</code>, sender <code>senderid</code>. Change them only if your gateway uses different names.</td></tr>
+            <tr><td>Send a thank-you SMS after each member sale</td><td>Sends the <em>Sale message</em> automatically after a sale to a customer.</td></tr>
+            <tr><td>Sale message</td><td>Placeholders: <code>{name}</code> <code>{invoice}</code> <code>{total}</code> <code>{spent}</code> <code>{shop}</code></td></tr>
+            <tr><td>Reward message</td><td>Sent when a member earns a reward. Placeholders: <code>{name}</code> <code>{reward}</code> <code>{invoice}</code> <code>{shop}</code></td></tr>
+            <tr><td>Send a test to</td><td>Sends a test message to the number you enter, so you can check the gateway settings.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Example: if your provider documents <code>https://sms.example.com/api?apikey=…&amp;to=…&amp;text=…&amp;from=…</code>, choose <code>GET</code>, enter <code>https://sms.example.com/api</code> as the Gateway URL, and set the parameter names to <code>to</code>, <code>text</code>, <code>apikey</code> and <code>from</code>.</p>
+      <p>To send a message to many customers at once, use <span class="path">Marketing <span>›</span> SMS to Members</span>. Every message and the gateway's response are listed in the SMS Log.</p>
+
+      <h3 id="settings-theme">Theme</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Primary colour</td><td>Buttons, links, focus rings and the active menu item. Default <code>#0F7A55</code>.</td></tr>
+            <tr><td>Secondary colour</td><td>Supporting accents and highlights. Default <code>#B45309</code>.</td></tr>
+            <tr><td>Tertiary colour</td><td>Charts and extra data series. Default <code>#1D6FA5</code>.</td></tr>
+            <tr><td>Sidebar style</td><td><em>Light</em>, <em>Dark</em> or <em>Brand</em> (a deep shade of your primary colour). It applies as soon as you pick one.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each colour is expanded into a full range of shades automatically, so picking the main colour from your logo is enough. A live preview shows the colours before you save.</p>
+      <p><strong>Light / dark mode</strong> is a personal choice: each user picks <em>Light</em>, <em>Dark</em> or <em>System</em> under user menu → <span class="path">Settings <span>›</span> Appearance</span>.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="roles">
+      <h2>Users &amp; roles</h2>
+      <p>Admins manage accounts under <span class="path">Settings <span>›</span> Users</span>. Each user has one of four roles:</p>
+      <ul>
+        <li><strong>Admin</strong>: full access, including settings, users, warehouses and partnership figures.</li>
+        <li><strong>Manager</strong>: runs the shop: purchasing, expenses, promotions, rewards, SMS and every report, including profit &amp; loss.</li>
+        <li><strong>Staff</strong>: daily work: POS, invoices, customers, products and stock.</li>
+        <li><strong>Viewer</strong>: read-only access to products, stock, customers, invoices and most reports, for an accountant or owner who only checks figures.</li>
+      </ul>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th class="c">Admin</th><th class="c">Manager</th><th class="c">Staff</th><th class="c">Viewer</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td></tr>
+            <tr><td>POS Terminal &amp; Sales Returns</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td></tr>
+            <tr><td>Cash Shifts</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Own shift</td><td class="c none">—</td></tr>
+            <tr><td>Invoices</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c view">View</td></tr>
+            <tr><td>Customers</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c view">View</td></tr>
+            <tr><td>Products &amp; Labels</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c view">View</td></tr>
+            <tr><td>Categories</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c view">View</td></tr>
+            <tr><td>Stock Management</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c view">View</td></tr>
+            <tr><td>Warehouses</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Purchases &amp; Purchase Returns</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Suppliers</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c view">View</td></tr>
+            <tr><td>Payment Accounts</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c view">View</td></tr>
+            <tr><td>Expenses</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Promotions</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Member Rewards</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>SMS Marketing</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Media Library</td><td class="c full">Full</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td></tr>
+            <tr><td>Reports</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c view">View</td></tr>
+            <tr><td>Profit &amp; Loss Report</td><td class="c full">Full</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Partnership</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td><td class="c none">—</td></tr>
+            <tr><td>Settings &amp; Users</td><td class="c full">Full</td><td class="c none">—</td><td class="c none">—</td><td class="c none">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Posting a stock count and writing off expired stock need a manager or admin. The same matrix is shown in the app under <span class="path">Settings <span>›</span> Roles</span>. Roles are fixed; to change what someone can do, give them a different role. Deactivated users cannot sign in.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="email">
+      <h2>Email</h2>
+      <p>The app sends email only for password resets. By default (<code>MAIL_MAILER=log</code>) emails are not sent; they are written to <code>storage/logs/laravel.log</code>. To send real email, enter your provider's SMTP details in <code>.env</code>:</p>
+<pre><code>MAIL_MAILER=smtp
+MAIL_HOST=smtp.your-provider.com
+MAIL_PORT=587
+MAIL_USERNAME=your-username
+MAIL_PASSWORD=your-password
+MAIL_FROM_ADDRESS="shop@your-domain.com"
+MAIL_FROM_NAME="${APP_NAME}"</code></pre>
+      <p>Then run <code>php artisan optimize</code>. Without email, an admin can still set a new password for any user under <span class="path">Settings <span>›</span> Users</span>.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="updating">
+      <h2>Updating</h2>
+      <p>When a new version is released, download it from your CodeCanyon <em>Downloads</em> page and follow these steps:</p>
+      <ol class="steps">
+        <li><strong>Back up</strong> your database (for example an export from phpMyAdmin or <code>mysqldump</code>), your <code>.env</code> file and the <code>storage/app/public</code> folder (your uploaded logo and product images).</li>
+        <li><strong>Turn on maintenance mode:</strong> <code>php artisan down</code></li>
+        <li><strong>Upload the new files</strong> over the old ones. Replace everything (including <code>public/build</code>, and <code>vendor</code> if included) <strong>except</strong> your <code>.env</code> file and the <code>storage</code> folder.</li>
+        <li><strong>Run the update commands:</strong>
+<pre><code>composer install --no-dev --optimize-autoloader   <span class="comment"># skip if vendor/ is included</span>
+php artisan migrate --force
+php artisan optimize:clear
+php artisan optimize</code></pre>
+        </li>
+        <li><strong>Turn maintenance mode off:</strong> <code>php artisan up</code></li>
+      </ol>
+      <div class="callout warn"><p><span class="label">Never</span> run <code>migrate:fresh</code> or <code>--seed</code> on a live shop. <code>migrate:fresh</code> deletes all data, and the seeders add demo accounts and sample data.</p></div>
+      <p>If you changed any of the app's code, keep a note of your changes, because the update overwrites them.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      <h4>"500 Server Error" right after installing</h4>
+      <ul>
+        <li>Check that <code>storage/</code> and <code>bootstrap/cache/</code> are writable by the web server.</li>
+        <li>Check that <code>APP_KEY</code> in <code>.env</code> is filled in (<code>php artisan key:generate --force</code>).</li>
+        <li>Read the latest error in <code>storage/logs/laravel.log</code>. You can also set <code>APP_DEBUG=true</code> briefly to see the error in the browser, but always set it back to <code>false</code>.</li>
+      </ul>
+      <h4>Pages show no styling</h4>
+      <p>Make sure <code>public/build</code> was uploaded, and delete <code>public/hot</code> if it exists.</p>
+      <h4>Logo or product images don't appear</h4>
+      <p>Run <code>php artisan storage:link</code>, and check that <code>APP_URL</code> matches the address in your browser exactly, including <code>https://</code>.</p>
+      <h4>Image upload fails</h4>
+      <p>The PHP <strong>Imagick</strong> extension is missing. Ask your host to enable it, or enable it in your PHP settings.</p>
+      <h4>Changes to .env have no effect</h4>
+      <p>Run <code>php artisan optimize:clear</code> and then <code>php artisan optimize</code>.</p>
+      <h4>Dates or times are off by some hours</h4>
+      <p>Set <code>APP_TIMEZONE</code> to your local timezone and run <code>php artisan optimize</code>.</p>
+      <h4>"Too many login attempts"</h4>
+      <p>Each account allows five sign-in attempts per minute. Wait a minute and try again.</p>
+      <h4>The POS asks you to open a shift</h4>
+      <p>Sales are recorded in a cash shift. Open one under <span class="path">Sales <span>›</span> My Shift</span> with your opening cash, then return to the POS Terminal.</p>
+      <h4>Password-reset emails don't arrive</h4>
+      <p>Configure SMTP as described in <a href="#email">Email</a>, or reset the password as an admin under <span class="path">Settings <span>›</span> Users</span>.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="support">
+      <h2>Support</h2>
+      <p>If you have a question or found a bug, contact us through the <strong>Support</strong> tab on the item's CodeCanyon page, or email <a href="mailto:shahin.sec.cse@gmail.com">shahin.sec.cse@gmail.com</a>. Please include:</p>
+      <ul>
+        <li>your purchase code,</li>
+        <li>the app version and your PHP and MySQL/MariaDB versions,</li>
+        <li>what you did, what you expected and what happened, with a screenshot,</li>
+        <li>the relevant lines from <code>storage/logs/laravel.log</code> if there was an error.</li>
+      </ul>
+      <p>Item support covers questions about features, help with installation, and fixing bugs, as described in <a href="https://codecanyon.net/page/item_support_policy">Envato's item support policy</a>. Customisation and new features are not included.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="credits">
+      <h2>Credits</h2>
+      <p>Inventory is built on these open-source projects:</p>
+      <ul>
+        <li><a href="https://laravel.com">Laravel</a> and Laravel Fortify (MIT)</li>
+        <li><a href="https://livewire.laravel.com">Livewire</a> and <a href="https://fluxui.dev">Flux</a> (MIT)</li>
+        <li><a href="https://alpinejs.dev">Alpine.js</a> (MIT)</li>
+        <li><a href="https://tailwindcss.com">Tailwind CSS</a> (MIT)</li>
+        <li><a href="https://image.intervention.io">Intervention Image</a> (MIT)</li>
+        <li><a href="https://heroicons.com">Heroicons</a> (MIT) and <a href="https://lucide.dev">Lucide</a> icons (ISC)</li>
+        <li><a href="https://fonts.google.com/specimen/Instrument+Sans">Instrument Sans</a> font (SIL Open Font License 1.1)</li>
+      </ul>
+      <p>The sample data is fictional. All names, companies, numbers and addresses are made up.</p>
+    </section>
+
+    <footer class="doc-footer">
+      Inventory · Version 1.0 · © Qaswasoft
+    </footer>
+  </main>
+</div>
+
+<script>
+  // Inline the logo wherever it's used and reuse the sidebar contents for the mobile menu.
+  (function () {
+    var logo = document.getElementById('logo');
+    document.querySelectorAll('[data-logo]').forEach(function (slot) {
+      slot.appendChild(logo.content.cloneNode(true));
+    });
+    var toc = document.getElementById('toc');
+    var mobile = document.querySelector('[data-toc]');
+    if (toc && mobile) {
+      mobile.appendChild(toc.cloneNode(true)).removeAttribute('id');
+      var menu = document.querySelector('.mobile-nav');
+      mobile.addEventListener('click', function (e) {
+        if (e.target.closest('a')) menu.removeAttribute('open');
+      });
+    }
+  })();
+</script>
+</body>
+</html>

@@ -49,8 +49,8 @@ class Customer extends Model
     }
 
     /**
-     * Strip spaces, dashes, dots and brackets so "01712-345 678" and
-     * "01712345678" are the same member. A leading + is kept.
+     * Strip spaces, dashes, dots and brackets so "(555) 010-0123" and
+     * "5550100123" are the same member. A leading + is kept.
      */
     public static function normalizePhone(?string $phone): ?string
     {

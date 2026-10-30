@@ -69,13 +69,9 @@
                 <flux:button icon="arrow-uturn-left" variant="outline" :href="route('returns.create', ['invoice' => $invoice->id])" wire:navigate>
                     Return items</flux:button>
             @endif
-            @if (App\Models\Setting::bool('tax.mushak_enabled'))
-                <flux:button icon="document-check" variant="outline" href="{{ route('invoices.mushak', $invoice) }}" target="_blank">
-                    Mushak 6.3</flux:button>
-            @endif
             <flux:button icon="receipt-percent" variant="outline" href="{{ route('invoices.receipt', $invoice) }}"
                 target="_blank">Receipt</flux:button>
-            {{-- The browser's print dialog also saves as PDF, and renders every script (Bangla, Arabic, Hindi …). --}}
+            {{-- The browser's print dialog also saves as PDF, and renders every script (Arabic, Hindi, Chinese …). --}}
             <flux:button icon="printer" variant="outline" onclick="window.print()">Print / PDF</flux:button>
         </div>
     </div>

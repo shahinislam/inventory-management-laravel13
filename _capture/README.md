@@ -1,6 +1,6 @@
 # Capture kit
 
-Snapshots the **running** Swift Inventory app (HTML, screenshots, role access matrix) so the static
+Snapshots the **running** Inventory app (HTML, screenshots, role access matrix) so the static
 GitHub Pages clone can be matched against it page by page.
 
 It is read-only: it only issues GET requests and opens menus/modals. It never confirms a delete or
@@ -63,7 +63,7 @@ It takes roughly 5 to 10 minutes. Output goes to `_capture\out\`.
 |---|---|---|
 | `BASE_URL` | `http://127.0.0.1:8000` | Where the app is served |
 | `APP_PASSWORD` | `password` | Password for all seeded accounts |
-| `TZ_ID` | `Asia/Dhaka` | Browser timezone used for rendering |
+| `TZ_ID` | `UTC` | Browser timezone used for rendering |
 | `SKIP_DARK=1` | off | Skip the dark-mode pass |
 | `SKIP_MOBILE=1` | off | Skip the 390px mobile pass |
 | `SKIP_STATES=1` | off | Skip menu/modal/sidebar state shots |
@@ -72,7 +72,7 @@ It takes roughly 5 to 10 minutes. Output goes to `_capture\out\`.
 
 ```
 out/
-  auth-light/     login, register, forgot/reset password
+  auth-light/     login, forgot/reset password
   admin-light/    every page as admin: .html + .png (+ .snapshot.json = Livewire state)
   admin-dark/     the same pages in dark mode (.png)
   admin-mobile/   a few pages at 390px (.png)

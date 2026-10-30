@@ -1,10 +1,7 @@
 <?php
 
 use App\Livewire\Products\LabelPrint;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Product;
-use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Barcode\Code128;
@@ -76,53 +73,4 @@ it('prints one label per copy', function () {
     $response->assertOk();
     expect(substr_count($response->getContent(), 'Golden Tea Pack'))->toBe(2)
         ->and($response->getContent())->toContain('<svg');
-});
-
-it('renders the Mushak-6.3 tax invoice with the BIN', function () {
-    Setting::set('company.bin', '123456789-0101');
-    $product = Product::factory()->create(['name' => 'Widget']);
-
-    $invoice = Invoice::create([
-        'created_by' => auth()->id(),
-        'customer_name' => 'A',
-        'status' => 'paid',
-        'invoice_date' => now(),
-        'subtotal' => 100,
-        'total' => 115,
-    ]);
-
-    InvoiceItem::create([
-        'invoice_id' => $invoice->id,
-        'product_id' => $product->id,
-        'product_name' => 'Widget',
-        'product_sku' => $product->sku,
-        'quantity' => 2,
-        'unit_price' => 50,
-        'discount' => 0,
-        'tax_rate' => 15,
-        'subtotal' => 115,
-        'tax_amount' => 15,
-    ]);
-
-    $this->get(route('invoices.mushak', $invoice))
-        ->assertOk()
-        ->assertSee('Mushak-6.3')
-        ->assertSee('123456789-0101')
-        ->assertSee('Widget')
-        ->assertSee(money(15, false));
-});
-
-it('warns when the BIN is not set', function () {
-    $invoice = Invoice::create([
-        'created_by' => auth()->id(),
-        'customer_name' => 'A',
-        'status' => 'paid',
-        'invoice_date' => now(),
-        'subtotal' => 100,
-        'total' => 100,
-    ]);
-
-    $this->get(route('invoices.mushak', $invoice))
-        ->assertOk()
-        ->assertSee('BIN not set');
 });

@@ -148,7 +148,7 @@ it('records the batch and expiry when receiving', function () {
 it('requires a transaction ID for a mobile banking supplier payment', function () {
     $product = Product::factory()->create();
     $order = unitOrder($product, ['quantity' => 10, 'unit_cost' => 48]);
-    $wallet = PaymentAccount::create(['name' => 'bKash', 'type' => 'mobile_wallet', 'is_active' => true]);
+    $wallet = PaymentAccount::create(['name' => 'Mobile Wallet', 'type' => 'mobile_wallet', 'is_active' => true]);
 
     $component = Livewire::test(PurchaseForm::class, ['order' => $order])
         ->call('openPaymentModal')

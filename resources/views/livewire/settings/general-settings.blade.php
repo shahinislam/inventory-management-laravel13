@@ -48,13 +48,6 @@
                             <flux:label>Tax / VAT Number</flux:label>
                             <flux:input wire:model="company_tax_number" placeholder="Tax registration number" />
                         </flux:field>
-
-                        <flux:field>
-                            <flux:label>VAT BIN</flux:label>
-                            <flux:input wire:model="company_bin" placeholder="e.g. 000123456-0101" />
-                            <flux:description>Business Identification Number, printed on the Mushak 6.3 invoice.</flux:description>
-                            <flux:error name="company_bin" />
-                        </flux:field>
                     </div>
                 </flux:card>
 
@@ -87,7 +80,7 @@
                         <flux:field class="sm:col-span-2">
                             <flux:label>Mobile wallet name</flux:label>
                             <flux:input wire:model="wallet_label" placeholder="Mobile Wallet" />
-                            <flux:description>How wallet payments are labelled at the POS and on receipts — e.g. bKash / Nagad, M-Pesa, GCash, PayPal.</flux:description>
+                            <flux:description>How wallet payments are labelled at the POS and on receipts — e.g. M-Pesa, GCash, PayPal.</flux:description>
                             <flux:error name="wallet_label" />
                         </flux:field>
                     </div>
@@ -108,15 +101,6 @@
                                     <flux:description>Selling prices already contain tax; receipts show the tax included. Off: tax is added on top.</flux:description>
                                 </div>
                                 <flux:switch wire:model="prices_include_tax" />
-                            </div>
-                        </flux:field>
-                        <flux:field class="sm:col-span-2">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <flux:label>Bangladesh VAT invoice (Mushak 6.3)</flux:label>
-                                    <flux:description>Adds a “Mushak 6.3” print button to invoices and the POS. Set the VAT BIN above.</flux:description>
-                                </div>
-                                <flux:switch wire:model="mushak_enabled" />
                             </div>
                         </flux:field>
                     </div>
@@ -159,7 +143,7 @@
                     <div class="mb-4 flex items-start justify-between gap-4">
                         <div>
                             <flux:heading>SMS</flux:heading>
-                            <flux:text class="text-sm">Works with most SMS gateways (BulkSMSBD, SSL Wireless, Alpha SMS…). Copy the URL and parameter names from your gateway's API page. While off, messages are only logged.</flux:text>
+                            <flux:text class="text-sm">Works with most HTTP SMS gateways. Copy the URL and parameter names from your gateway's API page. While off, messages are only logged.</flux:text>
                         </div>
                         <flux:switch wire:model.live="sms_enabled" />
                     </div>

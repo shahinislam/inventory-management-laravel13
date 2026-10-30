@@ -1,27 +1,25 @@
 <?php
 
-use Laravel\Fortify\Features;
+use App\Models\User;
 
-beforeEach(function () {
-    $this->skipUnlessFortifyHas(Features::registration());
+// Public sign-up is disabled; admins create accounts under Settings → Users.
+
+test('registration screen is not available', function () {
+    $this->get('/register')->assertNotFound();
 });
 
-test('registration screen can be rendered', function () {
-    $response = $this->get(route('register'));
-
-    $response->assertOk();
-});
-
-test('new users can register', function () {
-    $response = $this->post(route('register.store'), [
+test('registration requests are rejected', function () {
+    $this->post('/register', [
         'name' => 'John Doe',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
-    $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+    $this->assertGuest();
+    expect(User::where('email', 'test@example.com')->exists())->toBeFalse();
+});
 
-    $this->assertAuthenticated();
+test('login page has no sign up link', function () {
+    $this->get(route('login'))->assertOk()->assertDontSee('Sign up');
 });

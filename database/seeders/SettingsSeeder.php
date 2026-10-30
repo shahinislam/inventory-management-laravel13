@@ -53,10 +53,6 @@ class SettingsSeeder extends Seeder
             ['key' => 'shift.prefix',                 'value' => 'SH',   'group' => 'invoice', 'type' => 'text',   'is_public' => false],
             ['key' => 'expense.prefix',               'value' => 'EXP',  'group' => 'invoice', 'type' => 'text',   'is_public' => false],
 
-            // VAT (Bangladesh): Business Identification Number and the Mushak 6.3 tax invoice
-            ['key' => 'company.bin',            'value' => null,               'group' => 'company',      'type' => 'text',    'is_public' => false],
-            ['key' => 'tax.mushak_enabled',     'value' => 'false',            'group' => 'tax',          'type' => 'boolean', 'is_public' => false],
-
             // SMS — a generic HTTP gateway. Until enabled and configured, messages are only logged.
             ['key' => 'sms.enabled',            'value' => 'false',            'group' => 'sms',          'type' => 'boolean', 'is_public' => false],
             ['key' => 'sms.gateway_url',        'value' => null,               'group' => 'sms',          'type' => 'text',    'is_public' => false],
