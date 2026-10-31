@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'name', 'email', 'phone', 'alternative_phone',
@@ -86,8 +87,28 @@ class Customer extends Model
             ->filter()->implode(', ');
     }
 
-    public function hasCredit(): bool
+    /**
+     * Orders, spend and balance worked out from the invoices, so every screen
+     * agrees with the Due report. Adds orders_count, spent and balance_due.
+     */
+    public function scopeWithMoney($q)
     {
-        return $this->credit_limit > 0 && $this->current_balance < $this->credit_limit;
+        $issued = fn ($i) => $i->sales()->whereNotIn('invoices.status', ['draft', 'cancelled']);
+
+        return $q->withCount(['invoices as orders_count' => $issued])
+            ->withSum(['invoices as spent' => $issued], DB::raw('total - returned_amount'))
+            ->withSum(['invoices as balance_due' => fn ($i) => $i->sales()->withDue()], 'due_amount');
+    }
+
+    /** What the customer still owes across their sales. */
+    public function owed(): float
+    {
+        return round((float) $this->invoices()->sales()->withDue()->sum('due_amount'), 2);
+    }
+
+    /** Room left under the credit limit, or null when the customer has no limit. */
+    public function creditLeft(): ?float
+    {
+        return (float) $this->credit_limit > 0 ? round((float) $this->credit_limit - $this->owed(), 2) : null;
     }
 }

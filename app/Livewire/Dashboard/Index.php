@@ -8,7 +8,10 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Services\ProfitLossService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class Index extends Component
@@ -36,14 +39,16 @@ class Index extends Component
                 default => today(),
             };
 
-            $totalSales = Invoice::sales()->where('status', 'paid')->whereDate('invoice_date', '>=', $dateFilter)->sum('total');
-            $totalInvoices = Invoice::sales()->whereDate('invoice_date', '>=', $dateFilter)->count();
+            $sales = self::issuedSales()->whereDate('invoice_date', '>=', $dateFilter);
+
+            $totalSales = (float) (clone $sales)->sum(DB::raw('total - returned_amount'));
+            $totalInvoices = (clone $sales)->count();
             $totalProducts = Product::active()->count();
             $lowStock = Product::lowStock()->count();
             $totalCustomers = Customer::active()->count();
             $totalSuppliers = Supplier::active()->count();
             $pendingOrders = PurchaseOrder::pending()->count();
-            $totalRevenue = Invoice::sales()->where('status', 'paid')->sum('total');
+            $totalRevenue = (float) self::issuedSales()->sum(DB::raw('total - returned_amount'));
 
             return compact(
                 'totalSales', 'totalInvoices', 'totalProducts',
@@ -82,9 +87,9 @@ class Index extends Component
     {
         return Cache::remember('dashboard_sales_chart', 300, function () {
             // One grouped query for the whole week rather than a sum() per day.
-            $totals = Invoice::sales()->where('status', 'paid')
+            $totals = self::issuedSales()
                 ->whereDate('invoice_date', '>=', now()->subDays(6)->startOfDay())
-                ->selectRaw('DATE(invoice_date) as day, SUM(total) as sales')
+                ->selectRaw('DATE(invoice_date) as day, SUM(total - returned_amount) as sales')
                 ->groupBy('day')
                 ->pluck('sales', 'day');
 
@@ -99,6 +104,15 @@ class Index extends Component
 
             return $data;
         });
+    }
+
+    /**
+     * Every issued sale, paid or still owed, as the Profit & Loss counts them.
+     * Sales figures are what was billed less anything brought back.
+     */
+    private static function issuedSales(): Builder
+    {
+        return Invoice::query()->sales()->whereNotIn('invoices.status', ProfitLossService::EXCLUDED_STATUSES);
     }
 
     /**

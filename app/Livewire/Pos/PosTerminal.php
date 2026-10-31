@@ -21,6 +21,7 @@ use App\Services\PricingService;
 use App\Services\ResolvedDiscount;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class PosTerminal extends Component
@@ -151,6 +152,11 @@ class PosTerminal extends Component
      */
     public function updatedWarehouseId(): void
     {
+        // The picker lists active warehouses only; the browser can still send any id.
+        if (! Warehouse::active()->whereKey($this->warehouse_id)->exists()) {
+            $this->warehouse_id = Warehouse::getDefault()?->id;
+        }
+
         if ($this->cart !== []) {
             $this->cart = [];
             $this->resetRewards();
@@ -258,6 +264,7 @@ class PosTerminal extends Component
     {
         $pricing = app(PricingService::class);
         $lines = [];
+        $gifted = [];
 
         foreach ($this->cart as $item) {
             $product = Product::find((int) ($item['product_id'] ?? 0));
@@ -271,6 +278,12 @@ class PosTerminal extends Component
             }
 
             if ($reward = $this->giftRewardFor($item)) {
+                // One gift line per reward: a copied line would hand out the gift twice.
+                if (isset($gifted[$reward->id])) {
+                    continue;
+                }
+                $gifted[$reward->id] = true;
+
                 $lines[] = array_merge($this->cartLine($product, $reward->gift_quantity, $reward->gift_quantity, new ResolvedDiscount(perUnit: 0.0)), [
                     'price' => 0.0,
                     'tax_rate' => 0.0,
@@ -464,7 +477,7 @@ class PosTerminal extends Component
         return round(array_reduce($this->cart, fn ($sum, $item) => $sum + $this->lineAmounts($item)['net'], 0), 2);
     }
 
-    /** Tax accumulated from each line's tax_rate. */
+    /** Tax accumulated from each line's tax_rate, before bill discounts. */
     public function getCartItemTaxProperty(): float
     {
         return round(array_reduce($this->cart, fn ($sum, $item) => $sum + $this->lineAmounts($item)['tax'], 0), 2);
@@ -486,10 +499,22 @@ class PosTerminal extends Component
         return $this->pricesIncludeTax ? round($this->cartSubtotal + $this->cartItemTax, 2) : $this->cartSubtotal;
     }
 
-    /** Per-line tax plus the manually entered additional tax. */
+    /** The part of the line tax that the bill and member discounts take off. */
+    public function getCartDiscountTaxProperty(): float
+    {
+        return PricingService::discountTax($this->cartItemTax, $this->cartGoodsTotal, (float) ($this->discount ?: 0) + $this->membershipDiscount);
+    }
+
+    /** Line tax still charged after the bill and member discounts. */
+    public function getCartLineTaxProperty(): float
+    {
+        return round($this->cartItemTax - $this->cartDiscountTax, 2);
+    }
+
+    /** Line tax after bill discounts plus the manually entered additional tax. */
     public function getCartTaxTotalProperty(): float
     {
-        return $this->cartItemTax + (float) ($this->tax ?: 0);
+        return round($this->cartLineTax + (float) ($this->tax ?: 0), 2);
     }
 
     public function getCartItemDiscountTotalProperty(): float
@@ -500,8 +525,10 @@ class PosTerminal extends Component
     public function getCartTotalProperty(): float
     {
         $discount = (float) ($this->discount ?: 0) + $this->membershipDiscount;
+        // Prices that include tax already hold the line tax; only added tax raises the bill.
+        $tax = $this->pricesIncludeTax ? (float) ($this->tax ?: 0) : $this->cartTaxTotal;
 
-        return max(0, $this->cartSubtotal - $discount + $this->cartTaxTotal + $this->courierChargeValue);
+        return max(0, $this->cartGoodsTotal - $discount + $tax + $this->courierChargeValue);
     }
 
     public function getChangeDueProperty(): float
@@ -803,7 +830,8 @@ class PosTerminal extends Component
     private function forgetCartComputed(): void
     {
         unset(
-            $this->cartSubtotal, $this->cartItemTax, $this->cartTaxTotal, $this->cartGoodsTotal,
+            $this->cartSubtotal, $this->cartItemTax, $this->cartDiscountTax, $this->cartLineTax,
+            $this->cartTaxTotal, $this->cartGoodsTotal,
             $this->cartItemDiscountTotal, $this->cartTotal,
             $this->selectedCustomer, $this->memberSpend, $this->eligibleRewards, $this->nextReward,
         );
@@ -821,6 +849,7 @@ class PosTerminal extends Component
 
         $shown = round($this->cartTotal, 2);
         $this->repriceCart();
+        $this->validateBillFields();
 
         if (round($this->cartTotal, 2) !== $shown) {
             session()->flash('error', 'Cart prices were refreshed from the catalogue.');
@@ -831,6 +860,24 @@ class PosTerminal extends Component
         $this->amountReceived = number_format($this->cartTotal, 2, '.', '');
         $this->setPaymentMethod($this->paymentMethod);
         $this->showPaymentModal = true;
+    }
+
+    /**
+     * The bill-level fields are typed in the browser. A negative figure or a
+     * discount larger than the goods would make the stored bill wrong.
+     */
+    private function validateBillFields(): void
+    {
+        $maxDiscount = max(0, round($this->cartGoodsTotal - $this->membershipDiscount, 2));
+
+        $this->validate([
+            'discount' => 'nullable|numeric|min:0|max:'.$maxDiscount,
+            'tax' => 'nullable|numeric|min:0',
+            'courierCharge' => 'nullable|numeric|min:0',
+            'courierCost' => 'nullable|numeric|min:0',
+        ], [
+            'discount.max' => 'The discount cannot be more than the goods ('.money($maxDiscount).').',
+        ]);
     }
 
     public function setPaymentMethod(string $method): void
@@ -981,6 +1028,7 @@ class PosTerminal extends Component
         // the new figure rather than be charged something different.
         $shown = round($this->cartTotal, 2);
         $this->repriceCart();
+        $this->validateBillFields();
 
         if (round($this->cartTotal, 2) !== $shown) {
             $this->showPaymentModal = false;
@@ -1019,6 +1067,13 @@ class PosTerminal extends Component
         }
 
         $due = max(0, round($total - $paid, 2));
+
+        // A customer with a credit limit can't owe more than it.
+        if ($due > 0 && ($left = Customer::find($this->customer_id)?->creditLeft()) !== null && $due > $left + 0.005) {
+            throw ValidationException::withMessages([
+                'paidNow' => 'Over the credit limit: only '.money(max(0, $left)).' more can be given on due.',
+            ]);
+        }
 
         if ($method !== 'split') {
             if ($paid > 0) {
@@ -1121,18 +1176,15 @@ class PosTerminal extends Component
             if ($customer && $this->appliedRewards !== []) {
                 $membership = app(MembershipService::class);
                 $rewards = MembershipReward::whereIn('id', array_keys($this->appliedRewards))->get()->keyBy('id');
+                // Rewards worth more than the goods were capped; log what was actually given.
+                $given = collect($this->appliedRewards)->where('type', '!=', 'gift')->sum(fn ($r) => (float) $r['amount']);
+                $share = $given > $this->membershipDiscount && $given > 0 ? $this->membershipDiscount / $given : 1;
 
                 foreach ($this->appliedRewards as $id => $applied) {
                     if ($reward = $rewards->get($id)) {
-                        $membership->recordRedemption($invoice, $customer, $reward, (float) $applied['amount']);
+                        $membership->recordRedemption($invoice, $customer, $reward, round((float) $applied['amount'] * $share, 2));
                     }
                 }
-            }
-
-            // Update customer stats
-            if ($customer) {
-                $customer->increment('total_orders');
-                $customer->increment('total_purchases', $total);
             }
 
             return $invoice;

@@ -18,7 +18,9 @@ return new class extends Migration
             $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->foreignId('supplier_id')->nullable()->constrained('suppliers')->nullOnDelete();
             $table->foreignId('media_id')->nullable()->constrained('media')->nullOnDelete();
-            $table->decimal('cost_price', 12, 2)->default(0);
+            // Weighted average cost per base unit; 4 decimals so a carton price
+            // split into pieces does not drift (10.00 / 24 = 0.4167, not 0.42).
+            $table->decimal('cost_price', 14, 4)->default(0);
             $table->decimal('selling_price', 12, 2)->default(0);
             $table->decimal('tax_rate', 5, 2)->default(0);
             $table->decimal('discount', 5, 2)->default(0);

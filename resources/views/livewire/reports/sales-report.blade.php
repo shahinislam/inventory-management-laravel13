@@ -32,8 +32,9 @@
 
     {{-- Summary Cards --}}
     <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <x-stat-tile label="Net Sales" :value="money($summary['total_sales'])" tone="green" icon="banknotes"
-            :hint="$summary['total_returns'] > 0 ? 'after '.money($summary['total_returns']).' returned' : null" />
+        {{-- Billed totals, tax and courier included. Net sales excl. tax are on the Profit & Loss. --}}
+        <x-stat-tile label="Sales incl. tax" :value="money($summary['total_sales'])" tone="green" icon="banknotes"
+            :hint="'With courier'.($summary['total_returns'] > 0 ? ', after '.money($summary['total_returns']).' returned' : '')" />
         <x-stat-tile label="Total Invoices" :value="$summary['total_invoices']" icon="document-text" />
         <x-stat-tile label="Total Paid" :value="money($summary['total_paid'])" tone="blue" icon="check-circle" />
         <x-stat-tile label="Total Due" :value="money($summary['total_due'])" tone="red" icon="clock" />
@@ -51,7 +52,7 @@
                 <flux:table.columns>
                     <flux:table.column>Date</flux:table.column>
                     <flux:table.column>Invoices</flux:table.column>
-                    <flux:table.column>Revenue</flux:table.column>
+                    <flux:table.column>Sales incl. tax</flux:table.column>
                     <flux:table.column>Paid</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
@@ -77,12 +78,13 @@
         <flux:card>
             <div class="p-4 border-b border-zinc-200 dark:border-zinc-700">
                 <flux:heading>Top Products</flux:heading>
+                <flux:text class="text-xs text-zinc-500">Item sales after item discounts, before bill discounts and tax, less returns.</flux:text>
             </div>
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Product</flux:table.column>
                     <flux:table.column>Qty Sold</flux:table.column>
-                    <flux:table.column>Revenue</flux:table.column>
+                    <flux:table.column>Sales excl. tax</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @forelse($topProducts as $product)

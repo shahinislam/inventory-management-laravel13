@@ -2,15 +2,20 @@
 
 use App\Livewire\Partners\PartnerForm;
 use App\Livewire\Partners\PartnershipReport;
+use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Partner;
 use App\Models\PartnerPeriod;
 use App\Models\PartnerTransaction;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\PartnershipService;
+use App\Services\ProfitLossService;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -56,18 +61,71 @@ function makePurchase(array $attrs = []): PurchaseOrder
 
 // ---------- profit query ----------
 
-it('computes profit as sales less purchases', function () {
-    makeInvoice(['total' => 1000]);
-    makePurchase(['total' => 400]);
+function makeExpense(float $amount, array $attrs = []): Expense
+{
+    return Expense::create(array_merge([
+        'type' => 'expense',
+        'category' => 'Rent',
+        'amount' => $amount,
+        'expense_date' => today(),
+        'method' => 'cash',
+        'created_by' => User::first()->id,
+    ], $attrs));
+}
 
-    $summary = app(PartnershipService::class)->summary(
-        today()->format('Y-m-d'),
-        today()->format('Y-m-d'),
-    );
+it('shares the profit and loss net profit, not sales less purchases', function () {
+    $product = Product::factory()->create();
+
+    // 10 sold at 100 that cost 40 each, 150 tax on top, rent 100. Stock bought
+    // this period is not a cost until it sells, so the 5000 purchase is ignored.
+    $invoice = makeInvoice(['subtotal' => 1000, 'tax' => 150, 'total' => 1150, 'paid_amount' => 1150]);
+    InvoiceItem::create([
+        'invoice_id' => $invoice->id, 'product_id' => $product->id,
+        'product_name' => $product->name, 'product_sku' => $product->sku,
+        'quantity' => 10, 'unit_price' => 100, 'unit_cost' => 40,
+        'tax_rate' => 15, 'tax_amount' => 150, 'subtotal' => 1150,
+    ]);
+    makePurchase(['total' => 5000]);
+    makeExpense(100);
+
+    $summary = app(PartnershipService::class)->summary(today()->format('Y-m-d'), today()->format('Y-m-d'));
+    $statement = app(ProfitLossService::class)->statement(today()->startOfDay(), today()->endOfDay());
+
+    // Old cash basis: 1150 (tax counted) − 5000 purchases = −3850.
+    expect($summary['total_sales'])->toBe(1000.0)
+        ->and($summary['cogs'])->toBe(400.0)
+        ->and($summary['expenses'])->toBe(100.0)
+        ->and($summary['total_costs'])->toBe(500.0)
+        ->and($summary['profit'])->toBe(500.0)
+        ->and($summary['profit'])->toBe($statement['net_profit'])
+        ->and($summary['total_sales'] - $summary['total_costs'] + $summary['courier_margin'])->toBe($summary['profit']);
+});
+
+it('never counts tax collected as profit', function () {
+    makeInvoice(['subtotal' => 1000, 'tax' => 150, 'total' => 1150, 'paid_amount' => 1150]);
+
+    $summary = app(PartnershipService::class)->summary(today()->format('Y-m-d'), today()->format('Y-m-d'));
 
     expect($summary['total_sales'])->toBe(1000.0)
-        ->and($summary['total_purchases'])->toBe(400.0)
-        ->and($summary['profit'])->toBe(600.0);
+        ->and($summary['profit'])->toBe(1000.0);
+});
+
+it('counts unpaid credit sales and stock written off, as the P&L does', function () {
+    makeInvoice(['status' => 'sent', 'paid_amount' => 0, 'due_amount' => 1000]);
+    makeInvoice(['status' => 'overdue', 'paid_amount' => 0, 'due_amount' => 1000]);
+    $product = Product::factory()->create();
+    StockMovement::create([
+        'product_id' => $product->id, 'warehouse_id' => Warehouse::first()->id, 'created_by' => User::first()->id,
+        'type' => 'damaged', 'quantity' => 3, 'before_quantity' => 10, 'after_quantity' => 7, 'unit_cost' => 50,
+    ]);
+
+    $summary = app(PartnershipService::class)->summary(today()->format('Y-m-d'), today()->format('Y-m-d'));
+
+    expect($summary['total_sales'])->toBe(2000.0)
+        ->and($summary['stock_loss'])->toBe(150.0)
+        ->and($summary['total_costs'])->toBe(150.0)
+        ->and($summary['profit'])->toBe(1850.0)
+        ->and($summary['invoice_count'])->toBe(2);
 });
 
 it('leaves profit unmoved by a pass-through courier charge', function () {
@@ -198,7 +256,7 @@ it('splits profit by share and computes each balance', function () {
     $b = Partner::create(['name' => 'B', 'share_percentage' => 50, 'is_active' => true]);
 
     makeInvoice(['total' => 1000]);
-    makePurchase(['total' => 400]); // profit 600 → 300 each
+    makeExpense(400); // profit 600 → 300 each
 
     PartnerTransaction::create([
         'partner_id' => $b->id,
@@ -249,6 +307,27 @@ it('locks profit and shares when a period is closed', function () {
     $invoice->update(['total' => 9999, 'subtotal' => 9999]);
 
     expect((float) $period->fresh()->profit)->toBe(1000.0);
+});
+
+it('locks the period costs, not its purchases, when closing', function () {
+    Partner::create(['name' => 'A', 'share_percentage' => 100, 'is_active' => true]);
+    makeInvoice(['total' => 1000]);
+    makePurchase(['total' => 400]);
+    makeExpense(250);
+
+    Livewire::test(PartnershipReport::class)
+        ->set('period', 'this_month')
+        ->assertSee('Net profit')
+        ->assertSee('Costs')
+        ->assertDontSee('Cash basis')
+        ->call('closePeriod');
+
+    $period = PartnerPeriod::sole();
+
+    expect((float) $period->total_sales)->toBe(1000.0)
+        ->and((float) $period->total_purchases)->toBe(250.0)
+        ->and((float) $period->profit)->toBe(750.0)
+        ->and((float) $period->shares->sole()->profit_share)->toBe(750.0);
 });
 
 it('refuses to close the same period twice', function () {

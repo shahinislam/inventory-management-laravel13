@@ -104,12 +104,16 @@ class PurchaseOrder extends Model
         return $this->hasMany(self::class, 'parent_order_id')->where('type', 'return');
     }
 
+    /** Purchases placed with the supplier: the ones that are owed for. */
+    public function scopePlaced($q)
+    {
+        return $q->purchases()->whereNotIn('purchase_orders.status', ['draft', 'cancelled']);
+    }
+
     /** Placed orders that still owe the supplier money. */
     public function scopeWithDue($q)
     {
-        return $q->purchases()
-            ->whereNotIn('status', ['draft', 'cancelled'])
-            ->whereRaw('paid_amount + returned_amount < total');
+        return $q->placed()->whereRaw('paid_amount + returned_amount < total');
     }
 
     public function scopePending($q)
@@ -127,15 +131,69 @@ class PurchaseOrder extends Model
         return $q->where('status', 'received');
     }
 
-    /** Owed to the supplier: the order less goods sent back and payments made. */
+    /**
+     * Owed to the supplier: the order less goods sent back and payments made.
+     * paid_amount is net: a refund the supplier gives on a return comes off it.
+     */
     public function getDueAmountAttribute(): float
     {
         return max(0, round((float) $this->total - (float) $this->returned_amount - (float) $this->paid_amount, 2));
     }
 
+    /**
+     * Owed to the shop: paid for goods that were then sent back and not
+     * refunded. It stays with the supplier as credit.
+     */
+    public function getCreditAmountAttribute(): float
+    {
+        return max(0, round((float) $this->returned_amount + (float) $this->paid_amount - (float) $this->total, 2));
+    }
+
+    /**
+     * The most the supplier can refund on a return worth $value: a return
+     * first comes off what is still owed, so only money already paid beyond
+     * the goods kept can come back (the credit the order would then hold).
+     */
+    public function refundableFor(float $value): float
+    {
+        return max(0, round((float) $this->paid_amount + (float) $this->returned_amount + $value - (float) $this->total, 2));
+    }
+
+    /**
+     * What the supplier's bill is per unit of line value: everything paid to the
+     * supplier for the goods (order discount, freight billed on the order, order
+     * tax) over the lines' value. A line's landed cost is its value × this.
+     * Freight paid separately to a courier (courier_cost) is not on the bill.
+     */
+    public function landedCostRatio(): float
+    {
+        $subtotal = (float) $this->subtotal;
+
+        return $subtotal > 0 ? (float) $this->total / $subtotal : 1.0;
+    }
+
     public function isPaid(): bool
     {
         return $this->due_amount <= 0;
+    }
+
+    /** Whether any stock has arrived against this order. */
+    public function hasReceivedStock(): bool
+    {
+        return $this->items()->where('received_quantity', '>', 0)->exists();
+    }
+
+    /**
+     * An order can be cancelled until anything arrives against it: once stock
+     * is in, the goods are owed for and go back only through a return.
+     */
+    public function canCancel(): bool
+    {
+        return ! $this->isReturn()
+            && ! in_array($this->status, ['received', 'cancelled'], true)
+            && ! $this->hasReceivedStock()
+            // A payment already made would drop out of what the supplier owes back.
+            && (float) $this->paid_amount <= 0;
     }
 
     /** Payments can be made once the order is placed, until it is fully paid. */

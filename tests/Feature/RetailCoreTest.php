@@ -140,7 +140,7 @@ it('sells the earliest expiry batch first and moves batches on transfer', functi
 
     expect(StockBatch::where('batch_number', 'SOON')->exists())->toBeFalse()
         ->and(StockBatch::where('batch_number', 'LATE')->value('quantity'))->toBe(4.0)
-        ->and($taken['unit_cost'])->toBe(45.0);                     // (3×40 + 1×60) / 4
+        ->and($taken['unit_cost'])->toBe(52.5);                     // weighted average (5×60 + 3×40) / 8, not batch cost
 
     $other = Warehouse::factory()->create();
     $this->inventory->transfer($milk->id, $this->warehouse->id, $other->id, 2);

@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Services\ProfitLossService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -45,10 +46,11 @@ class SalesReport extends Component
 
     public function render()
     {
-        // Real sales only (no return notes or parked POS sales); a fully
-        // returned sale still counts, at its net value of zero.
+        // Every issued sale counts, paid or still owed, like the Profit & Loss;
+        // drafts, cancelled sales, return notes and parked POS sales do not. A
+        // fully returned sale still counts, at its net value of zero.
         $query = Invoice::sales()
-            ->whereIn('status', ['paid', 'partial', 'returned'])
+            ->whereNotIn('invoices.status', ProfitLossService::EXCLUDED_STATUSES)
             ->when($this->dateFrom, fn ($q) => $q->whereDate('invoice_date', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('invoice_date', '<=', $this->dateTo));
 
@@ -68,16 +70,28 @@ class SalesReport extends Component
             ->orderBy('date', 'desc')
             ->get();
 
-        // Top products
+        // How much of each sold line has come back on a return note, whenever.
+        $returnedQty = InvoiceItem::query()
+            ->whereIn('invoice_items.invoice_id', Invoice::query()->returns()
+                ->whereNotIn('invoices.status', ProfitLossService::EXCLUDED_STATUSES)
+                ->select('invoices.id'))
+            ->whereNotNull('invoice_items.parent_item_id')
+            ->selectRaw('invoice_items.parent_item_id, SUM(invoice_items.quantity) as qty')
+            ->groupBy('invoice_items.parent_item_id');
+
+        // Top products by goods value: the line after its item discount, less the
+        // tax inside it and less the share brought back. Bill discounts are not
+        // spread over the lines, so the column sums to more than net sales.
+        $kept = '(invoice_items.quantity - COALESCE(returned.qty, 0))';
         $topProducts = InvoiceItem::query()
-            ->join('invoices', 'invoice_items.invoice_id', '=', 'invoices.id')
-            ->where('invoices.type', 'sale')
-            ->where('invoices.is_held', false)
-            ->whereIn('invoices.status', ['paid', 'partial', 'returned'])
-            ->when($this->dateFrom, fn ($q) => $q->whereDate('invoices.invoice_date', '>=', $this->dateFrom))
-            ->when($this->dateTo, fn ($q) => $q->whereDate('invoices.invoice_date', '<=', $this->dateTo))
-            ->selectRaw('product_name, product_sku, SUM(invoice_items.quantity) as total_qty, SUM(invoice_items.subtotal) as total_revenue')
-            ->groupBy('product_name', 'product_sku')
+            ->whereIn('invoice_items.invoice_id', (clone $query)->select('invoices.id'))
+            ->leftJoinSub($returnedQty, 'returned', 'returned.parent_item_id', '=', 'invoice_items.id')
+            ->selectRaw("invoice_items.product_name, invoice_items.product_sku, SUM({$kept}) as total_qty,
+                SUM(CASE WHEN invoice_items.quantity > 0
+                    THEN (invoice_items.subtotal - invoice_items.tax_amount) * {$kept} / invoice_items.quantity
+                    ELSE 0 END) as total_revenue")
+            ->groupBy('invoice_items.product_name', 'invoice_items.product_sku')
+            ->having('total_qty', '>', 0)
             ->orderByDesc('total_revenue')
             ->limit(10)
             ->get();

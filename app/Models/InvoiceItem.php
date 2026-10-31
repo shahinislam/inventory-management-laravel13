@@ -27,7 +27,7 @@ class InvoiceItem extends Model
             'subtotal' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'is_gift' => 'boolean',
-            'unit_cost' => 'decimal:2',
+            'unit_cost' => 'decimal:4',
             'restock' => 'boolean',
         ];
     }

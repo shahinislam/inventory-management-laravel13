@@ -60,9 +60,15 @@
                             </div>
                         @endforeach
                         <div class="flex justify-between border-t border-zinc-200 pt-2 text-base font-semibold dark:border-zinc-700">
-                            <span>Should be in drawer</span>
+                            <span>{{ $summary['closed'] ? 'Expected at close' : 'Should be in drawer' }}</span>
                             <span class="tabular-nums">{{ money($summary['expected_cash']) }}</span>
                         </div>
+                        @if ($summary['closed'] && abs($summary['drawer_total'] - $summary['expected_cash']) >= 0.005)
+                            <div class="rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                The lines above now add up to {{ money($summary['drawer_total']) }}: something linked to this shift changed after it was closed.
+                                The count was made against {{ money($summary['expected_cash']) }}.
+                            </div>
+                        @endif
                         @if (! $shift->isOpen())
                             <div class="flex justify-between">
                                 <span class="text-zinc-500">Counted</span>

@@ -243,9 +243,9 @@ it('consumes a promotion usage on checkout', function () {
     expect($promotion->fresh()->used_count)->toBe(1);
 });
 
-it('updates customer totals on checkout', function () {
-    $customer = Customer::factory()->create(['total_orders' => 2, 'total_purchases' => 500]);
-    $product = Product::factory()->create(['selling_price' => 100, 'quantity' => 10]);
+it('counts the sale in the customer\'s orders and spend', function () {
+    $customer = Customer::factory()->create();
+    $product = Product::factory()->create(['selling_price' => 100, 'tax_rate' => 0, 'discount' => 0, 'quantity' => 10]);
 
     Livewire::test(PosTerminal::class)
         ->call('addToCart', $product->id)
@@ -253,10 +253,10 @@ it('updates customer totals on checkout', function () {
         ->call('openPaymentModal')
         ->call('completeSale');
 
-    $customer->refresh();
+    $row = Customer::withMoney()->find($customer->id);
 
-    expect($customer->total_orders)->toBe(3)
-        ->and((float) $customer->total_purchases)->toBe(600.0);
+    expect($row->orders_count)->toBe(1)
+        ->and((float) $row->spent)->toBe(100.0);
 });
 
 it('clears the cart after a completed sale', function () {

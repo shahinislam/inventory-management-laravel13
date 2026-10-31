@@ -2,70 +2,47 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
-use App\Models\PurchaseOrder;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Date;
 
 /**
  * Profit figures for the partnership module.
  *
- * Deliberately cash basis: profit is money in from sales less money out on
- * purchases over the same window. It is not accrual accounting — a large stock
- * purchase reads as a loss in the month it is bought, even though the stock is
- * still on the shelf. The report says so on screen.
+ * The partners share the net profit of the Profit & Loss for the same period,
+ * so both screens always show the same number: net sales (excluding tax) less
+ * the cost of the goods sold, stock written off and expenses, plus the courier
+ * margin. Stock still on the shelf is not a cost until it is sold.
  */
 class PartnershipService
 {
-    /** Invoice statuses that represent money actually earned. */
-    public const SALE_STATUSES = ['paid', 'partial', 'returned'];
-
-    /** Purchase statuses that represent money actually committed. */
-    public const PURCHASE_STATUSES = ['ordered', 'received'];
+    public function __construct(private ProfitLossService $profitLoss) {}
 
     /**
      * @return array{
      *     total_sales: float,
-     *     total_purchases: float,
+     *     total_costs: float,
+     *     cogs: float,
+     *     stock_loss: float,
+     *     expenses: float,
      *     courier_margin: float,
      *     profit: float,
-     *     invoice_count: int,
-     *     purchase_count: int
+     *     invoice_count: int
      * }
      */
     public function summary(string $from, string $to): array
     {
-        $invoices = Invoice::sales()
-            ->whereIn('status', self::SALE_STATUSES)
-            ->whereDate('invoice_date', '>=', $from)
-            ->whereDate('invoice_date', '<=', $to);
-
-        // Sales exclude the courier charge, which is added back separately as a
-        // margin so that pass-through delivery nets to zero and absorbed
-        // delivery shows as the real cost it is.
-        $sales = (float) (clone $invoices)->sum(
-            DB::raw('total - courier_charge - returned_amount')
-        );
-
-        $courierMargin = (float) (clone $invoices)->sum(
-            DB::raw('courier_charge - courier_cost')
-        );
-
-        $purchases = PurchaseOrder::purchases()
-            ->whereIn('status', self::PURCHASE_STATUSES)
-            ->whereDate('order_date', '>=', $from)
-            ->whereDate('order_date', '<=', $to);
-
-        // Supplier freight sits inside purchase_orders.total already: it is money
-        // genuinely spent, so it is not netted out the way sales courier is.
-        $purchaseTotal = (float) (clone $purchases)->sum(DB::raw('total - returned_amount'));
+        $pl = $this->profitLoss->statement(Date::parse($from)->startOfDay(), Date::parse($to)->endOfDay());
 
         return [
-            'total_sales' => round($sales, 2),
-            'total_purchases' => round($purchaseTotal, 2),
-            'courier_margin' => round($courierMargin, 2),
-            'profit' => round($sales - $purchaseTotal + $courierMargin, 2),
-            'invoice_count' => (clone $invoices)->count(),
-            'purchase_count' => (clone $purchases)->count(),
+            'total_sales' => $pl['net_sales'],
+            // Everything the statement takes off net sales, worked back from the
+            // rounded profit so that sales − costs + courier = profit exactly.
+            'total_costs' => round($pl['net_sales'] + $pl['courier_margin'] - $pl['net_profit'], 2),
+            'cogs' => $pl['cogs'],
+            'stock_loss' => $pl['stock_loss'],
+            'expenses' => $pl['expense_total'],
+            'courier_margin' => $pl['courier_margin'],
+            'profit' => $pl['net_profit'],
+            'invoice_count' => $pl['invoices'],
         ];
     }
 }

@@ -107,9 +107,17 @@ class ReturnForm extends Component
 
     public function getReturnValueProperty(): float
     {
+        if (! $this->sale) {
+            return 0.0;
+        }
+
+        // Line by line, exactly as SalesReturnService::process() will refund it.
+        $service = app(SalesReturnService::class);
+        $values = $service->lineValues($this->sale);
         $total = 0;
-        foreach ($this->lines as $id => $line) {
-            $total += ((float) ($line['quantity'] ?: 0)) * ($this->unitRefunds[$id] ?? 0);
+        foreach ($this->sale->items as $item) {
+            $qty = round((float) ($this->lines[$item->id]['quantity'] ?? 0) ?: 0, 3);
+            $total += $service->refundFor($item, min($qty, $item->returnableQuantity()), $values[$item->id])['value'];
         }
 
         return round($total, 2);

@@ -81,7 +81,8 @@ class ProductForm extends Component
             'cost_price' => 'required|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
-            'discount' => 'nullable|numeric|min:0|max:100',
+            // A fixed discount can't exceed the price; a percentage can't exceed 100.
+            'discount' => 'nullable|numeric|min:0|'.($this->discount_type === 'fixed' ? 'lte:selling_price' : 'max:100'),
             // Opening stock only; after creation stock changes through adjustments.
             'quantity' => $this->product?->exists ? 'nullable' : (Product::isLooseUnit($this->unit) ? 'required|numeric|min:0' : 'required|integer|min:0'),
             'min_stock_level' => Product::isLooseUnit($this->unit) ? 'required|numeric|min:0' : 'required|integer|min:0',
@@ -106,7 +107,8 @@ class ProductForm extends Component
             $this->category_id = $product->category_id;
             $this->supplier_id = $product->supplier_id;
             $this->media_id = $product->media_id;
-            $this->cost_price = $product->cost_price;
+            // Stored to 4 decimals: show 12.5000 as 12.5, keep 0.4167.
+            $this->cost_price = rtrim(rtrim(number_format((float) $product->cost_price, 4, '.', ''), '0'), '.');
             $this->selling_price = $product->selling_price;
             $this->tax_rate = $product->tax_rate;
             $this->discount = $product->discount;

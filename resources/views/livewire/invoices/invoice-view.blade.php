@@ -88,14 +88,16 @@
     {{-- Payment progress (screen only) --}}
     @if ($invoice->total > 0 && $invoice->status !== 'cancelled')
         @php
-            $paidPct = min(100, round(($invoice->paid_amount / $invoice->total) * 100));
+            // After a return the bill is the net total; paid_amount is already net of refunds.
+            $billed = $invoice->returned_amount > 0 ? $invoice->net_total : (float) $invoice->total;
+            $paidPct = $billed > 0 ? min(100, round(($invoice->paid_amount / $billed) * 100)) : 100;
         @endphp
         <div
             class="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200 sm:grid-cols-3 dark:border-zinc-800 dark:bg-zinc-800 print:hidden">
             <div class="bg-white p-4 dark:bg-zinc-900">
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">Invoice Total</flux:text>
+                <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">{{ $invoice->returned_amount > 0 ? 'Net Total' : 'Invoice Total' }}</flux:text>
                 <div class="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
-                    {{ money($invoice->total) }}</div>
+                    {{ money($billed) }}</div>
             </div>
             <div class="bg-white p-4 dark:bg-zinc-900">
                 <flux:text class="text-xs font-medium uppercase tracking-wider text-zinc-500">Paid</flux:text>
@@ -216,6 +218,11 @@
         </div>
 
         {{-- Items --}}
+        @php
+            // A line total always includes its tax. With tax added on top the subtotal
+            // is before tax, so both are labelled to read together.
+            $taxOnTop = ! $invoice->prices_include_tax && $invoice->lineTax() > 0;
+        @endphp
         <div class="mt-8 -mx-2 overflow-x-auto">
             <table class="w-full min-w-xl text-sm">
                 <thead>
@@ -227,7 +234,7 @@
                         <th class="w-24 px-2 py-2.5 text-right font-semibold">Price</th>
                         <th class="w-24 px-2 py-2.5 text-right font-semibold">Disc.</th>
                         <th class="w-16 px-2 py-2.5 text-right font-semibold">Tax</th>
-                        <th class="w-28 px-2 py-2.5 text-right font-semibold">Total</th>
+                        <th class="w-28 px-2 py-2.5 text-right font-semibold">{{ $taxOnTop ? 'Total incl. tax' : 'Total' }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -265,7 +272,7 @@
             <div class="w-full max-w-xs">
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-zinc-500">Subtotal</span>
+                        <span class="text-zinc-500">{{ $taxOnTop ? 'Subtotal excl. tax' : 'Subtotal' }}</span>
                         <span class="font-medium tabular-nums text-zinc-900 dark:text-white print:text-black">
                             {{ money($invoice->goodsTotal()) }}</span>
                     </div>
@@ -301,12 +308,6 @@
                                 {{ money($invoice->courier_charge) }}</span>
                         </div>
                     @endif
-                    @if ($invoice->returned_amount > 0)
-                        <div class="flex justify-between">
-                            <span class="text-zinc-500">Returned</span>
-                            <span class="font-medium tabular-nums text-orange-600">−{{ money($invoice->returned_amount) }}</span>
-                        </div>
-                    @endif
                 </div>
 
                 <div
@@ -317,9 +318,23 @@
                         class="text-xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white print:text-black">
                         {{ money($invoice->total) }}</span>
                 </div>
-                @if ($invoice->prices_include_tax && $invoice->lineTax() > 0)
+                @if ($invoice->prices_include_tax && $invoice->chargedLineTax() > 0)
                     <div class="mt-1 text-right text-xs tabular-nums text-zinc-500 print:text-zinc-700">
-                        Includes tax {{ money($invoice->lineTax()) }}</div>
+                        Includes tax {{ money($invoice->chargedLineTax()) }}</div>
+                @endif
+
+                @if ($invoice->returned_amount > 0)
+                    {{-- The total above is the original bill; returns come off it here. --}}
+                    <div class="mt-3 space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Returned</span>
+                            <span class="font-medium tabular-nums text-orange-600">−{{ money($invoice->returned_amount) }}</span>
+                        </div>
+                        <div class="flex justify-between font-semibold">
+                            <span class="text-zinc-900 dark:text-white print:text-black">Net total</span>
+                            <span class="tabular-nums text-zinc-900 dark:text-white print:text-black">{{ money($invoice->net_total) }}</span>
+                        </div>
+                    </div>
                 @endif
 
                 @if ($invoice->courier_cost > 0)
@@ -340,17 +355,31 @@
                     </div>
                 @endif
 
+                @php
+                    // Refunds are taken out of paid_amount; show them on their own so
+                    // Paid matches the payment history and net total - paid = balance.
+                    $refunded = round((float) $invoice->returns->sum('paid_amount'), 2);
+                @endphp
                 <div class="mt-3 space-y-2 border-t border-zinc-200 pt-3 text-sm dark:border-zinc-800">
                     <div class="flex justify-between">
                         <span class="text-zinc-500">Paid</span>
                         <span class="font-medium tabular-nums text-green-600 dark:text-green-400">
-                            {{ money($invoice->paid_amount) }}</span>
+                            {{ money((float) $invoice->paid_amount + $refunded) }}</span>
                     </div>
-                    @if ($invoice->due_amount > 0)
-                        <div class="flex justify-between text-base">
-                            <span class="font-semibold text-red-600 dark:text-red-400">Balance Due</span>
-                            <span class="font-semibold tabular-nums text-red-600 dark:text-red-400">
-                                {{ money($invoice->due_amount) }}</span>
+                    @if ($refunded > 0)
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Refunded</span>
+                            <span class="font-medium tabular-nums text-orange-600">−{{ money($refunded) }}</span>
+                        </div>
+                    @endif
+                    @if ($invoice->due_amount > 0 || $invoice->returned_amount > 0)
+                        <div @class([
+                            'flex justify-between text-base font-semibold',
+                            'text-red-600 dark:text-red-400' => $invoice->due_amount > 0,
+                            'text-zinc-900 dark:text-white print:text-black' => $invoice->due_amount <= 0,
+                        ])>
+                            <span>Balance Due</span>
+                            <span class="tabular-nums">{{ money($invoice->due_amount) }}</span>
                         </div>
                     @endif
                 </div>
@@ -462,6 +491,9 @@
                             <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
+                    @if ($needsShift)
+                        <flux:description>You have no open shift. Open one from the POS to take cash, or choose another method.</flux:description>
+                    @endif
                     <flux:error name="payment_method" />
                 </flux:field>
 

@@ -184,6 +184,7 @@ it('records a partial payment and leaves the invoice partial', function () {
     $invoice = unpaidInvoice($admin, 1000);
 
     $this->actingAs($admin);
+    openShift(); // cash goes into a drawer
 
     Livewire::test(InvoiceView::class, ['invoice' => $invoice])
         ->call('openPaymentModal')
@@ -202,6 +203,7 @@ it('marks the invoice paid when the balance is cleared', function () {
     $invoice = unpaidInvoice($admin, 1000);
 
     $this->actingAs($admin);
+    openShift();
 
     Livewire::test(InvoiceView::class, ['invoice' => $invoice])
         ->call('openPaymentModal')
@@ -218,6 +220,7 @@ it('rejects a payment larger than the outstanding balance', function () {
     $invoice = unpaidInvoice($admin, 1000);
 
     $this->actingAs($admin);
+    openShift();
 
     Livewire::test(InvoiceView::class, ['invoice' => $invoice])
         ->set('payment_amount', '1500')
@@ -235,6 +238,7 @@ it('accepts a payment amount typed with a thousands separator', function () {
     $invoice = unpaidInvoice($admin, 1500);
 
     $this->actingAs($admin);
+    openShift();
 
     Livewire::test(InvoiceView::class, ['invoice' => $invoice])
         ->set('payment_amount', '1,500.00')

@@ -23,16 +23,18 @@ beforeEach(function () {
     $this->actingAs($this->user);
 });
 
-/** A purchase of $qty units at 100 each, fully received into stock. */
+/** A purchase of $qty units at 100 each (or $item's unit_cost), fully received into stock. */
 function receivedOrder(Product $product, float $qty = 10, array $item = []): PurchaseOrder
 {
+    $value = (float) ($item['unit_cost'] ?? 100) * $qty;
+
     $order = PurchaseOrder::create([
         'supplier_id' => Supplier::factory()->create()->id,
         'warehouse_id' => Warehouse::first()->id,
         'created_by' => User::first()->id,
         'status' => 'ordered',
-        'subtotal' => 100 * $qty,
-        'total' => 100 * $qty,
+        'subtotal' => $value,
+        'total' => $value,
         'order_date' => today(),
     ]);
 
@@ -40,7 +42,7 @@ function receivedOrder(Product $product, float $qty = 10, array $item = []): Pur
         'product_id' => $product->id,
         'quantity' => $qty,
         'unit_cost' => 100,
-        'subtotal' => 100 * $qty,
+        'subtotal' => $value,
     ]);
 
     Livewire::test(PurchaseForm::class, ['order' => $order])
@@ -140,10 +142,12 @@ it('refuses a return when the stock has already been sold', function () {
     expect(PurchaseOrder::query()->returns()->count())->toBe(0);
 });
 
-it('records a refund from the supplier on the return', function () {
+it('records a refund from the supplier on the return and nets it off the order', function () {
     $product = Product::factory()->create(['quantity' => 0]);
-    $order = receivedOrder($product, 5);
+    $order = receivedOrder($product, 5);               // 500
+    $order->update(['paid_amount' => 500]);            // paid in full
 
+    // 2 back (200) on a paid-up order: all of it may come back; 150 does now.
     Livewire::test(PurchaseReturnForm::class, ['order' => $order])
         ->set('lines.0.qty', '2')
         ->set('refund_amount', '150')
@@ -153,10 +157,100 @@ it('records a refund from the supplier on the return', function () {
 
     $return = PurchaseOrder::query()->returns()->sole();
     $payment = PurchasePayment::sole();
+    $order->refresh();
 
     expect($payment->purchase_order_id)->toBe($return->id)
         ->and((float) $payment->amount)->toBe(150.0)
-        ->and((float) $return->paid_amount)->toBe(150.0);
+        ->and((float) $return->paid_amount)->toBe(150.0)
+        ->and((float) $order->paid_amount)->toBe(350.0)     // 500 paid less 150 handed back
+        ->and($order->due_amount)->toBe(0.0)
+        ->and($order->credit_amount)->toBe(50.0);           // the 50 not refunded stays as credit
+});
+
+// ============ RETURNS AGAINST WHAT IS OWED ============
+
+it('takes a return off what is owed before allowing a refund', function () {
+    // PO 100 (10 × 10), 50 paid, 6 sent back (60). 50 of the return clears
+    // the debt; only the 10 overpaid can come back. Refunding 60 used to
+    // leave "due 0" while the shop really still owed 50.
+    $product = Product::factory()->create(['quantity' => 0]);
+    $order = receivedOrder($product, 10, ['unit_cost' => 10]);
+    $order->update(['paid_amount' => 50]);
+
+    $form = Livewire::test(PurchaseReturnForm::class, ['order' => $order])
+        ->set('lines.0.qty', '6');
+
+    expect($form->instance()->dueReduced)->toBe(50.0)
+        ->and($form->instance()->refundable)->toBe(10.0);
+
+    $form->set('refund_amount', '60')
+        ->set('refund_method', 'cash')
+        ->call('save')
+        ->assertHasErrors('refund_amount');
+
+    expect(PurchaseOrder::query()->returns()->count())->toBe(0)
+        ->and($product->fresh()->quantity)->toBe(10.0);
+
+    $form->set('refund_amount', '10')->call('save')->assertHasNoErrors();
+
+    $order->refresh();
+    expect((float) $order->returned_amount)->toBe(60.0)
+        ->and((float) $order->paid_amount)->toBe(40.0)      // 50 paid, 10 back
+        ->and($order->due_amount)->toBe(0.0)                // kept 40 worth, paid 40 net
+        ->and($order->credit_amount)->toBe(0.0)
+        ->and((float) PurchasePayment::sole()->amount)->toBe(10.0);
+});
+
+it('refuses any refund while the order is still unpaid', function () {
+    $product = Product::factory()->create(['quantity' => 0]);
+    $order = receivedOrder($product, 5);               // 500, nothing paid
+
+    Livewire::test(PurchaseReturnForm::class, ['order' => $order])
+        ->set('lines.0.qty', '2')
+        ->set('refund_amount', '1')
+        ->set('refund_method', 'cash')
+        ->call('save')
+        ->assertHasErrors('refund_amount');
+
+    Livewire::test(PurchaseReturnForm::class, ['order' => $order])
+        ->set('lines.0.qty', '2')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($order->fresh()->due_amount)->toBe(300.0)
+        ->and(PurchasePayment::count())->toBe(0);
+});
+
+it('keeps an overpayment that is not refunded as supplier credit', function () {
+    // PO 100, 50 paid, 60 sent back, nothing refunded: the supplier owes 10.
+    $product = Product::factory()->create(['quantity' => 0]);
+    $order = receivedOrder($product, 10, ['unit_cost' => 10]);
+    $order->update(['paid_amount' => 50]);
+
+    Livewire::test(PurchaseReturnForm::class, ['order' => $order])
+        ->set('lines.0.qty', '6')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $order->refresh();
+    expect($order->due_amount)->toBe(0.0)
+        ->and($order->credit_amount)->toBe(10.0)
+        ->and($order->supplier->balance)->toBe(-10.0);
+
+    Livewire::test(PurchaseForm::class, ['order' => $order])
+        ->assertSee('Supplier credit')
+        ->assertSee(money(10));
+
+    // A later refund of that credit is allowed on the next return.
+    Livewire::test(PurchaseReturnForm::class, ['order' => $order])
+        ->set('lines.0.qty', '1')
+        ->set('refund_amount', '20')
+        ->set('refund_method', 'cash')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($order->fresh()->credit_amount)->toBe(0.0)
+        ->and((float) $order->fresh()->paid_amount)->toBe(30.0);
 });
 
 it('shows a recorded return and redirects the purchase form to it', function () {

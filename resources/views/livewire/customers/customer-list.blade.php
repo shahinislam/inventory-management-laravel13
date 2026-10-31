@@ -88,18 +88,18 @@
 
                         {{-- Total Orders --}}
                         <flux:table.cell>
-                            <flux:badge size="sm" color="zinc">{{ $customer->total_orders }}</flux:badge>
+                            <flux:badge size="sm" color="zinc">{{ $customer->orders_count }}</flux:badge>
                         </flux:table.cell>
 
                         {{-- Total Spent --}}
                         <flux:table.cell>
-                            <flux:text class="font-medium">{{ money($customer->total_purchases) }}</flux:text>
+                            <flux:text class="font-medium">{{ money($customer->spent ?? 0) }}</flux:text>
                         </flux:table.cell>
 
                         {{-- Balance --}}
                         <flux:table.cell>
-                            <flux:text class="text-sm {{ $customer->current_balance > 0 ? 'text-red-500' : '' }}">
-                                {{ money($customer->current_balance) }}
+                            <flux:text class="text-sm {{ $customer->balance_due > 0 ? 'text-red-500' : '' }}">
+                                {{ money($customer->balance_due ?? 0) }}
                             </flux:text>
                         </flux:table.cell>
 

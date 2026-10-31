@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\NumberGeneratorService;
+use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -85,16 +86,26 @@ class Invoice extends Model
         return round((float) $this->total - (float) $this->returned_amount, 2);
     }
 
-    /** The tax contained in the lines; `tax` also holds any manually added tax. */
+    /** The tax contained in the lines, before bill discounts; `tax` holds what was charged. */
     public function lineTax(): float
     {
         return round((float) $this->items->sum('tax_amount'), 2);
     }
 
+    /** Line tax actually charged: the bill and member discounts take their share off. */
+    public function chargedLineTax(): float
+    {
+        $discountTax = PricingService::discountTax(
+            $this->lineTax(), $this->goodsTotal(), (float) $this->discount + (float) $this->membership_discount,
+        );
+
+        return round($this->lineTax() - $discountTax, 2);
+    }
+
     /** Tax added by hand on top of the lines. */
     public function extraTax(): float
     {
-        return max(0, round((float) $this->tax - $this->lineTax(), 2));
+        return max(0, round((float) $this->tax - $this->chargedLineTax(), 2));
     }
 
     /** The goods value as the document lists it: tax included when the prices contain it. */

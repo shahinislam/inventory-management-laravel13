@@ -86,7 +86,9 @@ class PartnershipReport extends Component
                 'period_start' => $this->dateFrom,
                 'period_end' => $this->dateTo,
                 'total_sales' => $summary['total_sales'],
-                'total_purchases' => $summary['total_purchases'],
+                // The column holds the period's costs as the P&L counts them
+                // (goods sold, stock written off, expenses), not purchases.
+                'total_purchases' => $summary['total_costs'],
                 'courier_margin' => $summary['courier_margin'],
                 'profit' => $summary['profit'],
                 'closed_by' => auth()->id(),

@@ -51,6 +51,26 @@ class PricingService
     }
 
     /**
+     * The part of the line tax that the bill and member discounts take off.
+     *
+     * A bill discount lowers every line by the same share of the goods value,
+     * so the tax inside the lines drops by that share too. $goods is the goods
+     * value as the bill lists it: tax included when prices contain it. With
+     * tax added on top the customer pays less tax; with prices that include
+     * it the total is unchanged and less of it is tax.
+     *
+     * Mirrored in the POS and invoice-form views, like lineAmounts().
+     */
+    public static function discountTax(float $lineTax, float $goods, float $billDiscount): float
+    {
+        if ($lineTax <= 0 || $goods <= 0 || $billDiscount <= 0) {
+            return 0.0;
+        }
+
+        return round($lineTax * min(1, $billDiscount / $goods), 2);
+    }
+
+    /**
      * Resolve the per-unit discount for a product.
      *
      * An active promotion — product-specific or category-wide — always takes
@@ -63,13 +83,22 @@ class PricingService
 
         if ($promotion) {
             return new ResolvedDiscount(
-                perUnit: $this->promotionDiscount($promotion, $product),
+                perUnit: $this->perUnit($this->promotionDiscount($promotion, $product), $product),
                 promotionId: $promotion->id,
                 label: $promotion->name,
             );
         }
 
-        return new ResolvedDiscount(perUnit: $this->productDiscount($product));
+        return new ResolvedDiscount(perUnit: $this->perUnit($this->productDiscount($product), $product));
+    }
+
+    /**
+     * In whole cents, as the line stores it, and never more than the price:
+     * a 2.00-off promotion on a 0.99 item makes it free, not negative.
+     */
+    private function perUnit(float $discount, Product $product): float
+    {
+        return round(min(max(0, $discount), (float) $product->selling_price), 2);
     }
 
     /**

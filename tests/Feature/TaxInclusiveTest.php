@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\PricingService;
+use App\Services\SalesReturnService;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -223,4 +224,93 @@ it('does not count line tax twice when a draft is edited and saved again', funct
 
     expect((float) $invoice->fresh()->tax)->toBe(150.0)
         ->and((float) $invoice->fresh()->total)->toBe(1150.0);
+});
+
+// ============ BILL DISCOUNTS ============
+
+function sellWithBillDiscount(Product $product, string $discount): Invoice
+{
+    Livewire::test(PosTerminal::class)
+        ->call('addToCart', $product->id)
+        ->call('updateQty', 0, 2)
+        ->set('discount', $discount)
+        ->call('openPaymentModal')
+        ->call('completeSale');
+
+    return Invoice::with('items')->sole();
+}
+
+it('takes the bill discount share off the line tax', function () {
+    expect(PricingService::discountTax(30, 230, 23))->toBe(3.0)
+        ->and(PricingService::discountTax(30, 200, 20))->toBe(3.0)
+        ->and(PricingService::discountTax(30, 200, 500))->toBe(30.0)
+        ->and(PricingService::discountTax(0, 200, 20))->toBe(0.0)
+        ->and(PricingService::discountTax(30, 200, 0))->toBe(0.0);
+});
+
+it('charges tax on the discounted price when tax is added on top', function () {
+    // 200 net + 30 tax; 20 off the bill leaves 180, taxed 27.
+    $invoice = sellWithBillDiscount(taxedProduct(['selling_price' => 100]), '20');
+
+    expect((float) $invoice->tax)->toBe(27.0)
+        ->and((float) $invoice->total)->toBe(207.0)
+        ->and($invoice->chargedLineTax())->toBe(27.0)
+        ->and($invoice->extraTax())->toBe(0.0);
+});
+
+it('keeps the shelf total but records less tax when prices include it', function () {
+    pricesIncludeTax();
+    // 230 incl. 30 tax; 23 off (10%) leaves 207, of which 27 is tax.
+    $invoice = sellWithBillDiscount(taxedProduct(), '23');
+
+    expect((float) $invoice->total)->toBe(207.0)
+        ->and((float) $invoice->tax)->toBe(27.0)
+        ->and($invoice->chargedLineTax())->toBe(27.0);
+
+    $this->get(route('invoices.show', $invoice))->assertOk()->assertSee('Includes tax '.money(27));
+
+    // Only 20 of the 23 off was sales; the other 3 was tax.
+    $statement = (new ProfitLossReport)->statement(now()->startOfMonth(), now()->endOfMonth());
+
+    expect($statement['discount'])->toEqual(20.0)
+        ->and($statement['net_sales'])->toEqual(180.0)
+        ->and($statement['tax'])->toEqual(27.0);
+});
+
+it('refunds a discounted sale with the tax it was charged', function (bool $inclusive) {
+    pricesIncludeTax($inclusive);
+    $sale = sellWithBillDiscount(taxedProduct($inclusive ? [] : ['selling_price' => 100]), $inclusive ? '23' : '20');
+
+    $return = app(SalesReturnService::class)->process($sale, [$sale->items->sole()->id => ['quantity' => 2]], 'cash');
+
+    expect((float) $return->total)->toBe(207.0)
+        ->and((float) $return->tax)->toBe(27.0);
+
+    $statement = (new ProfitLossReport)->statement(now()->startOfMonth(), now()->endOfMonth());
+
+    expect($statement['net_sales'])->toEqual(0.0)
+        ->and($statement['tax'])->toEqual(0.0);
+})->with(['tax on top' => [false], 'prices include tax' => [true]]);
+
+it('keeps the hand-added tax when a discounted invoice is edited', function () {
+    $product = Product::factory()->create(['selling_price' => 500, 'tax_rate' => 10]);
+
+    Livewire::test(InvoiceForm::class)
+        ->set('customer_name', 'Test Customer')
+        ->call('addProduct', $product->id)
+        ->set('items.0.quantity', '2')
+        ->set('discount', '100')
+        ->set('tax', '50')
+        ->call('saveDraft');
+
+    // 1000 net, 100 off: line tax 90 instead of 100, plus the 50 added by hand.
+    $invoice = Invoice::sole();
+    expect((float) $invoice->tax)->toBe(140.0)
+        ->and((float) $invoice->total)->toBe(1040.0);
+
+    Livewire::test(InvoiceForm::class, ['invoice' => $invoice])
+        ->assertSet('tax', '50')
+        ->call('saveDraft');
+
+    expect((float) $invoice->fresh()->tax)->toBe(140.0);
 });

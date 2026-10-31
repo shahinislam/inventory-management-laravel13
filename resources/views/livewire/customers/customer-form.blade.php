@@ -201,8 +201,8 @@
                         @endif
                         <div class="flex justify-between">
                             <flux:text class="text-sm text-zinc-500">Current Balance</flux:text>
-                            <flux:text class="font-medium {{ $this->customer->current_balance > 0 ? 'text-red-500' : '' }}">
-                                {{ money($this->customer->current_balance) }}
+                            <flux:text class="font-medium {{ $this->customer->owed() > 0 ? 'text-red-500' : '' }}">
+                                {{ money($this->customer->owed()) }}
                             </flux:text>
                         </div>
                     </div>

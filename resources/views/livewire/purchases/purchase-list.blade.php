@@ -115,6 +115,9 @@
                                 @if(!in_array($order->status, ['draft', 'cancelled']) && $order->due_amount > 0)
                                     <flux:text class="text-xs text-red-500">Due: {{ money($order->due_amount) }}</flux:text>
                                 @endif
+                                @if(!in_array($order->status, ['draft', 'cancelled']) && $order->credit_amount > 0)
+                                    <flux:text class="text-xs text-green-600">Supplier credit: {{ money($order->credit_amount) }}</flux:text>
+                                @endif
                             @endif
                         </flux:table.cell>
 

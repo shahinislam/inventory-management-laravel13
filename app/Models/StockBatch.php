@@ -20,7 +20,7 @@ class StockBatch extends Model
         return [
             'expiry_date' => 'date',
             'quantity' => 'float',
-            'unit_cost' => 'decimal:2',
+            'unit_cost' => 'decimal:4',
             'received_at' => 'datetime',
         ];
     }

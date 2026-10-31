@@ -105,10 +105,10 @@ class ExpiryReport extends Component
             ->orderBy('expiry_date')
             ->paginate(25);
 
-        $expired = $this->baseQuery()->expired()
-            ->selectRaw('COUNT(*) as n, COALESCE(SUM(quantity * unit_cost), 0) as v')->first();
-        $soon = $this->baseQuery()->expiringWithin($days)
-            ->selectRaw('COUNT(*) as n, COALESCE(SUM(quantity * unit_cost), 0) as v')->first();
+        // Stock is valued at the product's average cost, as everywhere else.
+        $value = 'COUNT(*) as n, COALESCE(SUM(stock_batches.quantity * (SELECT cost_price FROM products WHERE products.id = stock_batches.product_id)), 0) as v';
+        $expired = $this->baseQuery()->expired()->selectRaw($value)->first();
+        $soon = $this->baseQuery()->expiringWithin($days)->selectRaw($value)->first();
 
         return view('livewire.reports.expiry-report', [
             'batches' => $batches,

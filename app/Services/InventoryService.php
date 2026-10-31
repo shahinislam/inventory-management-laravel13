@@ -26,11 +26,21 @@ use Illuminate\Validation\ValidationException;
  * stock_batches records which part of the warehouse stock expires when. It is
  * never more than product_warehouse; the rest is untracked stock. Removals take
  * from batches earliest-expiry first (FEFO), then from untracked stock.
+ *
+ * Cost is a weighted average per product (products.cost_price, 4 decimals per
+ * base unit). Batches only say which units leave first; whatever leaves is
+ * costed at the average, batch or not. Goods arriving with a cost of their own
+ * (a purchase, a sale coming back) move the average; transfers and count
+ * corrections do not. A return to the supplier leaves at its own (landed) cost
+ * and the stock left behind carries the rest of the value.
  */
 class InventoryService
 {
     /** Quantities are compared with this tolerance, never with ===. */
     public const EPSILON = 0.0005;
+
+    /** Arrivals that carry a real cost and so move the weighted average. */
+    private const COSTED_ARRIVALS = ['purchase', 'return'];
 
     /**
      * How much of this product is in this warehouse.
@@ -50,7 +60,8 @@ class InventoryService
     /**
      * Add stock to a warehouse. Used by purchase receiving, returns and transfers in.
      *
-     * Pass batch_number / expiry_date in $extra to record which batch it is.
+     * Pass batch_number / expiry_date in $extra to record which batch it is, and
+     * unit_cost (per base unit) on a purchase or sales return to re-average.
      */
     public function add(
         int $productId,
@@ -66,7 +77,8 @@ class InventoryService
      * Remove stock from a warehouse. Used by sales and transfers out.
      *
      * Throws if the warehouse does not hold enough. Returns what was taken:
-     * ['unit_cost' => average cost of the units removed, 'batches' => [...]].
+     * ['unit_cost' => the weighted average cost per unit, 'batches' => [...]].
+     * A purchase_return passes its own unit_cost and is taken out at that.
      */
     public function remove(
         int $productId,
@@ -144,23 +156,34 @@ class InventoryService
             }
             $after = max(0.0, $after);
 
+            // Averages read the stock on hand before this change, so they run
+            // before writeWarehouseStock().
             if ($change > 0) {
-                $taken = ['unit_cost' => (float) ($extra['unit_cost'] ?? $product->cost_price), 'batches' => []];
+                $unitCost = isset($extra['unit_cost']) ? (float) $extra['unit_cost'] : (float) $product->cost_price;
+                $taken = ['unit_cost' => round($unitCost, 4), 'batches' => []];
                 $this->addToBatches($product, $warehouseId, $change, $extra);
 
-                // A purchase moves the product's cost to the weighted average.
-                if ($type === 'purchase' && isset($extra['unit_cost'])) {
-                    $this->averageCost($product, $change, (float) $extra['unit_cost']);
+                // A purchase, or a sale coming back at what it cost, moves the
+                // product's cost to the weighted average.
+                if (in_array($type, self::COSTED_ARRIVALS, true) && isset($extra['unit_cost'])) {
+                    $this->averageCost($product, $change, $unitCost);
                 }
             } else {
                 $taken = $this->takeFromBatches($product, $warehouseId, abs($change));
+
+                if ($type === 'purchase_return' && isset($extra['unit_cost'])) {
+                    // Sent back at what it cost; what stays keeps the rest of the value.
+                    $taken['unit_cost'] = round((float) $extra['unit_cost'], 4);
+                    $this->averageOut($product, abs($change), $taken['unit_cost']);
+                } else {
+                    $taken['unit_cost'] = round((float) $product->cost_price, 4);
+                }
             }
 
             $this->writeWarehouseStock($productId, $warehouseId, $after);
             $this->refreshProductTotal($product);
 
-            $this->recordMovement($product, $warehouseId, $type, $change, $before, $after, $extra + [
-                'unit_cost' => $taken['unit_cost'],
+            $this->recordMovement($product, $warehouseId, $type, $change, $before, $after, ['unit_cost' => $taken['unit_cost']] + $extra + [
                 'batch_number' => count($taken['batches']) === 1 ? $taken['batches'][0]['batch_number'] : null,
                 'expiry_date' => count($taken['batches']) === 1 ? $taken['batches'][0]['expiry_date'] : null,
             ]);
@@ -214,14 +237,13 @@ class InventoryService
 
     /**
      * Take $quantity out of the batches, earliest expiry first (no-expiry
-     * batches last), then from untracked stock. Returns the batches used and
-     * the average cost of everything taken.
+     * batches last), then from untracked stock. Returns the batches used; the
+     * caller prices the units (batches decide which units go, not their cost).
      */
     private function takeFromBatches(Product $product, int $warehouseId, float $quantity): array
     {
         $remaining = $quantity;
         $used = [];
-        $cost = 0.0;
 
         $batches = StockBatch::where('product_id', $product->id)
             ->where('warehouse_id', $warehouseId)
@@ -247,30 +269,50 @@ class InventoryService
                 'quantity' => $take,
                 'unit_cost' => (float) $batch->unit_cost,
             ];
-            $cost += $take * (float) $batch->unit_cost;
             $remaining = round($remaining - $take, 3);
         }
 
-        // Whatever is left came from untracked stock, at the product's cost.
-        $cost += max(0, $remaining) * (float) $product->cost_price;
+        // Whatever is left came from untracked stock.
+        return ['batches' => $used];
+    }
 
-        return [
-            'unit_cost' => $quantity > 0 ? round($cost / $quantity, 2) : (float) $product->cost_price,
-            'batches' => $used,
-        ];
+    /** Total on hand across every warehouse, before the change being made. */
+    private function onHand(Product $product): float
+    {
+        return max(0, (float) DB::table('product_warehouse')->where('product_id', $product->id)->sum('quantity'));
     }
 
     /** Weighted moving average: old stock at old cost plus new stock at new cost. */
     private function averageCost(Product $product, float $added, float $unitCost): void
     {
-        $onHand = max(0, (float) DB::table('product_warehouse')->where('product_id', $product->id)->sum('quantity'));
+        $onHand = $this->onHand($product);
         $old = (float) $product->cost_price;
 
         $average = $onHand + $added > 0
             ? (($onHand * $old) + ($added * $unitCost)) / ($onHand + $added)
             : $unitCost;
 
-        $product->cost_price = round($average, 2);
+        $product->cost_price = round($average, 4);
+    }
+
+    /**
+     * Goods leaving at their own cost instead of the average (sent back to the
+     * supplier at landed cost): the stock left carries what remains of the value.
+     */
+    private function averageOut(Product $product, float $removed, float $unitCost): void
+    {
+        $onHand = $this->onHand($product);
+        $left = round($onHand - $removed, 3);
+
+        // Nothing left to value: keep the last average until stock arrives again.
+        if ($left < self::EPSILON) {
+            return;
+        }
+
+        $value = ($onHand * (float) $product->cost_price) - ($removed * $unitCost);
+
+        // Never below zero, even if what went back cost more than all of it was worth.
+        $product->cost_price = round(max(0, $value) / $left, 4);
     }
 
     /**
@@ -317,7 +359,7 @@ class InventoryService
             ->where('product_id', $product->id)
             ->sum('quantity'), 3);
 
-        // save() rather than update(): averageCost() may have set cost_price too.
+        // save() rather than update(): averageCost() / averageOut() may have set cost_price too.
         $product->quantity = $total;
         $product->save();
     }

@@ -3,6 +3,8 @@
 namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
+use App\Services\ProfitLossService;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -68,9 +70,13 @@ class InvoiceList extends Component
             ->latest()
             ->paginate(15);
 
+        // Today's sales are every issued sale, paid or owed, less anything brought
+        // back; pending is what customers still owe (drafts are not owed yet).
         $summary = [
-            'total_today' => Invoice::sales()->whereDate('invoice_date', today())->where('status', 'paid')->sum('total'),
-            'total_pending' => Invoice::sales()->whereIn('status', ['draft', 'sent', 'partial'])->sum('due_amount'),
+            'total_today' => Invoice::sales()->whereDate('invoice_date', today())
+                ->whereNotIn('invoices.status', ProfitLossService::EXCLUDED_STATUSES)
+                ->sum(DB::raw('total - returned_amount')),
+            'total_pending' => Invoice::sales()->withDue()->sum('due_amount'),
             'total_overdue' => Invoice::sales()->where('status', 'overdue')->count(),
         ];
 

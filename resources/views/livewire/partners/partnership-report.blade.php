@@ -4,7 +4,7 @@
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div>
             <flux:heading size="xl">Partnership Report</flux:heading>
-            <flux:text class="mt-1">Profit and partner capital accounts</flux:text>
+            <flux:text class="mt-1">Net profit and partner capital accounts</flux:text>
         </div>
         <div class="flex gap-3">
             <flux:button icon="users" variant="ghost" :href="route('partners.index')" wire:navigate>Partners</flux:button>
@@ -57,26 +57,27 @@
 
     {{-- Summary --}}
     <div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <x-stat-tile label="Sales" :value="money($summary['total_sales'])" tone="green" icon="banknotes"
-            :hint="$summary['invoice_count'] . ' invoices'" />
-        <x-stat-tile label="Purchases" :value="money($summary['total_purchases'])" tone="red" icon="shopping-cart"
-            :hint="$summary['purchase_count'] . ' orders'" />
+        <x-stat-tile label="Net sales" :value="money($summary['total_sales'])" tone="green" icon="banknotes"
+            :hint="$summary['invoice_count'] . ' invoices, excl. tax'" />
+        <x-stat-tile label="Costs" :value="money($summary['total_costs'])" tone="red" icon="receipt-percent"
+            hint="Goods sold, stock written off, expenses" />
         <x-stat-tile label="Courier Margin" :value="money($summary['courier_margin'])"
             :tone="$summary['courier_margin'] < 0 ? 'yellow' : 'blue'" icon="truck"
             :hint="$summary['courier_margin'] < 0 ? 'Shop absorbed delivery' : 'Charged above cost'" />
-        <x-stat-tile label="Profit" :value="money($summary['profit'])"
+        <x-stat-tile label="Net profit" :value="money($summary['profit'])"
             :tone="$summary['profit'] < 0 ? 'red' : 'green'" icon="chart-bar" />
     </div>
 
-    {{-- Cash basis is a real limitation, not a footnote: stock bought this
-         period is expensed immediately even though it is still on the shelf. --}}
+    {{-- Say where the profit comes from, so partners can check it against the P&L. --}}
     <flux:card class="mb-6 p-4">
         <div class="flex items-start gap-3">
             <flux:icon name="information-circle" class="mt-0.5 size-5 shrink-0 text-zinc-400" />
             <flux:text size="sm">
-                Cash basis: profit is sales received less purchases made in this period, plus the margin on
-                delivery. Stock bought but not yet sold counts as a cost now, so a heavy purchasing month can
-                show a loss while the stock is still in hand.
+                The profit shared is the net profit from Profit &amp; Loss for this period: net sales (excluding
+                tax) less what the goods sold cost ({{ money($summary['cogs']) }}), stock written off
+                ({{ money($summary['stock_loss']) }}) and expenses ({{ money($summary['expenses']) }}), plus the
+                courier margin. Stock bought but not yet sold is not a cost until it sells. Tax collected is owed
+                to the government and is never profit.
             </flux:text>
         </div>
     </flux:card>
@@ -166,10 +167,10 @@
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Period</flux:table.column>
-                    <flux:table.column>Sales</flux:table.column>
-                    <flux:table.column>Purchases</flux:table.column>
+                    <flux:table.column>Net sales</flux:table.column>
+                    <flux:table.column>Costs</flux:table.column>
                     <flux:table.column>Courier</flux:table.column>
-                    <flux:table.column>Profit</flux:table.column>
+                    <flux:table.column>Net profit</flux:table.column>
                     <flux:table.column>Closed</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
@@ -205,7 +206,7 @@
         <div class="p-6">
             <flux:heading size="lg">Close this period?</flux:heading>
             <flux:text class="mt-2">
-                This locks the profit of {{ money($summary['profit']) }} for
+                This locks the net profit of {{ money($summary['profit']) }} for
                 {{ \Carbon\Carbon::parse($dateFrom)->format('d M Y') }} –
                 {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}
                 and each partner's share at their current percentage. Later edits to these invoices will not

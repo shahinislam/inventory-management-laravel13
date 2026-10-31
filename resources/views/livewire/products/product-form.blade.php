@@ -59,7 +59,7 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <flux:field>
                             <flux:label>Cost Price <flux:badge color="red" size="sm">Required</flux:badge></flux:label>
-                            <flux:input wire:model="cost_price" type="number" step="0.01" min="0" placeholder="0.00" :prefix="currency_symbol()" />
+                            <flux:input wire:model="cost_price" type="number" step="any" min="0" placeholder="0.00" :prefix="currency_symbol()" />
                             <flux:error name="cost_price" />
                         </flux:field>
 

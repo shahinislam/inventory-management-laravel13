@@ -5,14 +5,15 @@
 
         // Statement lines: [label, key, sign, helper, emphasis]
         $lines = [
-            ['Sales of goods', 'goods_sales', '+', 'What customers were charged for items, after item discounts. Excludes VAT and courier.', false],
-            ['Bill discounts', 'discount', '−', 'Discounts given on the whole bill.', false],
+            ['Sales of goods', 'goods_sales', '+', 'What customers were charged for items, after item discounts. Excludes tax and courier.', false],
+            ['Bill discounts', 'discount', '−', 'Discounts given on the whole bill. When prices include tax, the tax part is left out.', false],
             ['Member reward discounts', 'membership_discount', '−', 'Rewards given to members at checkout.', false],
             ['Returns', 'returns', '−', 'Value of goods customers brought back (refunded or credited).', false],
             ['Net sales', 'net_sales', '=', 'What you actually earned from selling goods.', true],
             ['Cost of goods sold', 'cogs', '−', 'What the items you sold cost you to buy. Restocked returns are taken off; damaged returns stay as a loss.', false],
             ['Gross profit', 'gross_profit', '=', 'Profit from selling, before running costs.', true],
             ['Courier margin', 'courier_margin', '±', 'Delivery charged to customers minus what the courier cost you.', false],
+            ['Stock written off', 'stock_loss', '−', 'Damaged, expired and missing stock written off in stock adjustments and counts, at cost, less stock found again.', false],
             ['Expenses', 'expense_total', '−', 'Rent, salaries, bills and other running costs recorded under Expenses.', false],
         ];
 
@@ -83,7 +84,7 @@
             @endif
         </div>
 
-        <x-stat-tile label="Net sales" :value="money($current['net_sales'])" tone="blue" icon="banknotes" :hint="$current['invoices'].' sale'.($current['invoices'] === 1 ? '' : 's').', excl. VAT'" />
+        <x-stat-tile label="Net sales" :value="money($current['net_sales'])" tone="blue" icon="banknotes" :hint="$current['invoices'].' sale'.($current['invoices'] === 1 ? '' : 's').', excl. tax'" />
         <x-stat-tile label="Gross profit" :value="money($current['gross_profit'])" tone="green" icon="arrow-trending-up" :hint="$current['gross_margin'] !== null ? $current['gross_margin'].'% margin' : 'No sales yet'" />
         <x-stat-tile label="Expenses" :value="money($current['expense_total'])" tone="red" icon="receipt-percent" :hint="count($current['expenses']).' categor'.(count($current['expenses']) === 1 ? 'y' : 'ies')" />
     </div>
@@ -180,9 +181,12 @@
             </div>
 
             <div class="space-y-1 border-t border-zinc-200 p-4 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                <div>Total billed incl. VAT (gross sales): <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-200">{{ money($current['gross_sales']) }}</span></div>
-                <div>VAT collected: <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-200">{{ money($current['tax']) }}</span> — not your income; it is owed to the government, so it is left out of profit.</div>
+                <div>Billed for goods incl. tax, after discounts (courier not included): <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-200">{{ money($current['gross_sales']) }}</span>.@if($current['returns_incl_tax'] > 0) Returns gave back <span class="tabular-nums">{{ money($current['returns_incl_tax']) }}</span> incl. tax.@endif</div>
+                <div>Tax collected: <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-200">{{ money($current['tax']) }}</span> — not your income; it is owed to the government, so it is left out of profit.</div>
                 <div>Courier: charged customers <span class="tabular-nums">{{ money($current['courier_charge']) }}</span>, paid couriers <span class="tabular-nums">{{ money($current['courier_cost']) }}</span>.</div>
+                @if($current['stock_lost'] > 0 || $current['stock_found'] > 0)
+                    <div>Stock at cost: written off <span class="tabular-nums">{{ money($current['stock_lost']) }}</span>, found again <span class="tabular-nums">{{ money($current['stock_found']) }}</span>. Opening stock entries are not counted.</div>
+                @endif
                 <div>Draft, cancelled and parked (held) sales are not counted. Till cash in / out moves are not expenses.</div>
             </div>
         </flux:card>
@@ -226,7 +230,7 @@
     <flux:card class="mt-6">
         <div class="border-b border-zinc-200 p-4 dark:border-zinc-700">
             <flux:heading>Gross profit by product category</flux:heading>
-            <flux:text class="text-xs text-zinc-500">Item sales after item discounts (before bill discounts and VAT), less what those items cost, net of returns.</flux:text>
+            <flux:text class="text-xs text-zinc-500">Item sales after item discounts (before bill discounts and tax), less what those items cost, net of returns.</flux:text>
         </div>
         <flux:table>
             <flux:table.columns>

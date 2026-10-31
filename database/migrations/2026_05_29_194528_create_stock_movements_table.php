@@ -27,7 +27,7 @@ return new class extends Migration
             $table->decimal('quantity', 12, 3);
             $table->decimal('before_quantity', 12, 3);
             $table->decimal('after_quantity', 12, 3);
-            $table->decimal('unit_cost', 12, 2)->default(0);
+            $table->decimal('unit_cost', 14, 4)->default(0);
             $table->string('reference_type', 100)->nullable();
             $table->unsignedBigInteger('reference_id')->nullable();
             $table->date('expiry_date')->nullable();

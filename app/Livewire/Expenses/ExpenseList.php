@@ -6,6 +6,7 @@ use App\Concerns\AuthorizesDestructiveActions;
 use App\Concerns\ResolvesReportPeriod;
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Services\ShiftService;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -45,8 +46,16 @@ class ExpenseList extends Component
             return;
         }
 
-        Expense::findOrFail($this->deleteId)->delete();
+        $expense = Expense::findOrFail($this->deleteId);
         $this->deleteId = null;
+
+        if ($reason = app(ShiftService::class)->expenseLockReason($expense)) {
+            session()->flash('error', $reason);
+
+            return;
+        }
+
+        $expense->delete();
         session()->flash('success', 'Expense deleted successfully!');
     }
 

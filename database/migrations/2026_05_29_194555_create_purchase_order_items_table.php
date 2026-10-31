@@ -22,7 +22,9 @@ return new class extends Migration
             $table->decimal('unit_factor', 12, 3)->default(1);
             // On a return order: the purchase line being returned.
             $table->foreignId('parent_item_id')->nullable()->constrained('purchase_order_items')->nullOnDelete();
-            $table->decimal('unit_cost', 12, 2);
+            // Supplier price per ordered unit, before the order's discount, freight
+            // and tax (those are spread over the lines on receipt: the landed cost).
+            $table->decimal('unit_cost', 14, 4);
             $table->decimal('tax_rate', 5, 2)->default(0);
             $table->decimal('discount', 5, 2)->default(0);
             $table->decimal('subtotal', 12, 2);

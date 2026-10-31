@@ -152,7 +152,7 @@
                                     <th class="px-2 py-2.5 text-left font-semibold">Product</th>
                                     <th class="px-2 py-2.5 text-right font-semibold">Returnable</th>
                                     <th class="px-2 py-2.5 text-right font-semibold">In stock</th>
-                                    <th class="px-2 py-2.5 text-right font-semibold">Unit cost</th>
+                                    <th class="px-2 py-2.5 text-right font-semibold" title="Line cost with its share of the order discount, freight and tax">Landed cost</th>
                                     <th class="w-28 px-2 py-2.5 text-right font-semibold">Return qty</th>
                                 </tr>
                             </thead>
@@ -171,7 +171,10 @@
                                             @endif
                                         </td>
                                         <td class="px-2 py-3 text-right tabular-nums">{{ format_qty($line['available'], $line['unit']) }}</td>
-                                        <td class="px-2 py-3 text-right tabular-nums">{{ money($line['unit_cost']) }}</td>
+                                        <td class="px-2 py-3 text-right tabular-nums">
+                                            {{ money($line['unit_cost']) }}
+                                            <div class="text-xs text-zinc-500">per {{ $line['unit_label'] }}</div>
+                                        </td>
                                         <td class="px-2 py-3 text-right">
                                             <flux:input wire:model.live.debounce.400ms="lines.{{ $i }}.qty" type="number" min="0"
                                                 step="{{ $fraction ? '0.001' : '1' }}" max="{{ $line['returnable'] }}"
@@ -205,11 +208,22 @@
                         <span class="text-sm font-medium uppercase tracking-wide text-zinc-500">Return total</span>
                         <span class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ money($this->returnTotal) }}</span>
                     </div>
-                    <flux:text class="text-xs text-zinc-500">Taken off what you owe on {{ $order->order_number }}.</flux:text>
+                    {{-- Like a sales return: first off what is owed, then any overpayment can come back. --}}
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Off what you owe on {{ $order->order_number }}</span>
+                            <span class="tabular-nums">{{ money($this->dueReduced) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Supplier can refund up to</span>
+                            <span class="tabular-nums text-green-600">{{ money($this->refundable) }}</span>
+                        </div>
+                    </div>
                 </flux:card>
 
                 <flux:card class="space-y-4 p-6">
                     <flux:heading>Supplier refunded now</flux:heading>
+                    <flux:text class="text-xs text-zinc-500">Only money already paid beyond the goods you keep can be refunded. Anything not refunded stays as supplier credit.</flux:text>
                     <flux:field>
                         <flux:label>Amount <flux:text class="text-xs text-zinc-400">(optional)</flux:text></flux:label>
                         <flux:input wire:model="refund_amount" type="number" step="0.01" min="0" :prefix="currency_symbol()" class="tabular-nums" />

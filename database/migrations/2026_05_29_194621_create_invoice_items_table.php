@@ -25,8 +25,8 @@ return new class extends Migration
             $table->decimal('tax_amount', 12, 2)->default(0);
             // A free member reward: billed at zero, still taken out of stock.
             $table->boolean('is_gift')->default(false);
-            // Cost per unit when sold, for profit reporting.
-            $table->decimal('unit_cost', 12, 2)->default(0);
+            // Weighted average cost per unit when sold (4 decimals), for profit reporting.
+            $table->decimal('unit_cost', 14, 4)->default(0);
             // On a return invoice: the sold line coming back, and whether it went back on the shelf.
             $table->foreignId('parent_item_id')->nullable()->constrained('invoice_items')->nullOnDelete();
             $table->boolean('restock')->default(true);

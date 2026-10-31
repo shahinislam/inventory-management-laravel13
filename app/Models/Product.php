@@ -26,7 +26,8 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'cost_price' => 'decimal:2',
+            // Per base unit, so 4 decimals: a 10.00 carton of 24 is 0.4167 a piece.
+            'cost_price' => 'decimal:4',
             'selling_price' => 'decimal:2',
             'tax_rate' => 'decimal:2',
             'discount' => 'decimal:2',

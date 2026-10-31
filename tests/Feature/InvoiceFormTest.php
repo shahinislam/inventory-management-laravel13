@@ -15,6 +15,8 @@ beforeEach(function () {
     $this->user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     Warehouse::factory()->default()->create();
     $this->actingAs($this->user);
+    // Cash taken on the form goes into a drawer, so it needs an open shift.
+    openShift();
 });
 
 /** Build a form component with one product line already added. */
@@ -56,8 +58,9 @@ it('subtracts the invoice-level discount from the total', function () {
 
     $c = invoiceWith($product, 2)->set('discount', '100')->instance();
 
-    // 1000 goods - 100 discount + 100 tax
-    expect($c->total)->toBe(1000.0);
+    // 1000 goods - 100 discount + 90 tax (the discount takes its 10% share of the 100 line tax)
+    expect($c->taxTotal)->toBe(90.0)
+        ->and($c->total)->toBe(990.0);
 });
 
 it('stores the real tax on the invoice, not just the surcharge', function () {

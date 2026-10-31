@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CashShift;
 use App\Models\Expense;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +58,23 @@ class ShiftService
     }
 
     /**
+     * Why an expense can no longer be changed, or null when it can. Cash paid
+     * from a till is part of that shift's count, so once the shift is closed
+     * editing or deleting the expense would quietly change a settled drawer.
+     */
+    public function expenseLockReason(Expense $expense): ?string
+    {
+        $shift = $expense->shift_id ? $expense->shift : null;
+
+        if (! $shift || $shift->isOpen()) {
+            return null;
+        }
+
+        return "This expense was paid from the till in shift {$shift->shift_number}, which is closed. "
+            ."It is part of that shift's cash count, so it can no longer be edited or deleted.";
+    }
+
+    /**
      * Everything that moved through the drawer, by line, for the close screen
      * and the Z-report.
      */
@@ -84,14 +102,23 @@ class ShiftService
         $sales = $shift->invoices()->sales();
         $returns = $shift->invoices()->returns();
 
+        $drawerTotal = round((float) $shift->opening_cash + $cashSales - $cashRefunds + $cashIn - $cashOut - $cashExpenses, 2);
+        // A closed shift was counted against the figure stored at close; that
+        // figure stands even if something linked to the shift changes later.
+        $closed = ! $shift->isOpen() && $shift->expected_cash !== null;
+
         return [
+            'closed' => $closed,
             'opening_cash' => (float) $shift->opening_cash,
             'cash_sales' => $cashSales,
             'cash_refunds' => $cashRefunds,
             'cash_in' => $cashIn,
             'cash_out' => $cashOut,
             'cash_expenses' => $cashExpenses,
-            'expected_cash' => round((float) $shift->opening_cash + $cashSales - $cashRefunds + $cashIn - $cashOut - $cashExpenses, 2),
+            'expected_cash' => $closed ? (float) $shift->expected_cash : $drawerTotal,
+            // What the lines above add up to now; differs from expected_cash
+            // only when a closed shift's records were changed after the count.
+            'drawer_total' => $drawerTotal,
             'by_method' => collect(Payment::methods())->map(fn ($label, $method) => [
                 'label' => $label,
                 'total' => (float) ($byMethod[$method]->total ?? 0),
@@ -100,10 +127,43 @@ class ShiftService
             ])->filter(fn ($row) => $row['total'] > 0 || $row['refunded'] > 0)->all(),
             'sales_count' => (clone $sales)->count(),
             'sales_total' => (float) (clone $sales)->sum('total'),
-            'due_given' => (float) (clone $sales)->sum('due_amount'),
+            'due_given' => $closed ? $this->dueAtClose($shift) : (float) (clone $sales)->sum('due_amount'),
             'returns_count' => (clone $returns)->count(),
             'returns_total' => (float) (clone $returns)->sum('total'),
         ];
+    }
+
+    /**
+     * What the shift's sales still owed when the shift closed. due_amount moves
+     * on as customers pay later or bring goods back, so it is rebuilt from what
+     * had happened by the close: the bill, less payments taken and less the
+     * part of each return that was taken off the due rather than refunded.
+     */
+    private function dueAtClose(CashShift $shift): float
+    {
+        $sales = $shift->invoices()->sales()->get(['id', 'total']);
+
+        if ($sales->isEmpty()) {
+            return 0.0;
+        }
+
+        $paid = Payment::whereIn('invoice_id', $sales->modelKeys())
+            ->where('status', 'completed')
+            ->where('created_at', '<=', $shift->closed_at)
+            ->selectRaw('invoice_id, SUM(amount) as total')
+            ->groupBy('invoice_id')
+            ->pluck('total', 'invoice_id');
+
+        // A return note's paid_amount is the refund; the rest came off the due.
+        $credited = Invoice::query()->returns()
+            ->whereIn('parent_invoice_id', $sales->modelKeys())
+            ->where('created_at', '<=', $shift->closed_at)
+            ->selectRaw('parent_invoice_id, SUM(total - paid_amount) as total')
+            ->groupBy('parent_invoice_id')
+            ->pluck('total', 'parent_invoice_id');
+
+        return round($sales->sum(fn (Invoice $sale) => max(0, (float) $sale->total
+            - (float) ($paid[$sale->id] ?? 0) - (float) ($credited[$sale->id] ?? 0))), 2);
     }
 
     public function close(CashShift $shift, float $countedCash, ?string $notes = null): CashShift

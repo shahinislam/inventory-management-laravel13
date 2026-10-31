@@ -65,9 +65,13 @@
         <tr><td>− Expenses</td><td>{{ money($summary['cash_expenses'], false) }}</td></tr>
     </table>
     <div class="rule-solid"></div>
+    {{-- A closed shift prints the figure it was counted against, stored at close. --}}
     <table class="totals grand">
-        <tr><td>EXPECTED</td><td>{{ money($summary['expected_cash'], false) }}</td></tr>
+        <tr><td>{{ $summary['closed'] ? 'EXPECTED AT CLOSE' : 'EXPECTED' }}</td><td>{{ money($summary['expected_cash'], false) }}</td></tr>
     </table>
+    @if ($summary['closed'] && abs($summary['drawer_total'] - $summary['expected_cash']) >= 0.005)
+        <div class="muted">Lines above now total {{ money($summary['drawer_total'], false) }}: changed after close.</div>
+    @endif
     @if ($shift->counted_cash !== null)
         <table class="totals">
             <tr><td>Counted</td><td>{{ money($shift->counted_cash, false) }}</td></tr>

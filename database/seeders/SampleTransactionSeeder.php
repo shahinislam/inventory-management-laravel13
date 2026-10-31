@@ -247,8 +247,10 @@ class SampleTransactionSeeder extends Seeder
         $at = $sale['at'];
         $date = $at->copy()->startOfDay();
 
-        $amounts = collect($sale['lines'])->map(fn ($line) => PricingService::lineAmounts(
-            (float) $line[0]->selling_price, 0, (float) $line[1], (float) $line[0]->tax_rate, $this->inclusive,
+        // Priced like the POS: the product's own discount comes off before tax.
+        $discounts = collect($sale['lines'])->map(fn ($line) => app(PricingService::class)->resolveDiscount($line[0])->perUnit);
+        $amounts = collect($sale['lines'])->map(fn ($line, $i) => PricingService::lineAmounts(
+            (float) $line[0]->selling_price, $discounts[$i], (float) $line[1], (float) $line[0]->tax_rate, $this->inclusive,
         ));
 
         $total = round($amounts->sum('gross'), 2);
@@ -293,6 +295,7 @@ class SampleTransactionSeeder extends Seeder
                 'unit_price' => $product->selling_price,
                 'unit_cost' => $taken['unit_cost'],
                 'tax_rate' => $product->tax_rate,
+                'discount' => $discounts[$i],
                 'subtotal' => $amounts[$i]['gross'],
                 'tax_amount' => $amounts[$i]['tax'],
             ]);
@@ -315,8 +318,6 @@ class SampleTransactionSeeder extends Seeder
             ]);
         }
 
-        $customer?->increment('total_orders');
-        $customer?->increment('total_purchases', $total);
     }
 
     /**

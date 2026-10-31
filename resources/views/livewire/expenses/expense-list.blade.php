@@ -125,7 +125,12 @@
                             <flux:text class="font-semibold tabular-nums {{ $isCost ? 'text-red-600 dark:text-red-400' : '' }}">{{ money($expense->amount) }}</flux:text>
                         </flux:table.cell>
                         <flux:table.cell class="text-right">
-                            @if($isCost)
+                            @if($isCost && $expense->shift && ! $expense->shift->isOpen())
+                                {{-- Part of a closed shift's cash count: ExpenseForm and delete() refuse changes. --}}
+                                <flux:tooltip content="Paid from a till shift that is closed, so it can no longer be changed.">
+                                    <flux:text class="text-xs text-zinc-400">Shift closed</flux:text>
+                                </flux:tooltip>
+                            @elseif($isCost)
                                 <flux:dropdown align="end">
                                     <flux:button icon="ellipsis-horizontal" variant="ghost" size="sm" square />
                                     <flux:menu>

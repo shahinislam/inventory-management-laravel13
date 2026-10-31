@@ -113,7 +113,7 @@ class PurchaseForm extends Component
                 'unit_label' => $item->unit_label ?: $item->product->unit,
                 'unit_factor' => $item->factor,
                 'quantity' => self::qtyString($item->quantity),
-                'unit_cost' => (string) $item->unit_cost,
+                'unit_cost' => self::costString($item->unit_cost),
                 'received' => $item->received_quantity,
             ]))->toArray();
         } else {
@@ -125,6 +125,12 @@ class PurchaseForm extends Component
     private static function qtyString(float|int|string|null $qty): string
     {
         return rtrim(rtrim(number_format((float) $qty, 3, '.', ''), '0'), '.') ?: '0';
+    }
+
+    /** A unit cost as an input value: "240.00", "0.4167" (2 to 4 decimals). */
+    private static function costString(float|int|string|null $cost): string
+    {
+        return preg_replace('/(\.\d\d\d*?)0+$/', '$1', number_format((float) $cost, 4, '.', ''));
     }
 
     /** One line of the items array, defaulting to one base unit at cost price. */
@@ -144,7 +150,7 @@ class PurchaseForm extends Component
             'unit_label' => $product->unit,
             'unit_factor' => 1.0,
             'quantity' => '1',
-            'unit_cost' => (string) $product->cost_price,
+            'unit_cost' => self::costString($product->cost_price),
             'received' => 0,
         ], $overrides);
     }
@@ -178,7 +184,8 @@ class PurchaseForm extends Component
         $perPiece = (float) ($item['unit_cost'] ?: 0) / $oldFactor;
         $this->items[$index]['unit_factor'] = $newFactor;
         $this->items[$index]['unit_label'] = $toPurchase ? $item['purchase_unit'] : $item['unit'];
-        $this->items[$index]['unit_cost'] = (string) round($perPiece * $newFactor, 2);
+        // 4 decimals, so 10.00 a carton of 24 becomes 0.4167 a piece, not 0.42.
+        $this->items[$index]['unit_cost'] = self::costString(round($perPiece * $newFactor, 4));
 
         if (! self::allowsFraction($this->items[$index])) {
             $this->items[$index]['quantity'] = (string) max(1, (int) round((float) $item['quantity']));
@@ -313,7 +320,7 @@ class PurchaseForm extends Component
     {
         return array_map(function ($item) {
             $qty = (float) $item['quantity'];
-            $cost = (float) $item['unit_cost'];
+            $cost = round((float) $item['unit_cost'], 4);
 
             return [
                 'product_id' => $item['product_id'],
@@ -326,8 +333,25 @@ class PurchaseForm extends Component
         }, $this->items);
     }
 
+    /**
+     * Only a new order or a draft may be written from the form. Saving rebuilds
+     * the lines, so on a placed order it would wipe what has been received and
+     * let the same goods be received again.
+     */
+    private function isEditable(): bool
+    {
+        return ! $this->order?->exists || $this->order->isDraft();
+    }
+
     public function saveDraft(): void
     {
+        // Re-checked here: the buttons are hidden, but this is callable from the browser.
+        if (! $this->isEditable()) {
+            session()->flash('error', 'This order has been placed and can no longer be edited.');
+
+            return;
+        }
+
         $this->validate();
         $this->persist('draft');
         session()->flash('success', 'Purchase order saved as draft!');
@@ -336,6 +360,12 @@ class PurchaseForm extends Component
 
     public function placeOrder(): void
     {
+        if (! $this->isEditable()) {
+            session()->flash('error', 'This order has been placed and can no longer be edited.');
+
+            return;
+        }
+
         $this->validate();
         $this->persist('ordered');
         session()->flash('success', 'Purchase order placed!');
@@ -351,6 +381,12 @@ class PurchaseForm extends Component
         $total = $this->total;
 
         DB::transaction(function () use ($itemsData, $subtotal, $tax, $discount, $total, $status) {
+            // Under a lock, so a second tab cannot place it in the meantime.
+            if ($this->order?->exists
+                && PurchaseOrder::whereKey($this->order->id)->lockForUpdate()->value('status') !== 'draft') {
+                throw ValidationException::withMessages(['items' => 'This order has been placed and can no longer be edited.']);
+            }
+
             $data = [
                 'supplier_id' => $this->supplier_id,
                 'warehouse_id' => $this->warehouse_id,
@@ -429,8 +465,26 @@ class PurchaseForm extends Component
             return;
         }
 
-        if (in_array($this->order?->status, ['received', 'cancelled'], true)) {
+        if (! $this->order?->exists) {
+            return;
+        }
+
+        if (in_array($this->order->status, ['received', 'cancelled'], true)) {
             session()->flash('error', 'A received or already-cancelled order cannot be cancelled.');
+
+            return;
+        }
+
+        // Cancelling would drop what is owed for goods already in stock.
+        if ($this->order->hasReceivedStock()) {
+            session()->flash('error', 'Stock has already been received against this order, so it cannot be cancelled. Send unwanted goods back with "Return to supplier".');
+
+            return;
+        }
+
+        // A payment already made would vanish from what the supplier owes back.
+        if ((float) $this->order->paid_amount > 0) {
+            session()->flash('error', 'This order has payments recorded, so it cannot be cancelled. Receive the goods, or settle the refund with the supplier.');
 
             return;
         }
@@ -613,7 +667,10 @@ class PurchaseForm extends Component
                 }
 
                 // Stock is kept in base units: 2 cartons of 24 add 48 pcs,
-                // each costing a 24th of the carton price.
+                // each costing a 24th of the carton's landed cost (its share
+                // of the order discount, freight and tax). Every partial
+                // receipt uses the same per-unit cost, so in full they add up
+                // to the order total.
                 $factor = $item->factor;
 
                 // Stock arrives in the warehouse the order was raised against.
@@ -624,7 +681,7 @@ class PurchaseForm extends Component
                     type: 'purchase',
                     extra: [
                         'reference' => $this->order,
-                        'unit_cost' => (float) $item->unit_cost / $factor,
+                        'unit_cost' => $item->landedBaseUnitCost($this->order),
                         'batch_number' => $batch,
                         'expiry_date' => $expiry,
                     ],

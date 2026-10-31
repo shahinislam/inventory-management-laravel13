@@ -1,13 +1,17 @@
 <?php
 
 use App\Livewire\Reports\ProfitLossReport;
+use App\Livewire\Stock\StockAdjustment;
 use App\Models\Category;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\InventoryService;
+use App\Services\SalesReturnService;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -117,7 +121,9 @@ it('builds the profit and loss statement for the period', function () {
     expect($current['invoices'])->toBe(2)
         ->and($current['goods_sales'])->toEqual(1500.0)
         ->and($current['tax'])->toEqual(50.0)
-        ->and($current['gross_sales'])->toEqual(1550.0)
+        // Billed for goods: 1010 − 60 courier, plus 450.
+        ->and($current['gross_sales'])->toEqual(1400.0)
+        ->and($current['returns_incl_tax'])->toEqual(300.0)
         ->and($current['discounts'])->toEqual(150.0)
         ->and($current['returns'])->toEqual(300.0)
         ->and($current['net_sales'])->toEqual(1050.0)
@@ -132,6 +138,32 @@ it('builds the profit and loss statement for the period', function () {
 
     expect(collect($current['expenses'])->pluck('total', 'category')->all())
         ->toEqual(['Rent' => 500.0, 'Electricity' => 150.0]);
+});
+
+it('takes a refund off net sales and its tax off tax collected', function () {
+    openShift();
+    $drinks = Category::factory()->create(['name' => 'Drinks']);
+    $cola = Product::factory()->create(['category_id' => $drinks->id]);
+
+    // 2 × 50 plus 10% tax, one unit brought back.
+    $sale = plInvoice(['warehouse_id' => $this->warehouse->id, 'subtotal' => 100, 'tax' => 10, 'total' => 110, 'paid_amount' => 110]);
+    $line = plItem($sale, $cola, 2, 50, 30, ['subtotal' => 110, 'tax_rate' => 10, 'tax_amount' => 10]);
+
+    $return = app(SalesReturnService::class)->process($sale, [$line->id => ['quantity' => 1]], 'cash');
+
+    expect((float) $return->total)->toBe(55.0)
+        ->and((float) $return->tax)->toBe(5.0)
+        ->and((float) $return->subtotal)->toBe(50.0)
+        ->and((float) $return->items->sole()->tax_amount)->toBe(5.0);
+
+    $report = Livewire::test(ProfitLossReport::class);
+    $current = $report->viewData('current');
+
+    expect($current['gross_sales'])->toEqual(110.0)
+        ->and($current['returns'])->toEqual(50.0)
+        ->and($current['tax'])->toEqual(5.0)
+        ->and($current['net_sales'])->toEqual(50.0)
+        ->and(collect($report->viewData('categories'))->keyBy('category')['Drinks']['sales'])->toEqual(50.0);
 });
 
 it('does not count till cash in or out as expenses', function () {
@@ -199,4 +231,145 @@ it('forbids staff from the profit and loss report', function () {
     $staff = User::factory()->create(['role' => 'staff', 'is_active' => true]);
 
     $this->actingAs($staff)->get(route('reports.profit-loss'))->assertForbidden();
+});
+
+it('reports what was billed for goods after discounts, tax in and courier out', function () {
+    $drinks = Category::factory()->create(['name' => 'Drinks']);
+    $cola = Product::factory()->create(['category_id' => $drinks->id]);
+
+    // 10 × 100 with 15% on top, 100 off the bill: 900 net + 135 tax, and 50 courier.
+    $sale = plInvoice([
+        'subtotal' => 1000, 'discount' => 100, 'tax' => 135,
+        'courier_charge' => 50, 'total' => 1085, 'paid_amount' => 1085,
+    ]);
+    plItem($sale, $cola, 10, 100, 60, ['subtotal' => 1150, 'tax_rate' => 15, 'tax_amount' => 150]);
+
+    $current = Livewire::test(ProfitLossReport::class)->viewData('current');
+
+    // The old figure, 1000 before the discount + 135 tax after it, was 1135.
+    expect($current['gross_sales'])->toEqual(1035.0)
+        ->and($current['net_sales'])->toEqual(900.0)
+        ->and($current['tax'])->toEqual(135.0);
+});
+
+it('nets a fully returned discounted sale to zero in the category breakdown', function () {
+    openShift();
+    $drinks = Category::factory()->create(['name' => 'Drinks']);
+    $cola = Product::factory()->create(['category_id' => $drinks->id]);
+
+    // 2 × 100 (cost 60), 20 off the bill: the refund is 180, after the discount.
+    $sale = plInvoice(['warehouse_id' => $this->warehouse->id, 'subtotal' => 200, 'discount' => 20, 'total' => 180, 'paid_amount' => 180]);
+    $line = plItem($sale, $cola, 2, 100, 60);
+
+    $return = app(SalesReturnService::class)->process($sale, [$line->id => ['quantity' => 2]], 'cash');
+    expect((float) $return->total)->toBe(180.0);
+
+    $report = Livewire::test(ProfitLossReport::class);
+    $drinksRow = collect($report->viewData('categories'))->keyBy('category')['Drinks'];
+
+    // Sold and returned are both valued before the bill discount (200 − 200).
+    // Valuing the return at its 180 refund used to leave 20 of phantom profit.
+    expect($drinksRow['sales'])->toEqual(0.0)
+        ->and($drinksRow['cost'])->toEqual(0.0)
+        ->and($drinksRow['profit'])->toEqual(0.0)
+        ->and($drinksRow['qty'])->toEqual(0.0)
+        ->and($report->viewData('current')['net_sales'])->toEqual(0.0);
+});
+
+it('values a partial return at the sold line price in the category breakdown', function () {
+    openShift();
+    $drinks = Category::factory()->create(['name' => 'Drinks']);
+    $cola = Product::factory()->create(['category_id' => $drinks->id]);
+
+    // 4 × 100 with 15% tax inside (347.83 net for the line), 40 off the bill; one unit back.
+    $sale = plInvoice([
+        'warehouse_id' => $this->warehouse->id, 'prices_include_tax' => true,
+        'subtotal' => 347.83, 'tax' => 46.95, 'discount' => 40, 'total' => 360, 'paid_amount' => 360,
+    ]);
+    $line = plItem($sale, $cola, 4, 100, 50, ['subtotal' => 400, 'tax_rate' => 15, 'tax_amount' => 52.17]);
+
+    app(SalesReturnService::class)->process($sale, [$line->id => ['quantity' => 1]], 'cash');
+
+    $row = collect(Livewire::test(ProfitLossReport::class)->viewData('categories'))->keyBy('category')['Drinks'];
+
+    // 347.83 sold less a quarter of it, whatever the discounted refund was.
+    expect($row['sales'])->toEqual(260.87)
+        ->and($row['qty'])->toEqual(3.0)
+        ->and($row['cost'])->toEqual(150.0);
+});
+
+function plMovement(Product $product, string $type, float $before, float $after, float $unitCost, ?string $notes = null, $at = null): StockMovement
+{
+    $movement = StockMovement::create([
+        'product_id' => $product->id,
+        'warehouse_id' => Warehouse::first()->id,
+        'created_by' => auth()->id(),
+        'type' => $type,
+        'quantity' => abs($after - $before),
+        'before_quantity' => $before,
+        'after_quantity' => $after,
+        'unit_cost' => $unitCost,
+        'notes' => $notes,
+    ]);
+
+    if ($at) {
+        $movement->forceFill(['created_at' => $at])->save();
+    }
+
+    return $movement;
+}
+
+it('takes stock written off out of net profit, net of stock found again', function () {
+    $milk = Product::factory()->create();
+
+    plMovement($milk, 'adjustment', 0, 50, 20, 'Opening stock');            // not a gain
+    plMovement($milk, 'adjustment', 50, 60, 20, 'Initial stock entry');     // not a gain
+    plMovement($milk, 'damaged', 60, 57, 20, 'Damaged goods');              // 60 lost
+    plMovement($milk, 'expired', 57, 55, 20, 'Expired batch written off');  // 40 lost
+    plMovement($milk, 'adjustment', 55, 51, 20, 'Stock count SC-1');        // 80 short at a count
+    plMovement($milk, 'adjustment', 51, 52, 20, 'Found extra stock');       // 20 found again
+    plMovement($milk, 'sale', 52, 50, 20);                                  // a sale: COGS, not a loss
+    plMovement($milk, 'damaged', 50, 40, 20, 'Damaged goods', now()->subMonthNoOverflow()->startOfMonth()->addDays(2));
+
+    $report = Livewire::test(ProfitLossReport::class);
+    $current = $report->viewData('current');
+
+    expect($current['stock_lost'])->toEqual(180.0)
+        ->and($current['stock_found'])->toEqual(20.0)
+        ->and($current['stock_loss'])->toEqual(160.0)
+        ->and($current['net_profit'])->toEqual(-160.0)
+        ->and($report->viewData('previous')['stock_loss'])->toEqual(200.0);
+
+    $report->assertSee('Stock written off');
+});
+
+it('counts a damaged write-off from the stock adjustment screen at its movement cost', function () {
+    $milk = Product::factory()->create(['quantity' => 0, 'cost_price' => 30]);
+    app(InventoryService::class)->add($milk->id, $this->warehouse->id, 10, 'purchase', ['unit_cost' => 30]);
+
+    Livewire::test(StockAdjustment::class)
+        ->call('selectProduct', $milk->id)
+        ->set('adjustment_type', 'remove')
+        ->set('quantity', '4')
+        ->set('reason', 'Damaged goods')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $movement = StockMovement::where('type', 'damaged')->sole();
+    $current = Livewire::test(ProfitLossReport::class)->viewData('current');
+
+    expect($movement->quantity)->toBe(4.0)
+        ->and($current['stock_loss'])->toEqual(round(4 * (float) $movement->unit_cost, 2))
+        ->and($current['stock_loss'])->toBeGreaterThan(0.0)
+        ->and($current['net_profit'])->toEqual(-$current['stock_loss']);
+});
+
+it('says tax, not VAT, on the report', function () {
+    plDataset();
+
+    $this->get(route('reports.profit-loss'))
+        ->assertOk()
+        ->assertDontSee('VAT')
+        ->assertSee('Tax collected')
+        ->assertSee('Billed for goods incl. tax, after discounts');
 });

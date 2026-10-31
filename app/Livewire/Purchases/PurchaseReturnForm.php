@@ -21,9 +21,14 @@ use Livewire\Component;
  * original lines (parent_item_id) and are in the same unit they were ordered
  * in (e.g. cartons); stock leaves in base units (qty × unit_factor).
  *
- * The return's total is taken off what the shop owes on the parent order
- * (parent.returned_amount). Money the supplier hands back is recorded as a
- * PurchasePayment on the return itself.
+ * Goods go back at their landed cost: what the line really cost, with its
+ * share of the order discount, freight and tax (the cost they came in at).
+ *
+ * Money works as with a sales return: the return's total first comes off what
+ * the shop still owes on the parent order (parent.returned_amount). Only what
+ * was paid beyond the goods kept can be refunded; the refund is recorded as a
+ * PurchasePayment on the return itself and lowers the parent's net paid. An
+ * overpayment that is not refunded stays as supplier credit on the parent.
  */
 class PurchaseReturnForm extends Component
 {
@@ -109,7 +114,7 @@ class PurchaseReturnForm extends Component
                     'unit' => $item->product->unit,
                     'unit_label' => $item->unit_label ?: $item->product->unit,
                     'factor' => $item->factor,
-                    'unit_cost' => (float) $item->unit_cost,
+                    'unit_cost' => $item->landedUnitCost($this->order),
                     'returnable' => max(0, $returnable),
                     'available' => $inventory->stockIn($item->product_id, $this->order->warehouse_id),
                     'loose' => $item->product->isLoose(),
@@ -121,14 +126,10 @@ class PurchaseReturnForm extends Component
             ->all();
     }
 
-    /** Line value: qty × cost, less the line discount %, plus line tax %. */
-    private static function lineSubtotal(PurchaseOrderItem $item, float $qty): float
+    /** Line value: qty × landed cost, the same cost the goods were received at. */
+    private static function lineSubtotal(PurchaseOrder $order, PurchaseOrderItem $item, float $qty): float
     {
-        $sub = $qty * (float) $item->unit_cost;
-        $sub -= $sub * ((float) $item->discount / 100);
-        $sub += $sub * ((float) $item->tax_rate / 100);
-
-        return round($sub, 2);
+        return round($qty * $item->landedUnitCost($order), 2);
     }
 
     public function getReturnTotalProperty(): float
@@ -142,8 +143,20 @@ class PurchaseReturnForm extends Component
         return round(collect($this->lines)->sum(function ($line) use ($items) {
             $item = $items->get($line['item_id']);
 
-            return $item ? self::lineSubtotal($item, max(0, (float) ($line['qty'] ?: 0))) : 0;
+            return $item ? self::lineSubtotal($this->order, $item, max(0, (float) ($line['qty'] ?: 0))) : 0;
         }), 2);
+    }
+
+    /** How much of this return comes off what is still owed on the order. */
+    public function getDueReducedProperty(): float
+    {
+        return $this->order ? round(min($this->order->due_amount, $this->returnTotal), 2) : 0.0;
+    }
+
+    /** The most the supplier can refund now: only what was paid beyond the goods kept. */
+    public function getRefundableProperty(): float
+    {
+        return $this->order ? $this->order->refundableFor($this->returnTotal) : 0.0;
     }
 
     public function returnAll(): void
@@ -172,7 +185,7 @@ class PurchaseReturnForm extends Component
         }
 
         $this->refund_amount = str_replace(',', '', $this->refund_amount);
-        $refund = (float) ($this->refund_amount ?: 0);
+        $refund = round((float) ($this->refund_amount ?: 0), 2);
 
         $rules = [
             'return_date' => 'required|date',
@@ -229,7 +242,7 @@ class PurchaseReturnForm extends Component
                     ]);
                 }
 
-                $rows[] = [$item, $qty, $baseQty, self::lineSubtotal($item, $qty)];
+                $rows[] = [$item, $qty, $baseQty, self::lineSubtotal($parent, $item, $qty)];
             }
 
             if ($rows === []) {
@@ -238,9 +251,14 @@ class PurchaseReturnForm extends Component
 
             $total = round(array_sum(array_column($rows, 3)), 2);
 
-            if ($refund > $total + 0.005) {
+            // The return first comes off what is still owed; only an overpayment can come back.
+            $refundable = $parent->refundableFor($total);
+
+            if ($refund > $refundable + 0.005) {
                 throw ValidationException::withMessages([
-                    'refund_amount' => 'Refund cannot be more than the return total of '.money($total).'.',
+                    'refund_amount' => $refundable > 0
+                        ? 'The supplier can refund at most '.money($refundable).'. The rest of this return comes off what you owe on '.$parent->order_number.'.'
+                        : 'Nothing to refund: this return comes off the '.money($parent->due_amount).' you still owe on '.$parent->order_number.'.',
                 ]);
             }
 
@@ -262,14 +280,16 @@ class PurchaseReturnForm extends Component
             ]);
 
             foreach ($rows as [$item, $qty, $baseQty, $subtotal]) {
+                // At landed cost, so the order's discount, freight and tax are
+                // already in it: no line discount or tax on top.
                 $return->items()->create([
                     'product_id' => $item->product_id,
                     'parent_item_id' => $item->id,
                     'quantity' => $qty,
                     'received_quantity' => $qty,
-                    'unit_cost' => $item->unit_cost,
-                    'tax_rate' => $item->tax_rate ?? 0,
-                    'discount' => $item->discount ?? 0,
+                    'unit_cost' => $item->landedUnitCost($parent),
+                    'tax_rate' => 0,
+                    'discount' => 0,
                     'unit_label' => $item->unit_label,
                     'unit_factor' => $item->factor,
                     'subtotal' => $subtotal,
@@ -277,12 +297,16 @@ class PurchaseReturnForm extends Component
 
                 $inventory->remove($item->product_id, $parent->warehouse_id, $baseQty, 'purchase_return', [
                     'reference' => $return,
-                    'unit_cost' => (float) $item->unit_cost / $item->factor,
+                    'unit_cost' => $item->landedBaseUnitCost($parent),
                     'notes' => $this->reason ?: null,
                 ]);
             }
 
-            $parent->increment('returned_amount', $total);
+            $parent->update([
+                'returned_amount' => round((float) $parent->returned_amount + $total, 2),
+                // Money handed back is no longer paid: the order's net paid drops.
+                'paid_amount' => round((float) $parent->paid_amount - $refund, 2),
+            ]);
 
             if ($refund > 0) {
                 PurchasePayment::create([

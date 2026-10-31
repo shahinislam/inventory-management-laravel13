@@ -92,7 +92,7 @@
                             @endif
                         </flux:table.cell>
                         <flux:table.cell class="text-right tabular-nums">{{ format_qty($batch->quantity, $batch->product?->unit) }}</flux:table.cell>
-                        <flux:table.cell class="text-right tabular-nums">{{ money($batch->quantity * (float) $batch->unit_cost) }}</flux:table.cell>
+                        <flux:table.cell class="text-right tabular-nums">{{ money($batch->quantity * (float) $batch->product?->cost_price) }}</flux:table.cell>
                         @if($canWriteOff)
                             <flux:table.cell class="text-right print:hidden">
                                 @if($batch->isExpired())

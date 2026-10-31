@@ -52,7 +52,8 @@
     },
 
     inclusive: @js($this->pricesIncludeTax),
-    round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; },
+    // Rounds like PHP round(): to 15 significant digits first, then half away from zero.
+    round2(n) { return Math.sign(n) * Math.round(Number((Math.abs(n) * 100).toPrecision(15))) / 100; },
     // Mirrors PricingService::lineAmounts(): discount before tax, tax rounded per line.
     amounts(item) {
         const amount = this.round2((this.num(item?.price) - this.num(item?.discount)) * this.num(item?.quantity));
@@ -76,18 +77,23 @@
         const courier = this.$wire.hasCourier ? this.num(this.$wire.courierCharge) : 0;
         const courierCost = this.$wire.hasCourier ? this.num(this.$wire.courierCost) : 0;
         const memberDiscount = this.num(this.$wire.membershipDiscount);
+        // What the bill lists as the goods value: tax included when prices contain it.
+        const goods = this.inclusive ? this.round2(subtotal + itemTax) : subtotal;
+        const billDiscount = this.num(this.$wire.discount) + memberDiscount;
+        // Mirrors PricingService::discountTax(): the bill discount lowers the line tax by the same share.
+        const discountTax = itemTax > 0 && goods > 0 && billDiscount > 0 ? this.round2(itemTax * Math.min(1, billDiscount / goods)) : 0;
+        const lineTax = this.round2(itemTax - discountTax);
         return {
             subtotal,
-            // What the bill lists as the goods value: tax included when prices contain it.
-            goods: this.inclusive ? this.round2(subtotal + itemTax) : subtotal,
-            itemTax,
+            goods,
+            lineTax,
             extraTax,
             itemDiscount,
             memberDiscount,
-            tax: itemTax + extraTax,
+            tax: this.round2(lineTax + extraTax),
             courier,
             courierCost,
-            total: Math.max(0, subtotal - this.num(this.$wire.discount) - memberDiscount + itemTax + extraTax + courier),
+            total: Math.max(0, goods - billDiscount + (this.inclusive ? extraTax : lineTax + extraTax) + courier),
         };
     },
 }" x-on:keydown.f2.window.prevent="focusSearch()"
@@ -583,9 +589,9 @@
                             x-text="money(totals.total)">{{ money($this->cartTotal) }}</span>
                     </div>
                     @if ($this->pricesIncludeTax)
-                        <div x-show="totals.itemTax > 0" @unless ($this->cartItemTax > 0) style="display: none" @endunless
+                        <div x-show="totals.lineTax > 0" @unless ($this->cartLineTax > 0) style="display: none" @endunless
                             class="-mt-2 px-4 pb-2 text-right text-xs tabular-nums text-zinc-500">
-                            Includes tax <span x-text="money(totals.itemTax)">{{ money($this->cartItemTax) }}</span>
+                            Includes tax <span x-text="money(totals.lineTax)">{{ money($this->cartLineTax) }}</span>
                         </div>
                     @endif
 

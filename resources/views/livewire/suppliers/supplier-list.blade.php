@@ -100,11 +100,15 @@
                             <flux:badge size="sm" color="zinc">{{ $supplier->products_count }}</flux:badge>
                         </flux:table.cell>
 
-                        {{-- Balance --}}
+                        {{-- Balance: owed across placed purchase orders (due less credit). --}}
                         <flux:table.cell>
-                            <flux:text class="text-sm {{ $supplier->current_balance > 0 ? 'text-red-500' : '' }}">
-                                {{ money($supplier->current_balance) }}
-                            </flux:text>
+                            @if($supplier->balance < 0)
+                                <flux:text class="text-sm text-green-600">{{ money(-$supplier->balance) }} credit</flux:text>
+                            @else
+                                <flux:text class="text-sm {{ $supplier->balance > 0 ? 'text-red-500' : '' }}">
+                                    {{ money($supplier->balance) }}
+                                </flux:text>
+                            @endif
                         </flux:table.cell>
 
                         {{-- Status --}}

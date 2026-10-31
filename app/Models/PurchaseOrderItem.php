@@ -22,7 +22,7 @@ class PurchaseOrderItem extends Model
         return [
             'quantity' => 'float',
             'received_quantity' => 'float',
-            'unit_cost' => 'decimal:2',
+            'unit_cost' => 'decimal:4',
             'tax_rate' => 'decimal:2',
             'discount' => 'decimal:2',
             'subtotal' => 'decimal:2',
@@ -64,6 +64,26 @@ class PurchaseOrderItem extends Model
     public function getFactorAttribute(): float
     {
         return max(1.0, (float) ($this->unit_factor ?: 1));
+    }
+
+    /**
+     * What one ordered unit really cost: the supplier price plus its share of
+     * the order discount, freight and tax, spread by line value. Stock is
+     * received at this and sent back to the supplier at this.
+     */
+    public function landedUnitCost(?PurchaseOrder $order = null): float
+    {
+        $order ??= $this->purchaseOrder;
+
+        return round((float) $this->unit_cost * $order->landedCostRatio(), 4);
+    }
+
+    /** The landed cost per base unit (per piece when ordered by the carton). */
+    public function landedBaseUnitCost(?PurchaseOrder $order = null): float
+    {
+        $order ??= $this->purchaseOrder;
+
+        return round((float) $this->unit_cost * $order->landedCostRatio() / $this->factor, 4);
     }
 
     public function calculateSubtotal(): float

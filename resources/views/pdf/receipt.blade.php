@@ -77,12 +77,17 @@
     <div class="rule"></div>
 
     {{-- Items --}}
+    @php
+        // A line amount always includes its tax. With tax added on top the subtotal
+        // is before tax, so both are labelled to read together.
+        $taxOnTop = ! $invoice->prices_include_tax && $invoice->lineTax() > 0;
+    @endphp
     <table class="items">
         <thead>
             <tr>
                 <th>Item</th>
                 <th class="r" style="width:14mm">Qty</th>
-                <th class="r" style="width:20mm">Amount</th>
+                <th class="r" style="width:20mm">{{ $taxOnTop ? 'Incl. tax' : 'Amount' }}</th>
             </tr>
         </thead>
         <tbody>
@@ -111,7 +116,7 @@
     {{-- Totals --}}
     <table class="totals">
         <tr>
-            <td>Subtotal</td>
+            <td>{{ $taxOnTop ? 'Subtotal excl. tax' : 'Subtotal' }}</td>
             <td>{{ money($invoice->goodsTotal(), false) }}</td>
         </tr>
         @if ($invoice->discount > 0)
@@ -152,11 +157,39 @@
             <td>{{ money($invoice->total) }}</td>
         </tr>
     </table>
-    @if ($invoice->prices_include_tax && $invoice->lineTax() > 0)
+    @if ($invoice->prices_include_tax && $invoice->chargedLineTax() > 0)
         <table class="totals">
             <tr class="muted">
                 <td>Includes tax</td>
-                <td>{{ money($invoice->lineTax(), false) }}</td>
+                <td>{{ money($invoice->chargedLineTax(), false) }}</td>
+            </tr>
+        </table>
+    @endif
+
+    @php
+        // Goods brought back since the sale. Refunds are taken out of paid_amount,
+        // so they are shown on their own and Paid matches what was handed over.
+        $returnNotes = $invoice->isReturn() ? collect() : $invoice->returns;
+        $refunded = round((float) $returnNotes->sum('paid_amount'), 2);
+    @endphp
+    @if ($invoice->returned_amount > 0)
+        <div class="rule"></div>
+        <table class="totals">
+            <tr>
+                <td>Returned</td>
+                <td>−{{ money($invoice->returned_amount, false) }}</td>
+            </tr>
+            @foreach ($returnNotes as $ret)
+                <tr class="muted">
+                    <td>&nbsp; {{ $ret->invoice_number }} · {{ $ret->invoice_date->format('d/m/Y') }}</td>
+                    <td>{{ money($ret->total, false) }}</td>
+                </tr>
+            @endforeach
+        </table>
+        <table class="totals grand">
+            <tr>
+                <td>NET TOTAL</td>
+                <td>{{ money($invoice->net_total) }}</td>
             </tr>
         </table>
     @endif
@@ -169,9 +202,15 @@
                     ({{ $account->display_name }})
                 @endif
             </td>
-            <td>{{ money($invoice->paid_amount, false) }}</td>
+            <td>{{ money((float) $invoice->paid_amount + $refunded, false) }}</td>
         </tr>
-        @if ($invoice->due_amount > 0)
+        @if ($refunded > 0)
+            <tr>
+                <td>Refunded</td>
+                <td>−{{ money($refunded, false) }}</td>
+            </tr>
+        @endif
+        @if ($invoice->due_amount > 0 || $invoice->returned_amount > 0)
             <tr class="bold">
                 <td>Balance Due</td>
                 <td>{{ money($invoice->due_amount, false) }}</td>

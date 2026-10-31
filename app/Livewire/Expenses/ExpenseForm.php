@@ -73,6 +73,14 @@ class ExpenseForm extends Component
             abort_if(in_array($expense->type, ['cash_in', 'cash_out'], true), 404);
 
             $this->expense = $expense;
+
+            if ($reason = app(ShiftService::class)->expenseLockReason($expense)) {
+                session()->flash('error', $reason);
+                $this->redirect(route('expenses.index'), navigate: true);
+
+                return;
+            }
+
             $this->category = $expense->category ?? '';
             $this->amount = (string) $expense->amount;
             $this->expense_date = $expense->expense_date?->format('Y-m-d') ?? $this->expense_date;
@@ -109,6 +117,14 @@ class ExpenseForm extends Component
 
     public function save(): void
     {
+        // Re-checked here: the shift may have closed while the form was open.
+        if ($this->expense?->exists && $reason = app(ShiftService::class)->expenseLockReason($this->expense->load('shift'))) {
+            session()->flash('error', $reason);
+            $this->redirect(route('expenses.index'), navigate: true);
+
+            return;
+        }
+
         $data = $this->validate();
 
         $data['amount'] = round((float) $data['amount'], 2);

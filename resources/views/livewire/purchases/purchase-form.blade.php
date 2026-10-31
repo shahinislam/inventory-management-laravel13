@@ -87,7 +87,8 @@
                 @if($this->canReturn)
                     <flux:button icon="arrow-uturn-left" href="{{ route('purchases.return', $order) }}" wire:navigate>Return to supplier</flux:button>
                 @endif
-                @if(!in_array($order->status, ['received', 'cancelled']))
+                {{-- Not once stock has arrived: those goods are owed for. --}}
+                @if($order->canCancel())
                     <flux:button icon="x-circle" variant="ghost" wire:click="cancel" wire:confirm="Cancel this purchase order?">Cancel Order</flux:button>
                 @endif
             </div>
@@ -248,7 +249,8 @@
                                     </td>
                                     <td class="px-2 py-3 text-right">
                                         @if($isEditable)
-                                            <flux:input wire:model="items.{{ $index }}.unit_cost" type="number" step="0.01" min="0" size="sm" class="text-right tabular-nums" />
+                                            {{-- Up to 4 decimals: cheap pieces can cost 0.4167 each. --}}
+                                            <flux:input wire:model="items.{{ $index }}.unit_cost" type="number" step="any" min="0" size="sm" class="text-right tabular-nums" />
                                         @else
                                             <span class="tabular-nums">{{ money($item['unit_cost']) }}</span>
                                         @endif
@@ -384,6 +386,7 @@
                     </div>
 
                     @if($order?->exists && !$order->isDraft() && $order->status !== 'cancelled')
+                        {{-- Paid is net of refunds the supplier gave on returns. --}}
                         <div class="flex justify-between text-sm">
                             <flux:text class="text-zinc-500">Paid</flux:text>
                             <flux:text class="text-green-500">{{ money($order->paid_amount) }}</flux:text>
@@ -394,10 +397,18 @@
                                 <flux:text class="text-amber-600">{{ money($order->returned_amount) }}</flux:text>
                             </div>
                         @endif
-                        <div class="flex justify-between text-sm">
-                            <flux:text class="text-zinc-500">Due</flux:text>
-                            <flux:text @class(['text-red-500' => $order->due_amount > 0, 'text-zinc-500' => $order->due_amount <= 0])>{{ money($order->due_amount) }}</flux:text>
-                        </div>
+                        @if($order->credit_amount > 0)
+                            {{-- Paid for goods sent back and not refunded: the supplier owes it. --}}
+                            <div class="flex justify-between text-sm">
+                                <flux:text class="text-zinc-500">Supplier credit</flux:text>
+                                <flux:text class="font-medium text-green-600">{{ money($order->credit_amount) }}</flux:text>
+                            </div>
+                        @else
+                            <div class="flex justify-between text-sm">
+                                <flux:text class="text-zinc-500">Due</flux:text>
+                                <flux:text @class(['text-red-500' => $order->due_amount > 0, 'text-zinc-500' => $order->due_amount <= 0])>{{ money($order->due_amount) }}</flux:text>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </flux:card>
@@ -421,8 +432,10 @@
             </flux:card>
             @endif
 
-            {{-- Payment History --}}
-            @if($order?->exists && $order->payments->isNotEmpty())
+            {{-- Payment History. Refunds on returns are listed too, so the
+                 rows add up to the net Paid figure above. --}}
+            @php $refunds = $order?->exists ? $order->returns->filter(fn ($r) => (float) $r->paid_amount > 0) : collect(); @endphp
+            @if($order?->exists && ($order->payments->isNotEmpty() || $refunds->isNotEmpty()))
             <flux:card class="p-6">
                 <flux:heading class="mb-4">Payments</flux:heading>
                 <div class="space-y-3">
@@ -439,6 +452,17 @@
                                 </div>
                             </div>
                             <span class="shrink-0 font-medium tabular-nums">{{ money($payment->amount) }}</span>
+                        </div>
+                    @endforeach
+                    @foreach($refunds as $return)
+                        <div class="flex items-start justify-between gap-2 text-sm" wire:key="pr-{{ $return->id }}">
+                            <div class="min-w-0">
+                                <div class="font-medium text-zinc-900 dark:text-white">Refund</div>
+                                <div class="truncate text-xs text-zinc-500">
+                                    {{ $return->order_date->format('d M Y') }} · {{ $return->order_number }}
+                                </div>
+                            </div>
+                            <span class="shrink-0 font-medium tabular-nums text-amber-600">−{{ money($return->paid_amount) }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -487,6 +511,10 @@
                                     Ordered: {{ $qtyLabel($item->quantity, $rLabel, $item->factor, $item->product->unit) }}
                                     · Received: {{ format_qty($item->received_quantity) }}
                                     · Remaining: {{ format_qty($remaining, $rLabel) }}
+                                </flux:text>
+                                {{-- What stock is costed at: the line's share of the order total. --}}
+                                <flux:text class="text-xs text-zinc-400">
+                                    Landed cost: {{ money($item->landedUnitCost($order)) }} / {{ $rLabel }}
                                 </flux:text>
                             </div>
                             <flux:input

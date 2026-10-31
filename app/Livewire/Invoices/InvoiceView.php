@@ -67,8 +67,15 @@ class InvoiceView extends Component
             'payment_reference.required' => 'Enter the '.wallet_label().' transaction ID.',
         ]);
 
-        // A due paid at the counter goes into the cashier's drawer count.
+        // A due paid at the counter goes into the cashier's drawer count. Cash
+        // needs a drawer to go into, as at the POS and on returns.
         $shift = app(ShiftService::class)->currentFor(auth()->user());
+
+        if ($this->payment_method === 'cash' && ! $shift) {
+            $this->addError('payment_method', 'Open a shift before taking cash, so it is counted in your drawer. Or choose another method.');
+
+            return;
+        }
 
         $amount = (float) $this->payment_amount;
 
@@ -130,7 +137,11 @@ class InvoiceView extends Component
 
         $paymentAccounts = PaymentAccount::forMethod($this->payment_method)->get();
 
-        return view('livewire.invoices.invoice-view', compact('company', 'paymentAccounts'))
+        // Only asked while the payment form is open: cash then needs an open shift.
+        $needsShift = $this->showPaymentModal && $this->payment_method === 'cash'
+            && ! app(ShiftService::class)->currentFor(auth()->user());
+
+        return view('livewire.invoices.invoice-view', compact('company', 'paymentAccounts', 'needsShift'))
             ->layout('layouts.app', ['title' => $this->invoice->invoice_number]);
     }
 }

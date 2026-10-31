@@ -56,6 +56,7 @@ class InvoiceForm extends Component
     public string $discount = '0';
 
     /** Member reward given at the POS; kept as-is when the invoice is edited here. */
+    #[Locked]
     public float $membershipDiscount = 0;
 
     public bool $hasCourier = false;
@@ -120,7 +121,7 @@ class InvoiceForm extends Component
             // See PurchaseForm::mount() — string-typed properties, nullable columns.
             // The stored tax includes the line tax, which is recalculated from the
             // lines; only the manually added tax goes back into the field.
-            $this->tax = (string) max(0, round((float) $invoice->tax - (float) $invoice->items->sum('tax_amount'), 2));
+            $this->tax = (string) $invoice->extraTax();
             $this->discount = (string) ($invoice->discount ?? '0');
             $this->membershipDiscount = (float) $invoice->membership_discount;
             $this->courierCharge = (string) ($invoice->courier_charge ?? '0');
@@ -311,7 +312,7 @@ class InvoiceForm extends Component
         return round(array_reduce($this->items, fn ($sum, $item) => $sum + $this->lineAmounts($item)['net'], 0), 2);
     }
 
-    /** Tax accumulated from the per-line tax_rate on each item. */
+    /** Tax accumulated from the per-line tax_rate on each item, before bill discounts. */
     public function getItemTaxProperty(): float
     {
         return round(array_reduce($this->items, fn ($sum, $item) => $sum + $this->lineAmounts($item)['tax'], 0), 2);
@@ -332,14 +333,22 @@ class InvoiceForm extends Component
         );
     }
 
+    /** Line tax still charged after the bill and member discounts (see PricingService::discountTax()). */
+    public function getLineTaxProperty(): float
+    {
+        $discountTax = PricingService::discountTax($this->itemTax, $this->goodsTotal, (float) ($this->discount ?: 0) + $this->membershipDiscount);
+
+        return round($this->itemTax - $discountTax, 2);
+    }
+
     /**
-     * Total tax charged: per-line tax plus the manually entered tax surcharge.
-     * This is what gets stored on the invoice, so the tax shown to the customer
-     * matches the tax actually collected.
+     * Total tax charged: line tax after bill discounts plus the manually entered
+     * tax surcharge. This is what gets stored on the invoice, so the tax shown
+     * to the customer matches the tax actually collected.
      */
     public function getTaxTotalProperty(): float
     {
-        return $this->itemTax + (float) ($this->tax ?: 0);
+        return round($this->lineTax + (float) ($this->tax ?: 0), 2);
     }
 
     /*
@@ -369,7 +378,11 @@ class InvoiceForm extends Component
 
     public function getTotalProperty(): float
     {
-        return max(0, $this->subtotal - (float) ($this->discount ?: 0) - $this->membershipDiscount + $this->taxTotal + $this->courierChargeValue);
+        $discount = (float) ($this->discount ?: 0) + $this->membershipDiscount;
+        // Prices that include tax already hold the line tax; only added tax raises the bill.
+        $tax = $this->pricesIncludeTax ? (float) ($this->tax ?: 0) : $this->taxTotal;
+
+        return max(0, $this->goodsTotal - $discount + $tax + $this->courierChargeValue);
     }
 
     protected function rules(): array
@@ -383,7 +396,7 @@ class InvoiceForm extends Component
             'due_date' => 'nullable|date',
             'payment_method' => 'nullable|string',
             'tax' => 'nullable|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0|max:'.max(0, round($this->goodsTotal - $this->membershipDiscount, 2)),
             'courierCharge' => 'nullable|numeric|min:0',
             'courierCost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
@@ -453,6 +466,13 @@ class InvoiceForm extends Component
                 'payment_reference.required' => 'Enter the '.wallet_label().' transaction ID.',
             ],
         );
+
+        // Cash goes into a drawer, so it is counted at the shift close like POS cash.
+        if ($this->payment_method === 'cash' && ! app(ShiftService::class)->currentFor(auth()->user())) {
+            $this->addError('payment_method', 'Open a shift (POS → Open shift) before taking cash.');
+
+            return;
+        }
 
         // The payment row is written inside persist()'s transaction, so a failure
         // there cannot leave a paid invoice with deducted stock and no payment.

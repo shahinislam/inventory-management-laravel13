@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PaymentAccount;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -17,7 +18,8 @@ use Illuminate\Validation\ValidationException;
  * A return is stored as an invoice of type 'return' pointing at the sale
  * (parent_invoice_id), with one line per returned sale line (parent_item_id).
  * Each line is refunded at what the customer actually paid for it: the line
- * total less its share of any bill-level and member discount.
+ * total less its share of any bill-level and member discount, plus its share
+ * of any tax added by hand. The courier charge is not refunded.
  *
  * Money goes back in this order: first the customer's unpaid due on the sale
  * is reduced, then anything left is refunded by the chosen method.
@@ -26,19 +28,64 @@ class SalesReturnService
 {
     public const REFUND_METHODS = ['cash', 'card', 'mobile_banking', 'bank_transfer'];
 
-    /** What one unit of each sold line is worth back, after bill-level discounts. */
+    /**
+     * What each sold line is worth back in full, and the tax inside that.
+     *
+     * @return array<int, array{value: float, tax: float}> keyed by invoice_item id
+     */
+    public function lineValues(Invoice $invoice): array
+    {
+        $goods = $invoice->goodsTotal();
+        $billDiscount = (float) $invoice->discount + (float) $invoice->membership_discount;
+        // The bill discount lowers every line, tax included, by the same share (PricingService::discountTax()).
+        $kept = $goods > 0 ? max(0, 1 - $billDiscount / $goods) : 1;
+        $paid = (float) $invoice->items->sum('subtotal') * $kept;
+        $extraTax = $invoice->extraTax();
+
+        return $invoice->items->mapWithKeys(function (InvoiceItem $item) use ($kept, $paid, $extraTax) {
+            $value = (float) $item->subtotal * $kept;
+            $extra = $paid > 0 ? $extraTax * $value / $paid : 0;
+
+            return [$item->id => ['value' => $value + $extra, 'tax' => (float) $item->tax_amount * $kept + $extra]];
+        })->all();
+    }
+
+    /** What one unit of each sold line is worth back. */
     public function unitRefunds(Invoice $invoice): array
     {
-        $items = $invoice->items;
-        $lineTotal = (float) $items->sum('subtotal');
-        $billDiscount = (float) $invoice->discount + (float) $invoice->membership_discount;
+        $values = $this->lineValues($invoice);
 
-        return $items->mapWithKeys(function (InvoiceItem $item) use ($lineTotal, $billDiscount) {
-            $share = $lineTotal > 0 ? $billDiscount * ((float) $item->subtotal / $lineTotal) : 0;
-            $net = max(0, (float) $item->subtotal - $share);
+        return $invoice->items->mapWithKeys(fn (InvoiceItem $item) => [
+            $item->id => $item->quantity > 0 ? $values[$item->id]['value'] / $item->quantity : 0,
+        ])->all();
+    }
 
-            return [$item->id => $item->quantity > 0 ? $net / $item->quantity : 0];
-        })->all();
+    /**
+     * What bringing back $qty of a sold line gives back, to the cent. The last
+     * units take whatever is left, so a line returned piece by piece adds up
+     * to exactly what was paid for it.
+     *
+     * @param  array{value: float, tax: float}  $line  from lineValues()
+     * @return array{value: float, tax: float}
+     */
+    public function refundFor(InvoiceItem $item, float $qty, array $line): array
+    {
+        if ($item->quantity <= 0 || $qty <= 0) {
+            return ['value' => 0.0, 'tax' => 0.0];
+        }
+
+        if ($qty >= $item->returnableQuantity() - InventoryService::EPSILON) {
+            $done = $item->returnItems()->selectRaw('COALESCE(SUM(subtotal), 0) as value, COALESCE(SUM(tax_amount), 0) as tax')->toBase()->first();
+
+            return [
+                'value' => max(0, round($line['value'] - (float) $done->value, 2)),
+                'tax' => max(0, round($line['tax'] - (float) $done->tax, 2)),
+            ];
+        }
+
+        $share = $qty / (float) $item->quantity;
+
+        return ['value' => round($line['value'] * $share, 2), 'tax' => round($line['tax'] * $share, 2)];
     }
 
     /**
@@ -60,7 +107,7 @@ class SalesReturnService
 
         $return = DB::transaction(function () use ($sale, $lines, $refundMethod, $paymentAccountId, $reference, $reason, $shift) {
             $sale = Invoice::whereKey($sale->id)->lockForUpdate()->with('items.product')->firstOrFail();
-            $perUnit = $this->unitRefunds($sale);
+            $values = $this->lineValues($sale);
 
             // Validate every line before touching anything.
             $picked = [];
@@ -87,7 +134,9 @@ class SalesReturnService
                     ]);
                 }
 
-                $picked[] = [$item, $qty, (bool) ($line['restock'] ?? true), round($perUnit[$item->id] * $qty, 2)];
+                $back = $this->refundFor($item, $qty, $values[$item->id]);
+
+                $picked[] = [$item, $qty, (bool) ($line['restock'] ?? true), $back['value'], $back['tax']];
             }
 
             if ($picked === []) {
@@ -95,6 +144,7 @@ class SalesReturnService
             }
 
             $value = round(array_sum(array_column($picked, 3)), 2);
+            $tax = round(array_sum(array_column($picked, 4)), 2);
             $dueReduced = round(min((float) $sale->due_amount, $value), 2);
             $refund = round($value - $dueReduced, 2);
 
@@ -105,9 +155,12 @@ class SalesReturnService
                 if ($refundMethod === 'cash' && ! $shift) {
                     throw ValidationException::withMessages(['refundMethod' => 'Open a shift to pay a cash refund from the drawer.']);
                 }
-                if (PaymentAccount::requiredFor($refundMethod) && ! $paymentAccountId) {
-                    throw ValidationException::withMessages(['paymentAccountId' => 'Select the account the refund is paid from.']);
-                }
+                // Required for card and bank refunds, and it must be an active account of that kind.
+                Validator::make(
+                    ['paymentAccountId' => $paymentAccountId],
+                    ['paymentAccountId' => PaymentAccount::rule($refundMethod)],
+                    ['paymentAccountId.required' => 'Select the account the refund is paid from.'],
+                )->validate();
                 if (Payment::needsReference($refundMethod) && blank($reference)) {
                     throw ValidationException::withMessages(['reference' => 'Enter the '.wallet_label().' transaction ID.']);
                 }
@@ -126,7 +179,10 @@ class SalesReturnService
                 'customer_address' => $sale->customer_address,
                 'status' => 'paid',
                 'payment_method' => $refund > 0 ? $refundMethod : null,
-                'subtotal' => $value,
+                // Refunded amounts contain their tax, whichever way the sale was priced.
+                'prices_include_tax' => true,
+                'subtotal' => round($value - $tax, 2),
+                'tax' => $tax,
                 'total' => $value,
                 'paid_amount' => $refund,
                 'due_amount' => 0,
@@ -137,7 +193,7 @@ class SalesReturnService
 
             $inventory = app(InventoryService::class);
 
-            foreach ($picked as [$item, $qty, $restock, $amount]) {
+            foreach ($picked as [$item, $qty, $restock, $amount, $lineTax]) {
                 InvoiceItem::create([
                     'invoice_id' => $return->id,
                     'parent_item_id' => $item->id,
@@ -147,7 +203,9 @@ class SalesReturnService
                     'quantity' => $qty,
                     'unit_price' => round($amount / $qty, 2),
                     'unit_cost' => $item->unit_cost,
+                    'tax_rate' => $item->tax_rate,
                     'subtotal' => $amount,
+                    'tax_amount' => $lineTax,
                     'is_gift' => $item->is_gift,
                     'restock' => $restock,
                 ]);
@@ -187,14 +245,9 @@ class SalesReturnService
                 'returned_amount' => round((float) $sale->returned_amount + $value, 2),
                 'due_amount' => $newDue,
                 'paid_amount' => round((float) $sale->paid_amount - $refund, 2),
-                'status' => $fullyReturned ? 'returned' : ($newDue <= 0 ? 'paid' : $sale->status),
+                // Still owing (a courier charge, say) keeps the sale on the dues lists.
+                'status' => $newDue > 0 ? $sale->status : ($fullyReturned ? 'returned' : 'paid'),
             ]);
-
-            if ($sale->customer_id) {
-                Customer::whereKey($sale->customer_id)->update([
-                    'total_purchases' => DB::raw('GREATEST(0, total_purchases - '.(float) $value.')'),
-                ]);
-            }
 
             return $return;
         });

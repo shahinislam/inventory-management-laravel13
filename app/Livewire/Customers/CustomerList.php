@@ -53,6 +53,7 @@ class CustomerList extends Component
     {
         $customers = Customer::query()
             ->with('media')
+            ->withMoney()
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
                 ->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%")

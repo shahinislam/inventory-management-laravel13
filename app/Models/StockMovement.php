@@ -22,7 +22,7 @@ class StockMovement extends Model
             'quantity' => 'float',
             'before_quantity' => 'float',
             'after_quantity' => 'float',
-            'unit_cost' => 'decimal:2',
+            'unit_cost' => 'decimal:4',
             'expiry_date' => 'date',
         ];
     }

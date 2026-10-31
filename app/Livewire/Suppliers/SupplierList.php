@@ -58,6 +58,8 @@ class SupplierList extends Component
         $suppliers = Supplier::query()
             ->with('media')
             ->withCount('products')
+            // Owed across placed purchase orders; below zero is supplier credit.
+            ->withBalance()
             ->when($this->search, fn ($q) => $q->where(fn ($s) => $s
                 ->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%")

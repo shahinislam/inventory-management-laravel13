@@ -92,6 +92,25 @@ it('does not sell more than is in stock when the browser raises the quantity', f
         ->and($this->product->fresh()->quantity)->toBe(20.0);
 });
 
+it('sells only from an active warehouse whatever id the browser sends', function (?string $forged) {
+    $closed = Warehouse::factory()->create(['is_active' => false]);
+    $closed->products()->attach($this->product->id, ['quantity' => 50]);
+
+    $pos = Livewire::test(PosTerminal::class)
+        ->set('warehouse_id', match ($forged) {
+            'inactive' => $closed->id,
+            'missing' => 999999,
+            default => null,
+        })
+        ->assertSet('warehouse_id', $this->warehouse->id)
+        ->call('addToCart', $this->product->id)
+        ->call('openPaymentModal')
+        ->call('completeSale');
+
+    expect(Invoice::sole()->warehouse_id)->toBe($this->warehouse->id)
+        ->and($this->product->stockIn($closed->id))->toBe(50.0);
+})->with(['inactive', 'missing', 'empty' => [null]]);
+
 it('takes payment as usual when nothing was tampered with', function () {
     Livewire::test(PosTerminal::class)
         ->call('addToCart', $this->product->id)

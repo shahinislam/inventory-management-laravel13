@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('batch_number', 100)->nullable();
             $table->date('expiry_date')->nullable();
             $table->decimal('quantity', 12, 3)->default(0);
-            $table->decimal('unit_cost', 12, 2)->default(0);
+            $table->decimal('unit_cost', 14, 4)->default(0);
             $table->timestamp('received_at')->nullable();
             $table->timestamps();
 

@@ -52,7 +52,7 @@ class PromotionForm extends Component
             'code' => 'nullable|string|max:50|unique:promotions,code,'.($this->promotion?->id ?? 'NULL'),
             'description' => 'nullable|string',
             'type' => 'required|in:percentage,fixed,buy_x_get_y,bundle',
-            'value' => 'required|numeric|min:0',
+            'value' => 'required|numeric|min:0'.($this->type === 'percentage' ? '|max:100' : ''),
             'max_discount' => 'nullable|numeric|min:0',
             'min_order_amount' => 'nullable|numeric|min:0',
             'min_quantity' => 'nullable|integer|min:0',
