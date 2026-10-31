@@ -6,7 +6,7 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
 
         {{-- ========== SIDEBAR ========== --}}
-        <flux:sidebar sticky collapsible persist class="w-52 border-e print:hidden"
+        <flux:sidebar sticky collapsible persist class="w-56 border-e print:hidden"
             data-sidebar-style="{{ in_array($sidebarStyle = \App\Models\Setting::get('theme.sidebar', 'light'), ['light', 'dark', 'brand'], true) ? $sidebarStyle : 'light' }}">
 
             {{-- Logo --}}

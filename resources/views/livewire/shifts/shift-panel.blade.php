@@ -53,6 +53,8 @@
                             ['Cash added', $summary['cash_in'], '+'],
                             ['Cash taken out', $summary['cash_out'], '−'],
                             ['Expenses paid from drawer', $summary['cash_expenses'], '−'],
+                            ['Paid to suppliers', $summary['supplier_paid'], '−'],
+                            ['Refunds from suppliers', $summary['supplier_refunds'], '+'],
                         ] as [$label, $value, $sign])
                             <div class="flex justify-between">
                                 <span class="text-zinc-500">{{ $label }}</span>

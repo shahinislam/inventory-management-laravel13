@@ -6,6 +6,7 @@ use App\Models\CashShift;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PurchasePayment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -99,10 +100,22 @@ class ShiftService
         $cashOut = (float) ($drawer['cash_out'] ?? 0);
         $cashExpenses = (float) ($drawer['expense'] ?? 0);
 
+        // Cash handed to a supplier leaves the drawer; a supplier's cash refund
+        // (paid against a purchase return) comes back into it.
+        $supplierCash = PurchasePayment::where('purchase_payments.shift_id', $shift->id)
+            ->where('purchase_payments.method', 'cash')
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_payments.purchase_order_id')
+            ->selectRaw("COALESCE(SUM(CASE WHEN purchase_orders.type = 'return' THEN 0 ELSE purchase_payments.amount END), 0) as paid,
+                COALESCE(SUM(CASE WHEN purchase_orders.type = 'return' THEN purchase_payments.amount ELSE 0 END), 0) as refunded")
+            ->toBase()->first();
+        $supplierPaid = (float) $supplierCash->paid;
+        $supplierRefunds = (float) $supplierCash->refunded;
+
         $sales = $shift->invoices()->sales();
         $returns = $shift->invoices()->returns();
 
-        $drawerTotal = round((float) $shift->opening_cash + $cashSales - $cashRefunds + $cashIn - $cashOut - $cashExpenses, 2);
+        $drawerTotal = round((float) $shift->opening_cash + $cashSales - $cashRefunds + $cashIn - $cashOut - $cashExpenses
+            - $supplierPaid + $supplierRefunds, 2);
         // A closed shift was counted against the figure stored at close; that
         // figure stands even if something linked to the shift changes later.
         $closed = ! $shift->isOpen() && $shift->expected_cash !== null;
@@ -115,6 +128,8 @@ class ShiftService
             'cash_in' => $cashIn,
             'cash_out' => $cashOut,
             'cash_expenses' => $cashExpenses,
+            'supplier_paid' => $supplierPaid,
+            'supplier_refunds' => $supplierRefunds,
             'expected_cash' => $closed ? (float) $shift->expected_cash : $drawerTotal,
             // What the lines above add up to now; differs from expected_cash
             // only when a closed shift's records were changed after the count.

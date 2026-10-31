@@ -98,6 +98,7 @@
                             :description="$cust->phone . ' · ' . $cust->member_no" />
                     @endforeach
                 </x-search-select>
+                <flux:error name="customer_id" class="-mt-2 mb-4" />
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <flux:field>

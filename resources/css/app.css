@@ -285,6 +285,15 @@ select:focus[data-flux-control] {
     @apply text-sm font-semibold;
 }
 
+/* The shop name wraps onto a second line instead of being cut off. */
+[data-flux-sidebar-brand] > div.truncate {
+    white-space: normal;
+    line-height: 1.15;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
 [data-flux-sidebar-group] > div[data-open],
 [data-flux-sidebar-group] > div.ps-7 {
     padding-inline-start: 0.75rem;

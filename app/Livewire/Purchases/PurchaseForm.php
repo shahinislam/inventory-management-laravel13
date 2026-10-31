@@ -13,6 +13,7 @@ use App\Models\PurchasePayment;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use App\Services\ShiftService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -550,9 +551,17 @@ class PurchaseForm extends Component
             'payment_reference.required' => 'Enter the transaction ID for this payment.',
         ]);
 
+        // Cash comes out of a till, so it is counted at that shift's close.
+        $shift = app(ShiftService::class)->currentFor(auth()->user());
+        if ($this->payment_method === 'cash' && ! $shift) {
+            $this->addError('payment_method', 'Open a shift (POS → Open shift) before paying cash from the drawer.');
+
+            return;
+        }
+
         $amount = (float) $this->payment_amount;
 
-        DB::transaction(function () use ($amount) {
+        DB::transaction(function () use ($amount, $shift) {
             // Lock before reading the balance so two payments at once cannot
             // both pass the check — see InvoiceView::recordPayment().
             $order = PurchaseOrder::whereKey($this->order->id)->lockForUpdate()->firstOrFail();
@@ -567,6 +576,7 @@ class PurchaseForm extends Component
             PurchasePayment::create([
                 'purchase_order_id' => $order->id,
                 'created_by' => auth()->id(),
+                'shift_id' => $this->payment_method === 'cash' ? $shift?->id : null,
                 'payment_account_id' => PaymentAccount::requiredFor($this->payment_method) ? $this->payment_account_id : null,
                 'amount' => $amount,
                 'method' => $this->payment_method,

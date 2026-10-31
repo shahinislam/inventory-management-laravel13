@@ -63,6 +63,8 @@
         <tr><td>+ Cash added</td><td>{{ money($summary['cash_in'], false) }}</td></tr>
         <tr><td>− Cash taken out</td><td>{{ money($summary['cash_out'], false) }}</td></tr>
         <tr><td>− Expenses</td><td>{{ money($summary['cash_expenses'], false) }}</td></tr>
+        <tr><td>− Paid to suppliers</td><td>{{ money($summary['supplier_paid'], false) }}</td></tr>
+        <tr><td>+ Supplier refunds</td><td>{{ money($summary['supplier_refunds'], false) }}</td></tr>
     </table>
     <div class="rule-solid"></div>
     {{-- A closed shift prints the figure it was counted against, stored at close. --}}

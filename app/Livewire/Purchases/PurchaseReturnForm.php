@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\PurchasePayment;
 use App\Services\InventoryService;
+use App\Services\ShiftService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -210,9 +211,17 @@ class PurchaseReturnForm extends Component
             'refund_account_id.required' => 'Select the account the refund was received into.',
         ]);
 
+        // A cash refund from the supplier goes into a till, so it is counted at that shift's close.
+        $shift = app(ShiftService::class)->currentFor(auth()->user());
+        if ($refund > 0 && $this->refund_method === 'cash' && ! $shift) {
+            $this->addError('refund_method', 'Open a shift (POS → Open shift) before taking cash into the drawer.');
+
+            return;
+        }
+
         $inventory = app(InventoryService::class);
 
-        $return = DB::transaction(function () use ($inventory, $refund) {
+        $return = DB::transaction(function () use ($inventory, $refund, $shift) {
             $parent = PurchaseOrder::whereKey($this->order->id)->lockForUpdate()->firstOrFail();
             $items = $parent->items()->with('product')->get()->keyBy('id');
             $returned = self::returnedSoFar($items->keys()->all());
@@ -312,6 +321,7 @@ class PurchaseReturnForm extends Component
                 PurchasePayment::create([
                     'purchase_order_id' => $return->id,
                     'created_by' => auth()->id(),
+                    'shift_id' => $this->refund_method === 'cash' ? $shift?->id : null,
                     'payment_account_id' => PaymentAccount::requiredFor($this->refund_method) ? $this->refund_account_id : null,
                     'amount' => $refund,
                     'method' => $this->refund_method,

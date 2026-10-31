@@ -21,6 +21,8 @@ beforeEach(function () {
     $this->user = User::factory()->create(['role' => 'admin', 'is_active' => true]);
     $this->warehouse = Warehouse::factory()->default()->create();
     $this->actingAs($this->user);
+    // A supplier's cash refund goes into a drawer, so it needs an open shift.
+    openShift();
 });
 
 /** A purchase of $qty units at 100 each (or $item's unit_cost), fully received into stock. */

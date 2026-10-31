@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
-    'payment_number', 'purchase_order_id', 'created_by',
+    'payment_number', 'purchase_order_id', 'created_by', 'shift_id',
     'payment_account_id', 'amount', 'method',
     'reference', 'payment_date', 'notes',
 ])]

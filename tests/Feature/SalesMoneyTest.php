@@ -2,12 +2,15 @@
 
 use App\Livewire\Invoices\InvoiceForm;
 use App\Livewire\Pos\PosTerminal;
+use App\Livewire\Purchases\PurchaseForm;
 use App\Livewire\Returns\ReturnForm;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\MembershipReward;
 use App\Models\PaymentAccount;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\PricingService;
@@ -250,4 +253,68 @@ it('takes cash on the invoice form only inside an open shift', function () {
         ->assertHasErrors('payment_method');
 
     expect(Invoice::count())->toBe(0);
+});
+
+it('keeps an invoice sent on due inside the customer\'s credit limit', function () {
+    $customer = Customer::factory()->create(['credit_limit' => 150]);
+
+    $form = fn () => Livewire::test(InvoiceForm::class)
+        ->set('customer_id', $customer->id)
+        ->set('customer_name', $customer->name)
+        ->set('customer_phone', '5550100999')
+        ->call('addProduct', plainProduct()->id);
+
+    $form()->set('items.0.quantity', '2')->call('saveAndSend')->assertHasErrors('customer_id');
+    expect(Invoice::count())->toBe(0);
+
+    $form()->set('items.0.quantity', '1')->call('saveAndSend')->assertHasNoErrors();
+    expect($customer->owed())->toBe(100.0);
+});
+
+// ============ SUPPLIER CASH ============
+
+it('counts cash paid to and refunded by a supplier in the drawer', function () {
+    $order = PurchaseOrder::create([
+        'supplier_id' => Supplier::factory()->create()->id,
+        'warehouse_id' => $this->warehouse->id,
+        'created_by' => $this->user->id,
+        'status' => 'ordered',
+        'subtotal' => 100, 'tax' => 0, 'discount' => 0, 'total' => 100,
+        'order_date' => now(),
+    ]);
+    $shift = app(ShiftService::class)->currentFor($this->user);
+    $before = app(ShiftService::class)->summary($shift)['expected_cash'];
+
+    Livewire::test(PurchaseForm::class, ['order' => $order])
+        ->call('openPaymentModal')
+        ->set('payment_method', 'cash')
+        ->set('payment_amount', '40')
+        ->call('recordPayment')
+        ->assertHasNoErrors();
+
+    $summary = app(ShiftService::class)->summary($shift->fresh());
+
+    expect($summary['supplier_paid'])->toBe(40.0)
+        ->and($summary['expected_cash'])->toBe(round($before - 40, 2));
+});
+
+it('needs an open shift to pay a supplier in cash', function () {
+    app(ShiftService::class)->currentFor($this->user)->update(['status' => 'closed']);
+    $order = PurchaseOrder::create([
+        'supplier_id' => Supplier::factory()->create()->id,
+        'warehouse_id' => $this->warehouse->id,
+        'created_by' => $this->user->id,
+        'status' => 'ordered',
+        'subtotal' => 100, 'tax' => 0, 'discount' => 0, 'total' => 100,
+        'order_date' => now(),
+    ]);
+
+    Livewire::test(PurchaseForm::class, ['order' => $order])
+        ->call('openPaymentModal')
+        ->set('payment_method', 'cash')
+        ->set('payment_amount', '40')
+        ->call('recordPayment')
+        ->assertHasErrors('payment_method');
+
+    expect((float) $order->fresh()->paid_amount)->toBe(0.0);
 });

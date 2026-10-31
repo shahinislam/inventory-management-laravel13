@@ -438,6 +438,19 @@ class InvoiceForm extends Component
             return;
         }
 
+        // Sent unpaid, the whole bill becomes the customer's due: keep it inside their credit limit.
+        $customer = $this->customer_id ? Customer::find($this->customer_id) : null;
+        if (($left = $customer?->creditLeft()) !== null) {
+            // Re-sending an invoice already owed: its current due is part of what they owe now.
+            $left += $this->invoice?->exists && $this->invoice->customer_id === $customer->id ? (float) $this->invoice->due_amount : 0;
+
+            if ($this->total > $left + 0.005) {
+                $this->addError('customer_id', 'Over the credit limit: only '.money(max(0, $left)).' more can be owed by '.$customer->name.'.');
+
+                return;
+            }
+        }
+
         $invoice = $this->persist('sent');
         session()->flash('success', 'Invoice saved and marked as sent!');
         $this->redirect(route('invoices.show', $invoice), navigate: true);
